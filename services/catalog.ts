@@ -101,7 +101,7 @@ export const cartInputSchema = z.array(z.object({
 
 export type QuotedLine = {
   productId: string; quantity: number; optionIds: string[];
-  slug: string; name: string; categorySlug: string; optionNames: string[];
+  slug: string; name: string; categorySlug: string; image: string | null; optionNames: string[];
   unitPrice: number; lineTotal: number; problem: string | null;
 };
 export type CartQuote = { lines: QuotedLine[]; subtotal: number; ok: boolean; suggestions: PublicProduct[] };
@@ -112,7 +112,7 @@ export async function quoteCart(input: unknown, locationId: string | null): Prom
   const byId = new Map(menu.map((p) => [p.id, p]));
   const lines: QuotedLine[] = items.map((it) => {
     const p = byId.get(it.productId);
-    if (!p) return { ...it, slug: "", name: "Позиция недоступна", categorySlug: "", optionNames: [], unitPrice: 0, lineTotal: 0, problem: "Эта позиция больше не продаётся — удалите её из корзины" };
+    if (!p) return { ...it, slug: "", name: "Позиция недоступна", categorySlug: "", image: null, optionNames: [], unitPrice: 0, lineTotal: 0, problem: "Эта позиция больше не продаётся — удалите её из корзины" };
     const ids = [...new Set(it.optionIds)];
     const all = p.modifiers.flatMap((m) => m.options.map((o) => ({ o, m })));
     const chosen = ids.map((id) => all.find((x) => x.o.id === id));
@@ -127,7 +127,7 @@ export async function quoteCart(input: unknown, locationId: string | null): Prom
     if (!problem && !p.available) problem = "Сейчас нет в наличии";
     if (!problem && p.portions !== null && it.quantity > p.portions) problem = `Доступно только ${p.portions} шт.`;
     const unitPrice = p.price + ok.reduce((a, c) => a + c.o.priceDelta, 0);
-    return { ...it, optionIds: ids, slug: p.slug, name: p.name, categorySlug: p.category.slug, optionNames: ok.map((c) => c.o.name), unitPrice, lineTotal: unitPrice * it.quantity, problem };
+    return { ...it, optionIds: ids, slug: p.slug, name: p.name, categorySlug: p.category.slug, image: p.image, optionNames: ok.map((c) => c.o.name), unitPrice, lineTotal: unitPrice * it.quantity, problem };
   });
   const subtotal = lines.filter((l) => !l.problem).reduce((a, l) => a + l.lineTotal, 0);
   return { lines, subtotal, ok: lines.length > 0 && lines.every((l) => !l.problem), suggestions: await suggestions(items.map((i) => i.productId), locationId) };

@@ -3,12 +3,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-store";
-import { money } from "@/lib/format";
+import { sum } from "@/lib/format";
 import { checkoutQuoteAction, placeOrderAction, quoteCartAction } from "@/app/(site)/actions";
 import type { WebQuote } from "@/services/web-orders";
 import type { QuotedLine } from "@/services/catalog";
 
-const field = "w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-700";
+const field = "w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 text-sm font-medium outline-none placeholder:text-muted focus:bg-lime-soft";
 const LS = "detox-customer";
 
 export function CheckoutForm({ locationName, locationId }: { locationName: string; locationId: string }) {
@@ -55,7 +55,7 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
     if (!code) { setPromo(null); setPromoMsg(null); return; }
     const r = await checkoutQuoteAction({ items: lines, promoCode: code, fulfillment });
     if ("error" in r) { setPromoMsg({ ok: false, text: r.error }); return; }
-    setPromo(code); setPromoMsg({ ok: true, text: `Промокод применён: −${money(r.quote.discount)}` });
+    setPromo(code); setPromoMsg({ ok: true, text: `Промокод применён: −${sum(r.quote.discount)}` });
   }
 
   async function submit(e: React.FormEvent) {
@@ -69,81 +69,81 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
       clear();
       router.push(`/order/${r.orderId}`);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Не удалось оформить заказ. Проверьте соединение и попробуйте ещё раз.");
     } finally { lock.current = false; setBusy(false); }
   }
 
-  if (!mounted) return <p className="py-16 text-center text-neutral-500">Загружаем…</p>;
+  if (!mounted) return <p className="py-16 text-center text-muted">Загружаем…</p>;
   if (lines.length === 0)
     return (
-      <div className="rounded-3xl bg-white p-10 text-center shadow-sm">
+      <div className="rounded-2xl bg-white p-10 text-center pop">
         <p className="text-lg font-bold">Корзина пуста</p>
-        <Link href="/menu" className="mt-4 inline-block rounded-full bg-green-700 px-6 py-3 font-semibold text-white">В меню</Link>
+        <Link href="/menu" className="btn btn-lime pop mt-4">В меню</Link>
       </div>
     );
 
   const bad = view.find((l) => l.problem);
-  const radio = (on: boolean) => `flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${on ? "border-green-700 bg-lime-50 font-semibold" : "border-neutral-300 bg-white"}`;
+  const radio = (on: boolean) => `flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-ink px-4 py-3 text-sm ${on ? "bg-lime font-bold shadow-[3px_3px_0_0_#14231a]" : "bg-white"}`;
   return (
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div className="space-y-6">
-        <section className="space-y-3 rounded-3xl bg-white p-5 shadow-sm">
+        <section className="space-y-3 rounded-2xl bg-white p-5 pop">
           <h2 className="font-bold">Ваши данные</h2>
           <input className={field} placeholder="Имя" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required minLength={2} maxLength={80} />
           <input className={field} placeholder="Телефон, например +998 90 123 45 67" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" inputMode="tel" required />
           <input className={field} placeholder="Телефон друга, который вас пригласил (необязательно)" value={referrer} onChange={(e) => setReferrer(e.target.value)} inputMode="tel" />
-          <p className="text-xs text-neutral-500">Если вы у нас впервые и вас пригласил друг, укажите его номер — бонус получите оба после вашего первого заказа.</p>
+          <p className="text-xs text-muted">Если вы у нас впервые и вас пригласил друг, укажите его номер — бонус получите оба после вашего первого заказа.</p>
         </section>
 
-        <section className="space-y-3 rounded-3xl bg-white p-5 shadow-sm">
+        <section className="space-y-3 rounded-2xl bg-white p-5 pop">
           <h2 className="font-bold">Как получить заказ</h2>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className={radio(fulfillment === "PICKUP")}><input type="radio" name="f" checked={fulfillment === "PICKUP"} onChange={() => setFulfillment("PICKUP")} />Самовывоз</label>
             <label className={radio(fulfillment === "DELIVERY")}><input type="radio" name="f" checked={fulfillment === "DELIVERY"} onChange={() => setFulfillment("DELIVERY")} />Доставка</label>
           </div>
-          <p className="text-sm text-neutral-600">Точка: <b>{locationName}</b>{fulfillment === "PICKUP" ? " — заберёте заказ здесь." : " — заказ отправим отсюда."} Сменить точку можно в шапке сайта.</p>
+          <p className="text-sm text-muted">Точка: <b>{locationName}</b>{fulfillment === "PICKUP" ? " — заберёте заказ здесь." : " — заказ отправим отсюда."} Сменить точку можно в шапке сайта.</p>
           {fulfillment === "DELIVERY" && <textarea className={field} rows={2} placeholder="Адрес доставки: улица, дом, ориентир" value={address} onChange={(e) => setAddress(e.target.value)} required minLength={6} maxLength={200} />}
         </section>
 
-        <section className="space-y-3 rounded-3xl bg-white p-5 shadow-sm">
+        <section className="space-y-3 rounded-2xl bg-white p-5 pop">
           <h2 className="font-bold">Оплата</h2>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className={radio(method === "CASH")}><input type="radio" name="m" checked={method === "CASH"} onChange={() => setMethod("CASH")} />Наличными при получении</label>
             <label className={radio(method === "CARD")}><input type="radio" name="m" checked={method === "CARD"} onChange={() => setMethod("CARD")} />Картой при получении</label>
           </div>
-          <p className="text-xs text-neutral-500">Оплата происходит при получении заказа.</p>
+          <p className="text-xs text-muted">Оплата происходит при получении заказа.</p>
         </section>
       </div>
 
-      <aside className="h-fit space-y-3 rounded-3xl bg-white p-5 shadow-sm lg:sticky lg:top-24">
+      <aside className="h-fit space-y-3 rounded-2xl bg-white p-5 pop lg:sticky lg:top-24">
         <h2 className="text-lg font-bold">Ваш заказ</h2>
         <ul className="space-y-1 text-sm">
           {view.map((l) => (
             <li key={`${l.productId}${l.optionIds.join()}`} className="flex justify-between gap-3">
-              <span>{l.quantity} × {l.name}{l.optionNames.length > 0 && <span className="text-neutral-500"> ({l.optionNames.join(", ")})</span>}</span>
-              <span className="whitespace-nowrap">{l.problem ? "—" : money(l.lineTotal)}</span>
+              <span>{l.quantity} × {l.name}{l.optionNames.length > 0 && <span className="text-muted"> ({l.optionNames.join(", ")})</span>}</span>
+              <span className="whitespace-nowrap">{l.problem ? "—" : sum(l.lineTotal)}</span>
             </li>
           ))}
         </ul>
         <div className="flex gap-2 border-t pt-3">
           <input className={`${field} py-2`} placeholder="Промокод" value={promoInput} onChange={(e) => { setPromoInput(e.target.value); if (promo) { setPromo(null); setPromoMsg(null); } }} />
-          <button type="button" onClick={applyPromo} className="rounded-2xl border border-green-700 px-4 text-sm font-semibold text-green-800 hover:bg-lime-50">Применить</button>
+          <button type="button" onClick={applyPromo} className="btn btn-white pop pop-sm !rounded-2xl !px-4 text-sm">Применить</button>
         </div>
-        {promoMsg && <p className={`text-xs ${promoMsg.ok ? "text-green-800" : "text-red-700"}`}>{promoMsg.text}</p>}
+        {promoMsg && <p className={`text-xs ${promoMsg.ok ? "text-leaf" : "text-red-700"}`}>{promoMsg.text}</p>}
         {quote && (
           <div className="space-y-1 border-t pt-3 text-sm">
-            <p className="flex justify-between"><span>Сумма</span><span>{money(quote.subtotal)}</span></p>
-            {quote.discount > 0 && <p className="flex justify-between text-green-800"><span>Скидка</span><span>−{money(quote.discount)}</span></p>}
-            {fulfillment === "DELIVERY" && <p className="flex justify-between"><span>Доставка</span><span>{money(quote.deliveryFee)}</span></p>}
-            <p className="flex justify-between border-t pt-2 text-lg font-bold"><span>Итого</span><span>{money(quote.total)}</span></p>
-            {quote.points > 0 && <p className="text-xs text-neutral-500">+{quote.points} баллов после получения заказа</p>}
+            <p className="flex justify-between"><span>Сумма</span><span>{sum(quote.subtotal)}</span></p>
+            {quote.discount > 0 && <p className="flex justify-between text-leaf"><span>Скидка</span><span>−{sum(quote.discount)}</span></p>}
+            {fulfillment === "DELIVERY" && <p className="flex justify-between"><span>Доставка</span><span>{sum(quote.deliveryFee)}</span></p>}
+            <p className="flex justify-between border-t pt-2 text-lg font-bold"><span>Итого</span><span>{sum(quote.total)}</span></p>
+            {quote.points > 0 && <p className="text-xs text-muted">+{quote.points} баллов после получения заказа</p>}
           </div>
         )}
-        {bad && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{bad.name}: {bad.problem}. <Link href="/cart" className="font-semibold underline">Вернуться в корзину</Link></p>}
-        {!bad && problem && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{problem}</p>}
-        {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-        <button disabled={busy || !quote || !!bad} className="w-full rounded-full bg-green-700 py-3 font-semibold text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-neutral-300">
-          {busy ? "Оформляем…" : quote ? `Заказать · ${money(quote.total)}` : "Заказать"}
+        {bad && <p className="rounded-xl border-2 border-red-700 bg-red-50 p-3 text-sm text-red-800">{bad.name}: {bad.problem}. <Link href="/cart" className="font-semibold underline">Вернуться в корзину</Link></p>}
+        {!bad && problem && <p className="rounded-xl border-2 border-red-700 bg-red-50 p-3 text-sm text-red-800">{problem}</p>}
+        {error && <p className="rounded-xl border-2 border-red-700 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+        <button disabled={busy || !quote || !!bad} className="btn btn-lime pop w-full">
+          {busy ? "Оформляем…" : quote ? `Заказать · ${sum(quote.total)}` : "Заказать"}
         </button>
       </aside>
     </form>
