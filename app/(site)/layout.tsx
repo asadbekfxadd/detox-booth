@@ -21,10 +21,6 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <Link href="/" className="group" aria-label="Vitamin B — на главную"><Logo /></Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Основная навигация">
             <Link href="/menu" className={navLink}>Меню</Link>
-            <Link href="/menu?category=fresh" className={navLink}>Фреши</Link>
-            <Link href="/menu?category=smoothies" className={navLink}>Смузи</Link>
-            <Link href="/menu?category=bowls" className={navLink}>Боулы</Link>
-            <Link href="/menu?category=sets" className={navLink}>Сеты</Link>
             <Link href="/locations" className={navLink}>Точки</Link>
             <Link href="/orders" className={navLink}>Мои заказы</Link>
           </nav>
@@ -35,10 +31,6 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3 pb-2 md:hidden" aria-label="Разделы">
           <Link href="/menu" className={`${navLink} whitespace-nowrap`}>Меню</Link>
-          <Link href="/menu?category=fresh" className={`${navLink} whitespace-nowrap`}>Фреши</Link>
-          <Link href="/menu?category=smoothies" className={`${navLink} whitespace-nowrap`}>Смузи</Link>
-          <Link href="/menu?category=bowls" className={`${navLink} whitespace-nowrap`}>Боулы</Link>
-          <Link href="/menu?category=sets" className={`${navLink} whitespace-nowrap`}>Сеты</Link>
           <Link href="/locations" className={`${navLink} whitespace-nowrap`}>Точки</Link>
           <Link href="/orders" className={`${navLink} whitespace-nowrap`}>Мои заказы</Link>
         </nav>
