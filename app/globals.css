@@ -1,3 +1,52 @@
 @import "tailwindcss";
 
-body { background: #f7f3ea; color: #1a1a1a; font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+/* Дизайн-токены клиентского сайта. Админка использует тот же шрифт и фон. */
+@theme {
+  --font-display: "Unbounded Variable", "Onest Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Onest Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+
+  --color-ink: #18281c;
+  --color-leaf: #1c5a34;
+  --color-leaf-deep: #123d23;
+  --color-lime: #d4f26a;
+  --color-lime-soft: #e9f4c3;
+  --color-pom: #b3173f;
+  --color-paper: #f5f7ea;
+  --color-line: #dde4c6;
+  --color-muted: #5b6a5e;
+}
+
+/* У каждой категории свой цвет: он же цвет арки с фото и подписи. */
+.tone { --tone: #d9e6c3; --tone-deep: #3b5a2b; }
+.tone-smoothies { --tone: #ffd76a; --tone-deep: #8a5d00; }
+.tone-fresh { --tone: #ffb27a; --tone-deep: #a23f08; }
+.tone-detox { --tone: #b6db9b; --tone-deep: #266334; }
+.tone-bowls { --tone: #f6a9be; --tone-deep: #a3234b; }
+.tone-salads { --tone: #cfe48a; --tone-deep: #4b6615; }
+.tone-healthy-snacks { --tone: #e7c9a1; --tone-deep: #70461a; }
+.tone-fruits { --tone: #ff9a8b; --tone-deep: #a22a1a; }
+.tone-sets { --tone: #bdb6f2; --tone-deep: #3d3499; }
+
+html { background: var(--color-paper); }
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Заголовки сайта — крупный гротеск; в админке остаются обычными. */
+.site h1, .site h2, .site .display { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+/* Арка: форма окна киоска и восточных порталов. */
+.arch { border-top-left-radius: 999px; border-top-right-radius: 999px; }
+
+/* Единственное «живое» движение: арки в главном экране выезжают один раз при загрузке. */
+@keyframes arch-rise { from { transform: translateY(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+.arch-rise { animation: arch-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.arch-rise:nth-child(2) { animation-delay: 0.12s; }
+.arch-rise:nth-child(3) { animation-delay: 0.24s; }
+@media (prefers-reduced-motion: reduce) { .arch-rise { animation: none; } }
+
+:focus-visible { outline: 3px solid var(--color-leaf); outline-offset: 2px; border-radius: 6px; }

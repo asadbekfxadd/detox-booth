@@ -7,9 +7,13 @@ export function CartButton() {
   const count = useCart((s) => s.lines.reduce((a, l) => a + l.quantity, 0));
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const n = mounted ? count : 0;
   return (
-    <Link href="/cart" className="relative rounded-full bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800">
-      Корзина{mounted && count > 0 && <span className="ml-2 rounded-full bg-white px-2 py-0.5 text-xs text-green-800">{count}</span>}
+    <Link href="/cart" aria-label={n > 0 ? `Корзина, позиций: ${n}` : "Корзина"}
+      className="flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-leaf">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 7h12l-1 13H7L6 7z" /><path d="M9 7V6a3 3 0 0 1 6 0v1" /></svg>
+      <span className="hidden sm:inline">Корзина</span>
+      {n > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-lime px-1.5 text-xs font-bold text-ink">{n}</span>}
     </Link>
   );
 }

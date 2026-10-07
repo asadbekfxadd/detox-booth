@@ -8,3 +8,5 @@ const UNITS: Record<string, string> = { G: "г", KG: "кг", ML: "мл", L: "л"
 export const unitLabel = (u: string) => UNITS[u] ?? u;
 export const dateStr = (d: Date | string) => new Date(d).toLocaleDateString("ru-RU", { timeZone: "Asia/Tashkent" });
 export const dateTimeStr = (d: Date | string) => new Date(d).toLocaleString("ru-RU", { timeZone: "Asia/Tashkent", dateStyle: "short", timeStyle: "short" });
+/** Цена для клиентов: «32 000 сум». В админке остаётся money() с UZS. */
+export const sum = (n: number) => `${nf.format(Math.round(n))} сум`;

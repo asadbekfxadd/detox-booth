@@ -8,11 +8,12 @@ export function LocationSelect({ locations, current }: { locations: { id: string
   const [pending, start] = useTransition();
   if (locations.length === 0) return null;
   return (
-    <label className="flex items-center gap-2 text-sm text-neutral-600">
-      <span className="hidden sm:inline">📍 Точка</span>
+    <label className="relative flex items-center">
+      <span className="sr-only">Точка</span>
+      <svg className="pointer-events-none absolute left-3 text-leaf" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
       <select value={current ?? ""} disabled={pending} aria-label="Выбор точки"
         onChange={(e) => start(async () => { await setSiteLocation(e.target.value); router.refresh(); })}
-        className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-900">
+        className="max-w-[9.5rem] truncate rounded-full border border-line bg-white py-2.5 pl-9 pr-3 text-sm font-semibold sm:max-w-none">
         {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
       </select>
     </label>
