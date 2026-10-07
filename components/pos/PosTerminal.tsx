@@ -180,7 +180,7 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
   return (
     <div className="flex h-screen flex-col bg-[#f7f3ea] text-neutral-900">
       <header className="flex flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2">
-        <span className="text-lg font-bold text-green-800">DETOX BOOTH</span>
+        <span className="text-lg font-bold text-green-800">Vitamin B</span>
         <span className="text-sm text-neutral-600">{locationName} · {cashier}</span>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-sm">
           <button onClick={() => { setOrdersOpen(true); loadOrders(); }} className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Заказы смены</button>

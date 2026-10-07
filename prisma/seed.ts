@@ -100,7 +100,7 @@ async function main() {
 
   // ---------- Locations ----------
   const locs = await Promise.all(
-    [["Detox Booth Chilonzor", "Chilonzor, Tashkent"], ["Detox Booth Yunusobod", "Yunusobod, Tashkent"], ["Detox Booth Mirobod", "Mirobod, Tashkent"]]
+    [["Vitamin B Chilonzor", "Chilonzor, Tashkent"], ["Vitamin B Yunusobod", "Yunusobod, Tashkent"], ["Vitamin B Mirobod", "Mirobod, Tashkent"]]
       .map(([name, address]) => prisma.location.create({ data: { name, address } })),
   );
 

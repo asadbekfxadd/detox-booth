@@ -9,7 +9,7 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ ex
     <main className="min-h-screen grid place-items-center bg-[#f7f3ea] px-4">
       <form action={action} className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-xl space-y-5">
         <div>
-          <p className="text-sm font-semibold tracking-widest text-lime-600">DETOX BOOTH</p>
+          <p className="text-lg font-extrabold text-green-800">Vitamin B</p>
           <h1 className="text-2xl font-bold text-neutral-900">Вход для сотрудников</h1>
         </div>
         <input name="email" type="email" required placeholder="Email" autoComplete="username"

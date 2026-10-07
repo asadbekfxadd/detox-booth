@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getSiteLocation } from "@/lib/site";
 import { listMenu, listCategories, popularIds } from "@/services/catalog";
@@ -6,19 +7,19 @@ import { categoryEmoji } from "@/lib/emoji";
 import { toneClass } from "@/lib/tone";
 import { ProductCard } from "@/components/site/ProductCard";
 import { ProductImage } from "@/components/site/ProductImage";
-import { Marquee } from "@/components/site/Marquee";
 import { SpinBadge } from "@/components/site/SpinBadge";
 import { Lucky } from "@/components/site/Lucky";
+import { Icon, IconBadge, type IconName } from "@/components/site/Icon";
 
 export const dynamic = "force-dynamic";
 
 const MOODS = [
-  { t: "Бодрость с утра", d: "Смузи на фруктах", href: "/menu?category=smoothies", bg: "bg-mango text-night" },
-  { t: "После тренировки", d: "Много белка", href: "/menu?diet=protein", bg: "bg-pom text-white" },
-  { t: "Лёгкое и свежее", d: "Без сахара", href: "/menu?diet=sugarfree", bg: "bg-leaf text-night" },
-  { t: "Сытный обед", d: "Боулы и салаты", href: "/menu?category=bowls", bg: "bg-magenta text-white" },
-  { t: "Только растения", d: "Веган-меню", href: "/menu?diet=vegan", bg: "bg-neon text-night" },
-  { t: "Выгодно", d: "Сеты со скидкой", href: "/menu?category=sets", bg: "bg-berry text-white" },
+  { t: "Бодрость с утра", d: "Смузи на фруктах", href: "/menu?category=smoothies", bg: "bg-sun text-forest-deep" },
+  { t: "После тренировки", d: "Много белка", href: "/menu?diet=protein", bg: "bg-forest text-white" },
+  { t: "Лёгкое и свежее", d: "Без сахара", href: "/menu?diet=sugarfree", bg: "bg-leaf-soft text-forest" },
+  { t: "Сытный обед", d: "Боулы и салаты", href: "/menu?category=bowls", bg: "bg-orange text-forest-deep" },
+  { t: "Только растения", d: "Веган-меню", href: "/menu?diet=vegan", bg: "bg-leaf text-white" },
+  { t: "Выгодно", d: "Сеты со скидкой", href: "/menu?category=sets", bg: "bg-sand text-forest" },
 ] as const;
 
 const STEPS = [
@@ -27,9 +28,9 @@ const STEPS = [
   ["Заберите готовым", "Страница заказа сама покажет, когда всё собрано."],
 ] as const;
 
-const Arrow = () => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"><path d="M7 17L17 7M8 7h9v9" /></svg>
-);
+const FAMILY: [IconName, string][] = [["leaf", "Натуральный состав"], ["shield", "Без консервантов"], ["heart", "Полезно и вкусно"]];
+const ENERGY: [IconName, string][] = [["bolt", "Больше энергии"], ["pulse", "Поддержка иммунитета"], ["leaf", "Натуральный состав"], ["run", "Для активной жизни"]];
+const PERKS: [IconName, string][] = [["apple", "Свежие фрукты"], ["leaf", "Натуральный вкус"], ["pulse", "Поддержка иммунитета"], ["users", "Для всей семьи"]];
 
 export default async function HomePage() {
   const { locations, current } = await getSiteLocation();
@@ -43,53 +44,51 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* Главный экран */}
-      <section className="relative isolate overflow-hidden">
-        <div aria-hidden className="orb orb-a -left-24 -top-24 -z-10 h-[26rem] w-[26rem] bg-neon/40" />
-        <div aria-hidden className="orb orb-b -right-20 top-10 -z-10 h-[24rem] w-[24rem] bg-magenta/40" />
-        <div aria-hidden className="orb orb-a bottom-[-8rem] left-[35%] -z-10 h-[22rem] w-[22rem] bg-berry/45" />
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-16 pt-12 sm:pt-16 lg:grid-cols-[1.1fr_1fr] lg:gap-6 lg:pb-24">
+      {/* Главный экран: солнечный круг, фото напитков, значки преимуществ */}
+      <section className="relative isolate overflow-hidden bg-[radial-gradient(70%_80%_at_85%_30%,#ffe3a8_0%,#fff3d6_45%,var(--color-cream)_80%)]">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-14 pt-10 sm:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-6 lg:pb-20">
           <div className="relative">
-            <h1 className="text-[clamp(2.4rem,6.4vw,5.2rem)] font-black leading-[0.98]">
-              Смузи, боулы и фреши
-              <span className="mt-3 block"><span className="inline-block -rotate-1 rounded-xl bg-neon px-3 py-1 text-night">пока вы ждёте</span></span>
-            </h1>
-            <p className="mt-7 max-w-md text-lg leading-relaxed text-white/75">Готовим сразу после заказа из свежих фруктов и овощей. У каждой позиции указаны состав, граммовка и калорийность.</p>
+            <p className="script text-3xl text-orange-deep sm:text-4xl">Вместе вкуснее</p>
+            <h1 className="mt-2 text-[clamp(2.3rem,5.6vw,4.6rem)] font-black text-forest">Натуральные фрукты. <span className="text-orange-deep">Настоящий вкус.</span></h1>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-forest/75">Свежие соки, фруктовые миксы и смузи — для взрослых и детей. Готовим сразу после заказа.</p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/menu" className="btn btn-lime pop text-lg">Смотреть меню</Link>
-              {cats.some((c) => c.slug === "sets") && <Link href="/menu?category=sets" className="btn btn-white pop">Сеты со скидкой</Link>}
+              <Link href="/menu" className="btn btn-primary text-lg">Смотреть меню</Link>
+              {cats.some((c) => c.slug === "sets") && <Link href="/menu?category=sets" className="btn btn-ghost">Сеты со скидкой</Link>}
             </div>
+            <ul className="mt-10 grid max-w-xl grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
+              {PERKS.map(([ic, t]) => (
+                <li key={t} className="flex flex-col items-start gap-2 sm:items-center sm:text-center">
+                  <IconBadge name={ic} className="border-forest/80 text-forest" />
+                  <span className="text-xs font-bold uppercase leading-tight tracking-wide text-forest/80">{t}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div className="relative">
-            <SpinBadge className="absolute -top-6 right-0 z-10 h-28 w-28 rounded-full bg-neon text-night shadow-[0_0_60px_-10px_#c6ff2b] sm:-top-10 sm:h-36 sm:w-36 lg:-right-2" />
+            <div aria-hidden className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)] shadow-[0_40px_90px_-30px_#ff8a00]" />
+            <SpinBadge className="absolute -top-4 right-0 z-10 h-28 w-28 rounded-full bg-forest text-white shadow-xl sm:-top-8 sm:h-36 sm:w-36 lg:-right-2" />
             {heroItems.length === 3 ? (
               <div className="grid grid-cols-[1.15fr_1fr] gap-3 pt-8 sm:gap-4">
                 {heroItems.map((p, i) => (
-                  <Link key={p.id} href={`/menu/${p.slug}`} className={`${toneClass(p.category.slug)} arch-rise group relative block ${i === 0 ? "row-span-2" : ""} ${i === 2 ? "sm:translate-x-3" : ""}`}>
-                    <ProductImage image={p.image} name={p.name} categorySlug={p.category.slug} priority className={`${i === 0 ? "aspect-[3/4]!" : "aspect-square!"} ring-1 ring-white/20 shadow-[0_24px_60px_-24px_var(--tone)] transition-transform duration-300 group-hover:scale-[1.02]`} />
-                    <span className="display absolute bottom-3 left-3 right-3 truncate rounded-lg bg-night/85 px-3 py-2 text-[11px] font-bold leading-tight backdrop-blur sm:text-xs">
-                      {p.name} <span className="text-(--tone)">{sum(p.defaultPrice)}</span>
+                  <Link key={p.id} href={`/menu/${p.slug}`} className={`${toneClass(p.category.slug)} arch-rise group relative block ${i === 0 ? "row-span-2 self-start" : ""} ${i === 2 ? "sm:translate-x-3" : ""}`}>
+                    <ProductImage image={p.image} name={p.name} categorySlug={p.category.slug} priority className={`${i === 0 ? "aspect-[3/4]!" : "aspect-square!"} rounded-[1.75rem]! border-4 border-white shadow-[0_24px_50px_-24px_rgba(7,45,23,0.55)] transition-transform duration-300 group-hover:scale-[1.02]`} />
+                    <span className="display absolute bottom-3 left-3 right-3 truncate rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold leading-tight text-forest shadow sm:text-xs">
+                      {p.name} <span className="text-orange-deep">{sum(p.defaultPrice)}</span>
                     </span>
                   </Link>
                 ))}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3 pt-8">
-                {["smoothies", "bowls"].map((s) => <div key={s} className="arch-rise"><ProductImage image={null} name="" categorySlug={s} className="aspect-[3/4]!" /></div>)}
+                {["smoothies", "bowls"].map((s) => <div key={s} className="arch-rise"><ProductImage image={null} name="" categorySlug={s} className="aspect-[3/4]! rounded-[1.75rem]!" /></div>)}
               </div>
             )}
           </div>
         </div>
       </section>
 
-      {/* Две пересекающиеся бегущие строки */}
-      <div className="relative overflow-hidden py-8 sm:py-12">
-        <Marquee items={["Свежевыжатые соки", "Смузи на выбор", "Боулы с асаи", "Салаты с киноа", "Детокс-шоты"]} className="-ml-[5%] w-[110%] -rotate-1 bg-neon text-night" />
-        <Marquee reverse items={["Без сахара", "Много белка", "Только растения", "Готовим при вас", "Сеты со скидкой"]} className="-ml-[5%] -mt-3 w-[110%] rotate-1 bg-magenta text-white" />
-      </div>
-
-      <div className="mx-auto max-w-6xl space-y-20 px-4 py-10 sm:space-y-28 sm:py-16">
+      <div className="mx-auto max-w-6xl space-y-20 px-4 py-16 sm:space-y-28 sm:py-24">
         {/* Выбор по настроению */}
         <section aria-labelledby="mood">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -99,9 +98,9 @@ export default async function HomePage() {
           <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             {MOODS.map((m) => (
               <li key={m.t}>
-                <Link href={m.href} className={`group flex h-full min-h-36 flex-col justify-between gap-6 rounded-3xl p-4 transition-transform duration-200 hover:-translate-y-1 sm:p-6 ${m.bg}`}>
-                  <Arrow />
-                  <span><span className="display block text-[17px] font-black leading-tight sm:text-2xl">{m.t}</span><span className="mt-1 block text-sm font-semibold opacity-75">{m.d}</span></span>
+                <Link href={m.href} className={`group flex h-full min-h-36 flex-col justify-between gap-6 rounded-[1.75rem] p-4 transition-transform duration-200 hover:-translate-y-1 sm:p-6 ${m.bg}`}>
+                  <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-current transition-transform group-hover:rotate-45"><Icon name="arrow" size={20} /></span>
+                  <span><span className="display block text-[17px] font-extrabold leading-tight sm:text-2xl">{m.t}</span><span className="mt-1 block text-sm font-semibold opacity-80">{m.d}</span></span>
                 </Link>
               </li>
             ))}
@@ -117,13 +116,13 @@ export default async function HomePage() {
                 const item = cover(c.id);
                 return (
                   <li key={c.id} className={toneClass(c.slug)}>
-                    <Link href={`/menu?category=${c.slug}`} className="group relative block overflow-hidden rounded-3xl">
+                    <Link href={`/menu?category=${c.slug}`} className="group relative block overflow-hidden rounded-[1.75rem]">
                       {item
-                        ? <ProductImage image={item.image} name={c.name} categorySlug={c.slug} className="aspect-[4/5]! rounded-3xl! transition-transform duration-500 group-hover:scale-105" />
-                        : <div className="grid aspect-[4/5] place-items-center rounded-3xl bg-(--tone) text-6xl text-night">{categoryEmoji(c.slug)}</div>}
-                      <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-night via-night/70 to-transparent p-4 pt-14">
-                        <span className="display text-base font-black leading-tight sm:text-xl">{c.name}</span>
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-(--tone) text-night transition-transform group-hover:rotate-45"><Arrow /></span>
+                        ? <ProductImage image={item.image} name={c.name} categorySlug={c.slug} className="aspect-[4/5]! rounded-[1.75rem]! transition-transform duration-500 group-hover:scale-105" />
+                        : <div className="grid aspect-[4/5] place-items-center rounded-[1.75rem] bg-(--tone) text-6xl">{categoryEmoji(c.slug)}</div>}
+                      <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-linear-to-t from-forest-deep via-forest-deep/60 to-transparent p-4 pt-16 text-white">
+                        <span className="display text-base font-extrabold leading-tight sm:text-xl">{c.name}</span>
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-(--tone) text-forest-deep transition-transform group-hover:rotate-45"><Icon name="arrow" size={18} /></span>
                       </span>
                     </Link>
                   </li>
@@ -138,29 +137,71 @@ export default async function HomePage() {
           <section aria-labelledby="top">
             <div className="mb-8 flex items-end justify-between gap-4">
               <h2 id="top" className="text-3xl font-black sm:text-5xl">{popular.length >= 4 ? "Выбирают чаще всего" : "С чего начать"}</h2>
-              <Link href="/menu" className="btn btn-white pop !px-4 !py-2 text-sm">Всё меню</Link>
+              <Link href="/menu" className="btn btn-ghost !px-4 !py-2 text-sm">Всё меню</Link>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">{featured.map((p, i) => <ProductCard key={p.id} p={p} priority={i < 4} />)}</div>
           </section>
         )}
+
+        {/* Для всей семьи */}
+        <section aria-labelledby="family" className="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
+          <div className="relative">
+            <Image src="/brand/family.jpg" alt="Семья с соками Vitamin B на террасе" width={800} height={560} sizes="(min-width: 1024px) 560px, 100vw" className="aspect-[10/8] w-full rounded-[2rem] object-cover shadow-[0_30px_60px_-30px_rgba(7,45,23,0.5)]" />
+            <Image src="/brand/kids.jpg" alt="Дети пьют смузи Vitamin B" width={481} height={387} sizes="220px" className="absolute -bottom-6 -right-2 hidden w-44 rounded-3xl border-4 border-white object-cover shadow-xl sm:block sm:w-52" />
+            <p className="script absolute -top-5 left-4 -rotate-3 rounded-2xl bg-forest px-5 py-2 text-2xl text-orange shadow-lg sm:text-3xl">Семейные моменты со вкусом</p>
+          </div>
+          <div>
+            <p className="script text-3xl text-orange-deep">Счастливые дети — здоровое будущее</p>
+            <h2 id="family" className="mt-2 text-3xl font-black sm:text-5xl">Полезные привычки начинаются с семьи</h2>
+            <p className="mt-5 max-w-lg text-lg leading-relaxed text-forest/75">Натуральные соки и фруктовые смузи, которые дети любят, а взрослые выбирают для себя. Свежие фрукты, ничего лишнего.</p>
+            <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-4">
+              {FAMILY.map(([ic, t]) => (
+                <li key={t} className="flex items-center gap-3"><IconBadge name={ic} className="border-orange text-orange-deep" /><span className="text-xs font-bold uppercase leading-tight tracking-wide">{t}</span></li>
+              ))}
+            </ul>
+            <Link href="/menu?category=smoothies" className="btn btn-forest mt-8">Выбрать смузи</Link>
+          </div>
+        </section>
       </div>
+
+      {/* Энергия на твои цели: тёмный «спортивный» блок */}
+      <section aria-labelledby="energy" className="relative overflow-hidden bg-forest-deep text-white">
+        <div aria-hidden className="absolute -right-24 top-0 h-[28rem] w-[28rem] rounded-full bg-orange/30 blur-[100px]" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:py-24 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <p className="script text-3xl text-orange">Натуральные фрукты. Настоящий вкус.</p>
+            <h2 id="energy" className="mt-2 text-4xl font-black sm:text-6xl">Энергия на твои цели</h2>
+            <p className="mt-5 max-w-md text-lg text-white/75">Твоё движение вперёд: белковые смузи и свежие соки до и после тренировки.</p>
+            <ul className="mt-8 grid gap-5 sm:grid-cols-2">
+              {ENERGY.map(([ic, t]) => (
+                <li key={t} className="flex items-center gap-4"><IconBadge name={ic} className="border-white/80 text-white" /><span className="text-xs font-bold uppercase leading-tight tracking-wide">{t}</span></li>
+              ))}
+            </ul>
+            <Link href="/menu?diet=protein" className="btn btn-primary mt-10 text-lg">Меню с белком</Link>
+          </div>
+          <div className="relative mx-auto w-full max-w-sm">
+            <Image src="/brand/gym.jpg" alt="Спортсмен с апельсиновым соком Vitamin B" width={295} height={330} sizes="384px" className="aspect-[4/4.4] w-full rounded-[2rem] object-cover shadow-[0_30px_80px_-30px_#ff8a00] ring-1 ring-white/20" />
+            <p className="display absolute -bottom-4 -left-3 rounded-full bg-orange px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-forest-deep shadow-lg">Good juice, good mood</p>
+          </div>
+        </div>
+      </section>
 
       {/* Сеты */}
       {setItems.length > 0 && (
-        <section className="relative overflow-hidden bg-[linear-gradient(120deg,#7b3cff_0%,#c42fd6_55%,#ff2fa0_100%)] text-white">
+        <section className="bg-[linear-gradient(120deg,#ffb000_0%,#ff8a00_60%,#ff6a00_100%)] text-forest-deep">
           <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:py-20 lg:grid-cols-[1fr_1.1fr]">
             <div>
-              <h2 className="text-4xl font-black leading-[1.02] sm:text-6xl">Сеты выгоднее, чем по отдельности</h2>
-              <p className="mt-5 max-w-md text-lg text-white/90">Боул и напиток, детокс на весь день или завтрак для двоих. Цена уже со скидкой.</p>
-              <Link href="/menu?category=sets" className="btn btn-lime mt-8 text-lg">Выбрать сет</Link>
+              <h2 className="text-4xl font-black sm:text-6xl">Сеты выгоднее, чем по отдельности</h2>
+              <p className="mt-5 max-w-md text-lg font-medium">Боул и напиток, детокс на весь день или завтрак для двоих. Цена уже со скидкой.</p>
+              <Link href="/menu?category=sets" className="btn btn-forest mt-8 text-lg">Выбрать сет</Link>
             </div>
             <ul className="grid grid-cols-3 gap-3 sm:gap-5">
               {setItems.map((p, i) => (
                 <li key={p.id} className={i === 1 ? "mt-8" : ""}>
                   <Link href={`/menu/${p.slug}`} className="group block">
-                    <ProductImage image={p.image} name={p.name} categorySlug="sets" className="shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] ring-1 ring-white/30 transition-transform duration-300 group-hover:-translate-y-2" />
-                    <p className="display mt-3 text-[11px] font-bold leading-tight sm:text-sm">{p.name}</p>
-                    <p className="text-xs font-bold text-neon sm:text-sm">{sum(p.defaultPrice)}</p>
+                    <ProductImage image={p.image} name={p.name} categorySlug="sets" className="rounded-[1.5rem]! border-4 border-white shadow-[0_20px_40px_-20px_rgba(7,45,23,0.6)] transition-transform duration-300 group-hover:-translate-y-2" />
+                    <p className="display mt-3 text-[11px] font-extrabold leading-tight sm:text-sm">{p.name}</p>
+                    <p className="text-xs font-bold sm:text-sm">{sum(p.defaultPrice)}</p>
                   </Link>
                 </li>
               ))}
@@ -170,30 +211,27 @@ export default async function HomePage() {
       )}
 
       {/* Как заказать */}
-      <section aria-labelledby="how" className="bg-neon text-night">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20">
-          <h2 id="how" className="text-3xl font-black sm:text-5xl">Как заказать</h2>
-          <ol className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-8">
-            {STEPS.map(([t, d], i) => (
-              <li key={t} className="border-t-2 border-night pt-4">
-                <span className="display block text-7xl font-black leading-none text-night sm:text-8xl">{i + 1}</span>
-                <p className="mt-4 text-xl font-black">{t}</p>
-                <p className="mt-2 leading-relaxed text-night/75">{d}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
+      <section aria-labelledby="how" className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
+        <h2 id="how" className="text-3xl font-black sm:text-5xl">Как заказать</h2>
+        <ol className="mt-10 grid gap-8 sm:grid-cols-3">
+          {STEPS.map(([t, d], i) => (
+            <li key={t} className="flex gap-4">
+              <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-full bg-linear-to-br from-sun to-orange text-2xl font-black text-forest-deep">{i + 1}</span>
+              <div><p className="text-lg font-extrabold">{t}</p><p className="mt-1 leading-relaxed text-forest/70">{d}</p></div>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {locations.length > 0 && (
-        <section aria-labelledby="where" className="mx-auto max-w-6xl px-4 py-14 sm:py-24">
+        <section aria-labelledby="where" className="mx-auto max-w-6xl px-4 pb-16 sm:pb-24">
           <h2 id="where" className="mb-8 text-3xl font-black sm:text-5xl">Наши точки</h2>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {locations.map((l) => (
-              <li key={l.id} className={`rounded-3xl border p-6 ${current?.id === l.id ? "border-neon bg-neon/10" : "border-white/12 bg-surface"}`}>
+              <li key={l.id} className={`rounded-[1.75rem] border p-6 ${current?.id === l.id ? "border-orange bg-sand" : "border-forest/12 bg-white"}`}>
                 <p className="display text-lg font-extrabold">{l.name}</p>
-                {l.address && <p className="mt-1 text-sm text-white/70">{l.address}</p>}
-                {current?.id === l.id && <p className="mt-3 text-sm font-bold text-neon">Заказ оформляется на эту точку</p>}
+                {l.address && <p className="mt-1 text-sm text-forest/70">{l.address}</p>}
+                {current?.id === l.id && <p className="mt-3 text-sm font-bold text-orange-deep">Заказ оформляется на эту точку</p>}
               </li>
             ))}
           </ul>

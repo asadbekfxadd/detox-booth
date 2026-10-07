@@ -8,12 +8,12 @@ export default async function CheckoutPage() {
   return (
     <Page className="space-y-6">
       <div>
-        <Link href="/cart" className="text-sm text-white/60 hover:text-white">← Назад в корзину</Link>
+        <Link href="/cart" className="text-sm text-forest/60 hover:text-orange-deep">← Назад в корзину</Link>
         <h1 className="text-3xl font-extrabold">Оформление заказа</h1>
       </div>
       {current
         ? <CheckoutForm locationName={current.name} locationId={current.id} />
-        : <p className="rounded-2xl bg-surface p-6 pop">Сейчас нет доступных точек для заказа.</p>}
+        : <p className="rounded-2xl bg-white p-6 pop">Сейчас нет доступных точек для заказа.</p>}
     </Page>
   );
 }

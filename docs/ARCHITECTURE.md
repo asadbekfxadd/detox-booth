@@ -1,4 +1,4 @@
-# Detox Booth — архитектура
+# Vitamin B — архитектура
 Стек без изменений: Next.js (App Router) + TS + Tailwind + shadcn/ui + Prisma/PostgreSQL + Auth.js + Zod + Recharts + Zustand.
 Отдельный backend не нужен: Route Handlers + слой services.
 
