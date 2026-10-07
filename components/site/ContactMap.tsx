@@ -1,12 +1,12 @@
 import { Icon } from "@/components/site/Icon";
-import { INSTAGRAM_HANDLE, INSTAGRAM_URL, hasExactAddress, mapEmbedUrl, googleRouteUrl, yandexMapUrl } from "@/lib/brand";
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL, hasMap, mapEmbedUrl, googleRouteUrl, yandexMapUrl } from "@/lib/brand";
 
-type Loc = { name: string; address: string | null; phone: string | null };
+type Loc = { name: string; address: string | null; phone: string | null; lat: number | null; lng: number | null };
 
 /** Блок «Где нас найти» над подвалом: адрес, телефон, Instagram и карта выбранной точки. */
 export function ContactMap({ location }: { location: Loc | null }) {
   const address = location?.address ?? null;
-  const exact = hasExactAddress(address);
+  const exact = !!location && hasMap(location);
   const link = "btn !px-5 !py-2.5 text-sm";
   return (
     <section aria-labelledby="where" className="mx-auto w-full max-w-6xl px-4 pb-14 pt-6 sm:pb-20">
@@ -24,15 +24,15 @@ export function ContactMap({ location }: { location: Loc | null }) {
             <p className="mt-5 text-sm text-forest/60">Заказ готовим сразу после оформления. Сменить точку можно в шапке сайта.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {exact && address && <a href={googleRouteUrl(address)} target="_blank" rel="noopener noreferrer" className={`${link} btn-forest`}>Построить маршрут</a>}
-            {exact && address && <a href={yandexMapUrl(address)} target="_blank" rel="noopener noreferrer" className={`${link} btn-ghost`}>Яндекс Карты</a>}
+            {exact && location && <a href={googleRouteUrl(location)} target="_blank" rel="noopener noreferrer" className={`${link} btn-forest`}>Построить маршрут</a>}
+            {exact && location && <a href={yandexMapUrl(location)} target="_blank" rel="noopener noreferrer" className={`${link} btn-ghost`}>Яндекс Карты</a>}
             <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={`${link} btn-primary`}><Icon name="instagram" size={18} />@{INSTAGRAM_HANDLE}</a>
           </div>
         </div>
-        {exact && address && (
+        {exact && location && (
           <iframe
             title={`Карта: ${location?.name ?? "Vitamin B"}`}
-            src={mapEmbedUrl(address)}
+            src={mapEmbedUrl(location)}
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
             className="h-72 w-full rounded-3xl border-0 sm:h-96 lg:h-full lg:min-h-[22rem]"

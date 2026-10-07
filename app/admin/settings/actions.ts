@@ -22,7 +22,7 @@ export async function saveLocationsAction(_p: OpState, fd: FormData): Promise<Op
   try {
     const u = await requireUser("settings.edit");
     const ids = fd.getAll("id").map(String);
-    n = await saveLocationContacts(ids.map((id) => ({ id, address: String(fd.get(`address:${id}`) ?? ""), phone: String(fd.get(`phone:${id}`) ?? "") })), u);
+    n = await saveLocationContacts(ids.map((id) => ({ id, address: String(fd.get(`address:${id}`) ?? ""), phone: String(fd.get(`phone:${id}`) ?? ""), coords: String(fd.get(`coords:${id}`) ?? "") })), u);
   } catch (e) { return { error: toMessage(e) }; }
   revalidatePath("/admin/settings"); revalidatePath("/", "layout");
   redirect(`/admin/settings?loc=${n}`);

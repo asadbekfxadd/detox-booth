@@ -2,7 +2,7 @@ import { pageGuard } from "@/lib/guard";
 import { SETTING_FIELDS, getSettingValues } from "@/services/settings";
 import { FormShell, Field, fieldClass } from "@/components/admin/ops";
 import { listLocationContacts } from "@/services/locations";
-import { hasExactAddress } from "@/lib/brand";
+import { hasMap } from "@/lib/brand";
 import { saveSettingsAction, saveLocationsAction } from "./actions";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; loc?: string }> }) {
@@ -30,7 +30,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       <div className="border-t border-neutral-200 pt-5">
         <h2 className="text-lg font-bold">Точки на сайте</h2>
-        <p className="text-sm text-neutral-500">Адрес и телефон показываются клиентам. По точному адресу (улица и дом) внизу сайта появляется карта.</p>
+        <p className="text-sm text-neutral-500">Адрес и телефон показываются клиентам. Внизу сайта появляется карта, если заданы координаты или точный адрес (улица и дом).</p>
       </div>
       {loc != null && <p className="rounded-xl bg-lime-100 px-4 py-2 text-sm text-green-900">{loc === "0" ? "Изменений нет" : `Точки сохранены (изменено: ${loc})`}</p>}
       <FormShell action={saveLocationsAction} submitLabel="Сохранить точки" cancelHref="/admin/settings">
@@ -40,7 +40,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <legend className="mb-1 text-sm font-bold text-green-800">{l.name}</legend>
             <Field label="Адрес">
               <input name={`address:${l.id}`} maxLength={200} defaultValue={l.address ?? ""} placeholder="Например: Ташкент, ул. Амира Темура, 15" className={fieldClass} />
-              {!hasExactAddress(l.address) && <span className="mt-1 block text-xs text-amber-700">Указан только город или адрес пуст: карта на сайте не показывается. Добавьте улицу и дом.</span>}
+              {!hasMap(l) && <span className="mt-1 block text-xs text-amber-700">Указан только город или адрес пуст: карта на сайте не показывается. Добавьте улицу и дом или координаты.</span>}
+            </Field>
+            <Field label="Координаты (точнее адреса)">
+              <input name={`coords:${l.id}`} maxLength={40} defaultValue={l.lat != null && l.lng != null ? `${l.lat}, ${l.lng}` : ""} placeholder="41.103801, 69.043818" className={fieldClass} />
+              <span className="mt-1 block text-xs text-neutral-500">В Яндекс или Google Картах нажмите на точку и скопируйте координаты. Широта и долгота через запятую.</span>
             </Field>
             <Field label="Телефон"><input name={`phone:${l.id}`} maxLength={40} defaultValue={l.phone ?? ""} placeholder="+998 90 123 45 67" className={fieldClass} /></Field>
           </fieldset>
