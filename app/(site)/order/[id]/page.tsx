@@ -16,6 +16,8 @@ const HINT: Record<string, (d: boolean) => string> = {
   CANCELLED: () => "Заказ отменён. Если это неожиданно, свяжитесь с точкой.",
 };
 
+export const metadata = { title: "Ваш заказ", robots: { index: false, follow: false } };
+
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const o = await getPublicOrder(id);
@@ -35,11 +37,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <div className={`rounded-2xl p-5 pop ${cancelled ? "bg-red-50" : "bg-white"}`}>
-        <p className="font-bold">{HINT[o.status]?.(delivery)}</p>
+        <p className="font-bold" role="status" aria-live="polite">{HINT[o.status]?.(delivery)}</p>
         {!cancelled && (
           <ol className="mt-4 grid grid-cols-5 gap-1 text-center text-xs">
             {STEPS.map(([s, l], i) => (
-              <li key={s}>
+              <li key={s} aria-current={i === idx ? "step" : undefined}>
                 <div className={`mx-auto grid h-8 w-8 place-items-center rounded-full font-bold border ${i <= idx ? "border-forest bg-forest text-white" : "border-forest/25 bg-white text-forest/60"}`}>{i < idx || o.status === "COMPLETED" ? "✓" : i + 1}</div>
                 <p className={`mt-1 ${i === idx ? "font-semibold" : "text-forest/60"}`}>{l}</p>
               </li>

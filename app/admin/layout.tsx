@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -5,6 +6,8 @@ import { getScope } from "@/lib/location";
 import { NAV } from "@/components/admin/nav";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { LocationSwitcher } from "@/components/admin/LocationSwitcher";
+
+export const metadata: Metadata = { title: { default: "Админка", template: "%s · Админка Vitamin B" }, robots: { index: false, follow: false } };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, locations, locationId, canSwitch } = await getScope();

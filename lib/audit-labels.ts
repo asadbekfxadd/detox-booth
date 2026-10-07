@@ -1,6 +1,7 @@
 /** Понятные названия действий для журнала. Неизвестный код показываем как есть. */
 export const ACTION_LABEL: Record<string, string> = {
   LOGIN: "Вход в систему",
+  LOGIN_FAILED: "Неудачная попытка входа",
   ORDER_STATUS_CHANGED: "Смена статуса заказа", ORDER_CANCELLED: "Отмена заказа", ORDER_REFUNDED: "Возврат заказа",
   POS_ORDER_CREATED: "Продажа на кассе", WEB_ORDER_CREATED: "Заказ с сайта", PAYMENT_CONFIRMED: "Подтверждена оплата",
   MANUAL_DISCOUNT: "Ручная скидка", SHIFT_OPENED: "Открыта смена", SHIFT_CLOSED: "Закрыта смена",

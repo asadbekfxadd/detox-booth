@@ -3,6 +3,8 @@ import { getSiteLocation } from "@/lib/site";
 import { CheckoutForm } from "@/components/site/CheckoutForm";
 import { Page } from "@/components/site/Page";
 
+export const metadata = { title: "Оформление заказа", robots: { index: false, follow: false } };
+
 export default async function CheckoutPage() {
   const { current } = await getSiteLocation();
   return (

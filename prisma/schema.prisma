@@ -419,6 +419,8 @@ model Order {
   payments Payment[]
   @@index([locationId, createdAt])
   @@index([status])
+  @@index([customerId, createdAt])
+  @@index([shiftId])
 }
 model OrderItem {
   id String @id @default(cuid())
@@ -429,6 +431,8 @@ model OrderItem {
   quantity Int
   unitPrice Decimal @db.Decimal(12,2)
   modifiers Json @default("[]")
+  @@index([orderId])
+  @@index([productId])
 }
 model Payment {
   id String @id @default(cuid())
@@ -438,6 +442,7 @@ model Payment {
   status PaymentStatus @default(PENDING)
   amount Decimal @db.Decimal(14,2)
   createdAt DateTime @default(now())
+  @@index([orderId])
 }
 
 model Expense {

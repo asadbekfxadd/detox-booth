@@ -2,6 +2,8 @@ import { getSiteLocation } from "@/lib/site";
 import { CartView } from "@/components/site/CartView";
 import { Page } from "@/components/site/Page";
 
+export const metadata = { title: "Корзина", robots: { index: false, follow: false } };
+
 export default async function CartPage() {
   const { current } = await getSiteLocation();
   return (

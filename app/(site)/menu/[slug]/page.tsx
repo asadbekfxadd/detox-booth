@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const { current } = await getSiteLocation();
   const p = await getProductBySlug(slug, current?.id ?? null);
-  return p ? { title: p.name, description: p.description ?? undefined } : {};
+  return p ? { title: p.name, description: p.description ?? undefined, alternates: { canonical: `/menu/${p.slug}` }, openGraph: { title: p.name, description: p.description ?? undefined, images: p.image ? [{ url: p.image }] : undefined } } : {};
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {

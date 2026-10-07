@@ -6,12 +6,7 @@ import { canSwitchLocation } from "@/lib/rbac";
 import { parseRange } from "@/services/dashboard";
 import { getFinance, EXPENSE_LABEL } from "@/services/finance";
 import { getSales } from "@/services/sales";
-
-const cell = (v: unknown) => {
-  const s = String(v ?? "");
-  return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-const line = (...v: unknown[]) => v.map(cell).join(";");
+import { csvLine as line } from "@/lib/csv";
 
 /** CSV для Excel (разделитель «;», UTF-8 с BOM). Финансы — finance.view, продажи — orders.view. */
 export async function GET(req: Request) {

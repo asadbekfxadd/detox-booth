@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Prisma, type Role } from "@prisma/client";
+import { Prisma, type OrderStatus, type Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
@@ -7,9 +7,11 @@ import { canSwitchLocation } from "@/lib/rbac";
 import { assertInStock } from "@/services/availability";
 import { deductInventoryTx, awardPointsTx, restockOrderTx } from "@/lib/services/order-fulfillment";
 import { ACTIVE, NEXT } from "@/lib/order-status";
+import { lockStock } from "@/lib/stock-lock";
 
 export type Actor = { id: string; role: Role; locationId: string | null };
 const PAGE = 25;
+const ORDER_STATUSES = ["NEW", "CONFIRMED", "PREPARING", "READY", "COMPLETED", "CANCELLED"] as const;
 
 async function safeAudit(p: Parameters<typeof audit>[0]) {
   try { await audit(p); } catch (e) { console.error("[AUDIT ERROR]", e); }
@@ -26,7 +28,7 @@ function buildWhere(locationId: string | null, f: OrderFilters): Prisma.OrderWhe
   const where: Prisma.OrderWhereInput = {};
   if (locationId) where.locationId = locationId;
   if (f.status === "active") where.status = { in: [...ACTIVE] };
-  else if (f.status && f.status !== "all") where.status = f.status as never;
+  else if (f.status && (ORDER_STATUSES as readonly string[]).includes(f.status)) where.status = f.status as OrderStatus;
   if (f.source === "WEB" || f.source === "POS") where.source = f.source;
   if (f.method === "CASH" || f.method === "CARD" || f.method === "ONLINE") where.payments = { some: { method: f.method } };
   const range: { gte?: Date; lt?: Date } = {};
@@ -131,6 +133,7 @@ export async function advanceOrder(input: unknown, user: Actor) {
     if (NEXT[o.status]?.to !== d.to) throw new ApiError(400, "Статус заказа уже изменился, обновите страницу");
 
     if (d.to === "CONFIRMED") {
+      await lockStock(tx, o.locationId);
       const pay = o.payments[0];
       if (pay && pay.status === "PENDING" && pay.method === "ONLINE") throw new ApiError(400, "Сначала подтвердите оплату заказа");
       if (!o.inventoryDeducted) {
@@ -177,6 +180,7 @@ export async function cancelOrder(input: unknown, user: Actor) {
     const o = await tx.order.findUnique({ where: { id: d.id } });
     if (!o) throw new ApiError(404, "Заказ не найден");
     assertScope(user, o.locationId);
+    await lockStock(tx, o.locationId);
     const lock = await tx.order.updateMany({ where: { id: o.id, status: { in: [...ACTIVE] } }, data: { status: "CANCELLED" } });
     if (lock.count === 0) throw new ApiError(400, o.status === "COMPLETED" ? "Завершённый заказ отменить нельзя, оформите возврат" : "Заказ уже отменён");
     await tx.payment.updateMany({ where: { orderId: o.id, status: "PAID" }, data: { status: "REFUNDED" } });
