@@ -18,8 +18,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const { locations, current } = await getSiteLocation();
   return (
     <div className="site flex min-h-screen flex-col">
-      <Marquee items={TICKER} className="bg-forest-deep py-2 text-white" />
       <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream/90 backdrop-blur-xl">
+        <Marquee items={TICKER} className="bg-forest-deep py-2 text-white" />
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
           <Link href="/" className="group" aria-label="Vitamin B — на главную"><Logo /></Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Основная навигация">
