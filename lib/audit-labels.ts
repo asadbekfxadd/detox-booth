@@ -15,6 +15,7 @@ export const ACTION_LABEL: Record<string, string> = {
   CUSTOMER_CREATED: "Клиент добавлен", CUSTOMER_UPDATED: "Клиент изменён", LOYALTY_ADJUSTED: "Корректировка баллов",
   PROMO_CREATED: "Промокод создан", PROMO_TOGGLED: "Промокод вкл/выкл", PROMO_DELETED: "Промокод удалён",
   RECIPE_CHANGED: "Рецепт изменён",
+  INGREDIENT_CREATED: "Ингредиент добавлен", INGREDIENT_UPDATED: "Ингредиент изменён", INGREDIENT_DELETED: "Ингредиент удалён",
   SETTINGS_CHANGED: "Изменены настройки", LOCATION_UPDATED: "Изменены адрес или телефон точки",
   TABLE_ORDER_CREATED: "Заказ гостя за столом", TABLE_BILL_CLOSED: "Закрыт счёт стола", TABLE_CREATED: "Стол добавлен", TABLE_UPDATED: "Стол включён или выключен", TABLE_TOKEN_RESET: "Перевыпущен QR стола",
   EXPENSE_CREATED: "Расход добавлен", EXPENSE_DELETED: "Расход удалён",

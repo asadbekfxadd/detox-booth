@@ -14,7 +14,7 @@ export default async function RecipesPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Рецепты</h1>
-        <p className="text-sm text-neutral-500">Технологические карты. При каждой продаже ингредиенты списываются со склада по этим рецептам. «Порций» считается по остаткам выбранной точки.</p>
+        <p className="text-sm text-neutral-500">Технологические карты. При каждой продаже ингредиенты списываются со склада по этим рецептам. «Порций» считается по остаткам выбранной точки. Нужного ингредиента нет? Добавьте его в разделе <Link href="/admin/ingredients" className="text-green-800 underline">«Ингредиенты»</Link> или прямо в рецепте.</p>
       </div>
       <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
         <table className="w-full text-sm">
