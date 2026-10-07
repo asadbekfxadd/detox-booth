@@ -3,6 +3,8 @@ import { getSiteLocation } from "@/lib/site";
 import { CartButton } from "@/components/site/CartButton";
 import { LocationSelect } from "@/components/site/LocationSelect";
 
+export const dynamic = "force-dynamic";
+
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const { locations, current } = await getSiteLocation();
   return (
