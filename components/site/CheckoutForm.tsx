@@ -8,7 +8,7 @@ import { checkoutQuoteAction, placeOrderAction, quoteCartAction } from "@/app/(s
 import type { WebQuote } from "@/services/web-orders";
 import type { QuotedLine } from "@/services/catalog";
 
-const field = "w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm outline-none focus:border-ink";
+const field = "w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 text-sm font-medium outline-none placeholder:text-muted focus:bg-lime-soft";
 const LS = "detox-customer";
 
 export function CheckoutForm({ locationName, locationId }: { locationName: string; locationId: string }) {
@@ -76,18 +76,18 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
   if (!mounted) return <p className="py-16 text-center text-muted">Загружаем…</p>;
   if (lines.length === 0)
     return (
-      <div className="rounded-2xl bg-white p-10 text-center border border-line">
+      <div className="rounded-2xl bg-white p-10 text-center pop">
         <p className="text-lg font-bold">Корзина пуста</p>
-        <Link href="/menu" className="mt-4 inline-block rounded-full bg-ink px-6 py-3 font-semibold text-white">В меню</Link>
+        <Link href="/menu" className="btn btn-lime pop mt-4">В меню</Link>
       </div>
     );
 
   const bad = view.find((l) => l.problem);
-  const radio = (on: boolean) => `flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${on ? "border-ink bg-lime-soft font-semibold" : "border-line bg-white"}`;
+  const radio = (on: boolean) => `flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-ink px-4 py-3 text-sm ${on ? "bg-lime font-bold shadow-[3px_3px_0_0_#14231a]" : "bg-white"}`;
   return (
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div className="space-y-6">
-        <section className="space-y-3 rounded-2xl bg-white p-5 border border-line">
+        <section className="space-y-3 rounded-2xl bg-white p-5 pop">
           <h2 className="font-bold">Ваши данные</h2>
           <input className={field} placeholder="Имя" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required minLength={2} maxLength={80} />
           <input className={field} placeholder="Телефон, например +998 90 123 45 67" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" inputMode="tel" required />
@@ -95,7 +95,7 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
           <p className="text-xs text-muted">Если вы у нас впервые и вас пригласил друг, укажите его номер — бонус получите оба после вашего первого заказа.</p>
         </section>
 
-        <section className="space-y-3 rounded-2xl bg-white p-5 border border-line">
+        <section className="space-y-3 rounded-2xl bg-white p-5 pop">
           <h2 className="font-bold">Как получить заказ</h2>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className={radio(fulfillment === "PICKUP")}><input type="radio" name="f" checked={fulfillment === "PICKUP"} onChange={() => setFulfillment("PICKUP")} />Самовывоз</label>
@@ -105,7 +105,7 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
           {fulfillment === "DELIVERY" && <textarea className={field} rows={2} placeholder="Адрес доставки: улица, дом, ориентир" value={address} onChange={(e) => setAddress(e.target.value)} required minLength={6} maxLength={200} />}
         </section>
 
-        <section className="space-y-3 rounded-2xl bg-white p-5 border border-line">
+        <section className="space-y-3 rounded-2xl bg-white p-5 pop">
           <h2 className="font-bold">Оплата</h2>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className={radio(method === "CASH")}><input type="radio" name="m" checked={method === "CASH"} onChange={() => setMethod("CASH")} />Наличными при получении</label>
@@ -115,7 +115,7 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
         </section>
       </div>
 
-      <aside className="h-fit space-y-3 rounded-2xl bg-white p-5 border border-line lg:sticky lg:top-24">
+      <aside className="h-fit space-y-3 rounded-2xl bg-white p-5 pop lg:sticky lg:top-24">
         <h2 className="text-lg font-bold">Ваш заказ</h2>
         <ul className="space-y-1 text-sm">
           {view.map((l) => (
@@ -127,7 +127,7 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
         </ul>
         <div className="flex gap-2 border-t pt-3">
           <input className={`${field} py-2`} placeholder="Промокод" value={promoInput} onChange={(e) => { setPromoInput(e.target.value); if (promo) { setPromo(null); setPromoMsg(null); } }} />
-          <button type="button" onClick={applyPromo} className="rounded-2xl border border-ink px-4 text-sm font-semibold text-leaf hover:bg-lime-soft">Применить</button>
+          <button type="button" onClick={applyPromo} className="btn btn-white pop pop-sm !rounded-2xl !px-4 text-sm">Применить</button>
         </div>
         {promoMsg && <p className={`text-xs ${promoMsg.ok ? "text-leaf" : "text-red-700"}`}>{promoMsg.text}</p>}
         {quote && (
@@ -139,10 +139,10 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
             {quote.points > 0 && <p className="text-xs text-muted">+{quote.points} баллов после получения заказа</p>}
           </div>
         )}
-        {bad && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{bad.name}: {bad.problem}. <Link href="/cart" className="font-semibold underline">Вернуться в корзину</Link></p>}
-        {!bad && problem && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{problem}</p>}
-        {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-        <button disabled={busy || !quote || !!bad} className="w-full rounded-full bg-ink py-3 font-semibold text-white hover:bg-leaf disabled:cursor-not-allowed disabled:bg-line disabled:text-muted">
+        {bad && <p className="rounded-xl border-2 border-red-700 bg-red-50 p-3 text-sm text-red-800">{bad.name}: {bad.problem}. <Link href="/cart" className="font-semibold underline">Вернуться в корзину</Link></p>}
+        {!bad && problem && <p className="rounded-xl border-2 border-red-700 bg-red-50 p-3 text-sm text-red-800">{problem}</p>}
+        {error && <p className="rounded-xl border-2 border-red-700 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+        <button disabled={busy || !quote || !!bad} className="btn btn-lime pop w-full">
           {busy ? "Оформляем…" : quote ? `Заказать · ${sum(quote.total)}` : "Заказать"}
         </button>
       </aside>

@@ -32,13 +32,13 @@ export function CartView({ locationId }: { locationId: string | null }) {
   if (!mounted) return <p className="py-16 text-center text-muted">Загружаем корзину…</p>;
   if (lines.length === 0)
     return (
-      <div className="rounded-2xl bg-white p-10 text-center border border-line">
+      <div className="rounded-2xl bg-white p-10 text-center pop">
         <p className="text-5xl">🛒</p>
         <p className="mt-3 text-lg font-bold">В корзине пока пусто</p>
-        <Link href="/menu" className="mt-4 inline-block rounded-full bg-ink px-6 py-3 font-semibold text-white hover:bg-leaf">Выбрать в меню</Link>
+        <Link href="/menu" className="btn btn-lime pop mt-4">Выбрать в меню</Link>
       </div>
     );
-  if (error) return <p className="rounded-2xl bg-red-50 p-4 text-red-800">{error}</p>;
+  if (error) return <p className="rounded-2xl border-2 border-red-700 bg-red-50 p-4 text-red-800">{error}</p>;
   if (!quote) return <p className="py-16 text-center text-muted">Считаем стоимость…</p>;
 
   return (
@@ -48,7 +48,7 @@ export function CartView({ locationId }: { locationId: string | null }) {
           {quote.lines.map((l) => {
             const key = lineKey(l);
             return (
-              <div key={key} className={`flex gap-4 rounded-2xl bg-white p-4 border border-line ${l.problem ? "ring-2 ring-red-200" : ""}`}>
+              <div key={key} className={`flex gap-4 rounded-2xl bg-white p-4 pop ${l.problem ? "ring-4 ring-red-300" : ""}`}>
                 <div className="w-16 shrink-0"><ProductImage image={l.image} name={l.name} categorySlug={l.categorySlug || "none"} shape="thumb" /></div>
                 <div className="min-w-0 flex-1">
                   <div className="flex justify-between gap-3">
@@ -60,7 +60,7 @@ export function CartView({ locationId }: { locationId: string | null }) {
                   </div>
                   {l.problem && <p className="mt-1 text-sm text-red-700">{l.problem}</p>}
                   <div className="mt-2 flex items-center justify-between">
-                    <div className="flex items-center rounded-full border border-line">
+                    <div className="flex items-center rounded-full border-2 border-ink bg-white font-bold">
                       <button aria-label="Меньше" className="px-3 py-1" onClick={() => setQty(key, l.quantity - 1)}>−</button>
                       <span className="w-7 text-center text-sm font-semibold">{l.quantity}</span>
                       <button aria-label="Больше" className="px-3 py-1" onClick={() => setQty(key, l.quantity + 1)}>+</button>
@@ -73,14 +73,14 @@ export function CartView({ locationId }: { locationId: string | null }) {
           })}
           <button className="text-sm text-muted underline" onClick={() => { if (confirm("Очистить корзину?")) clear(); }}>Очистить корзину</button>
         </div>
-        <aside className="h-fit space-y-3 rounded-2xl bg-white p-5 border border-line lg:sticky lg:top-24">
+        <aside className="h-fit space-y-3 rounded-2xl bg-white p-5 pop lg:sticky lg:top-24">
           <h2 className="text-lg font-bold">Ваш заказ</h2>
           <p className="flex justify-between text-sm text-muted"><span>Сумма</span><span>{sum(quote.subtotal)}</span></p>
           <p className="text-xs text-muted">Доставка и скидки считаются при оформлении.</p>
           <p className="flex justify-between border-t pt-3 text-lg font-bold"><span>Итого</span><span>{sum(quote.subtotal)}</span></p>
           {quote.ok
-            ? <Link href="/checkout" className="block rounded-full bg-ink py-3 text-center font-semibold text-white hover:bg-leaf">Оформить заказ</Link>
-            : <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Исправьте или удалите отмеченные позиции, чтобы оформить заказ.</p>}
+            ? <Link href="/checkout" className="btn btn-lime pop w-full">Оформить заказ</Link>
+            : <p className="rounded-xl border-2 border-red-700 bg-red-50 p-3 text-sm text-red-800">Исправьте или удалите отмеченные позиции, чтобы оформить заказ.</p>}
         </aside>
       </div>
 
@@ -89,13 +89,13 @@ export function CartView({ locationId }: { locationId: string | null }) {
           <h2 className="mb-3 text-xl font-bold">Вам может понравиться</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {quote.suggestions.map((s) => (
-              <div key={s.id} className="flex flex-col gap-2 rounded-2xl bg-white p-4 border border-line">
+              <div key={s.id} className="flex flex-col gap-2 rounded-2xl bg-white p-4 pop">
                 <div className="w-14"><ProductImage image={s.image} name={s.name} categorySlug={s.category.slug} shape="thumb" /></div>
                 <Link href={`/menu/${s.slug}`} className="font-bold leading-tight hover:underline">{s.name}</Link>
                 <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                   <span className="text-sm font-semibold">{s.modifiers.length > 0 && "от "}{sum(s.defaultPrice)}</span>
                   {s.modifiers.some((m) => m.required && m.options.length > 1) || s.modifiers.some((m) => m.required && m.multiple)
-                    ? <Link href={`/menu/${s.slug}`} className="rounded-full border border-ink px-3 py-1.5 text-sm font-semibold text-leaf">Выбрать</Link>
+                    ? <Link href={`/menu/${s.slug}`} className="btn btn-white pop pop-sm !px-3 !py-1.5 text-sm">Выбрать</Link>
                     : <QuickAdd productId={s.id} optionIds={s.defaultOptionIds} available={s.available} />}
                 </div>
               </div>

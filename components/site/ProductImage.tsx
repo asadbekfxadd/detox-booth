@@ -7,10 +7,12 @@ type Props = {
   image: string | null; name: string; categorySlug: string;
   /** arch — арка (карточки, главная); wide — прямоугольник; thumb — маленькая плитка */
   shape?: "arch" | "wide" | "thumb"; className?: string; priority?: boolean;
+  /** soft — светлее фон, когда рамка стоит на цветном блоке той же категории */
+  tint?: "soft";
 };
 
 /** Фото продукта в цвете его категории. Нет фото или оно не загрузилось — показываем эмодзи на цветной плашке. */
-export function ProductImage({ image, name, categorySlug, shape = "arch", className = "", priority = false }: Props) {
+export function ProductImage({ image, name, categorySlug, shape = "arch", className = "", priority = false, tint }: Props) {
   const [broken, setBroken] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
   // Картинка могла не загрузиться ещё до гидратации: событие onError тогда уже прошло.
@@ -18,7 +20,7 @@ export function ProductImage({ image, name, categorySlug, shape = "arch", classN
   const form = shape === "arch" ? "arch aspect-[4/5]" : shape === "thumb" ? "rounded-2xl aspect-square" : "rounded-3xl aspect-[16/10]";
   const size = shape === "thumb" ? "text-3xl" : "text-7xl";
   return (
-    <div className={`${toneClass(categorySlug)} relative w-full overflow-hidden bg-(--tone) ${form} ${className}`}>
+    <div className={`${toneClass(categorySlug)} relative w-full overflow-hidden border-2 border-ink ${tint === "soft" ? "bg-[color-mix(in_srgb,var(--tone)_55%,white)]" : "bg-(--tone)"} ${form} ${className}`}>
       {image && !broken
         // eslint-disable-next-line @next/next/no-img-element
         ? <img ref={ref} src={image} alt={name} loading={priority ? "eager" : "lazy"} decoding="async" onError={() => setBroken(true)} className="absolute inset-0 h-full w-full object-cover" />

@@ -4,6 +4,7 @@ import { getPublicOrder } from "@/services/web-orders";
 import { AutoRefresh } from "@/components/site/AutoRefresh";
 import { sum, dateTimeStr } from "@/lib/format";
 import { ACTIVE, FULFILL_LABEL, METHOD_LABEL, PAY_LABEL } from "@/lib/order-status";
+import { Page } from "@/components/site/Page";
 
 const STEPS = [["NEW", "Принят"], ["CONFIRMED", "Подтверждён"], ["PREPARING", "Готовится"], ["READY", "Готов"], ["COMPLETED", "Выдан"]] as const;
 const HINT: Record<string, (d: boolean) => string> = {
@@ -24,6 +25,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const cancelled = o.status === "CANCELLED";
 
   return (
+    <Page>
     <div className="mx-auto max-w-2xl space-y-5">
       <AutoRefresh active={(ACTIVE as readonly string[]).includes(o.status)} />
       <div>
@@ -32,13 +34,13 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         <p className="text-sm text-muted">{dateTimeStr(o.createdAt)} · {FULFILL_LABEL[o.fulfillment]} · {o.location.name}</p>
       </div>
 
-      <div className={`rounded-2xl p-5 border border-line ${cancelled ? "bg-red-50" : "bg-white"}`}>
+      <div className={`rounded-2xl p-5 pop ${cancelled ? "bg-red-50" : "bg-white"}`}>
         <p className="font-bold">{HINT[o.status]?.(delivery)}</p>
         {!cancelled && (
           <ol className="mt-4 grid grid-cols-5 gap-1 text-center text-xs">
             {STEPS.map(([s, l], i) => (
               <li key={s}>
-                <div className={`mx-auto grid h-8 w-8 place-items-center rounded-full font-bold ${i <= idx ? "bg-ink text-white" : "bg-line text-muted"}`}>{i < idx || o.status === "COMPLETED" ? "✓" : i + 1}</div>
+                <div className={`mx-auto grid h-8 w-8 place-items-center rounded-full font-bold border-2 border-ink ${i <= idx ? "bg-lime text-ink" : "bg-white text-muted"}`}>{i < idx || o.status === "COMPLETED" ? "✓" : i + 1}</div>
                 <p className={`mt-1 ${i === idx ? "font-semibold" : "text-muted"}`}>{l}</p>
               </li>
             ))}
@@ -47,7 +49,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         <p className="mt-4 text-xs text-muted">Страница обновляется сама. Сохраните эту ссылку, чтобы следить за заказом.</p>
       </div>
 
-      <div className="space-y-2 rounded-2xl bg-white p-5 border border-line">
+      <div className="space-y-2 rounded-2xl bg-white p-5 pop">
         {o.items.map((i) => (
           <div key={i.id} className="flex justify-between gap-3 text-sm">
             <span>{i.quantity} × <b>{i.name}</b>{i.options.length > 0 && <span className="text-muted"> ({i.options.join(", ")})</span>}</span>
@@ -65,7 +67,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         {!delivery && o.location.address && <p className="text-sm text-muted">Забрать: {o.location.name}, {o.location.address}</p>}
         {o.pointsEarned > 0 && <p className="text-sm font-semibold text-leaf">Начислено баллов: {o.pointsEarned}</p>}
       </div>
-      <Link href="/menu" className="inline-block rounded-full border border-ink px-6 py-3 font-semibold text-leaf hover:bg-lime-soft">Заказать ещё</Link>
+      <Link href="/menu" className="btn btn-white pop">Заказать ещё</Link>
     </div>
+    </Page>
   );
 }

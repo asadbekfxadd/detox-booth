@@ -34,13 +34,13 @@ export function Configurator({ p }: { p: PublicProduct }) {
     <div className="space-y-5">
       {p.modifiers.map((m) => (
         <fieldset key={m.id}>
-          <legend className="mb-2 text-sm font-semibold">{m.name}{m.required ? "" : " (по желанию)"}{m.multiple && " · можно несколько"}</legend>
+          <legend className="mb-2 text-sm font-extrabold">{m.name}{m.required ? "" : " (по желанию)"}{m.multiple && " · можно несколько"}</legend>
           <div className="flex flex-wrap gap-2">
             {m.options.map((o) => {
               const on = (sel[m.id] ?? []).includes(o.id);
               return (
                 <button key={o.id} type="button" aria-pressed={on} onClick={() => pick(m.id, o.id, m.multiple, m.required)}
-                  className={`rounded-full border px-4 py-2 text-sm transition ${on ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink"}`}>
+                  className={`rounded-full border-2 px-4 py-2 text-sm font-semibold transition ${on ? "sticker-sm bg-(--tone) text-ink" : "border-ink/25 bg-white hover:border-ink"}`}>
                   {o.name}{o.priceDelta !== 0 && <span className="ml-1 opacity-75">{o.priceDelta > 0 ? "+" : "−"}{sum(Math.abs(o.priceDelta))}</span>}
                 </button>
               );
@@ -49,14 +49,14 @@ export function Configurator({ p }: { p: PublicProduct }) {
         </fieldset>
       ))}
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center rounded-full border border-line bg-white">
+        <div className="sticker-sm flex items-center rounded-full bg-white">
           <button type="button" aria-label="Меньше" className="px-4 py-2 text-lg" onClick={() => { setAdded(false); setQty((q) => Math.max(1, q - 1)); }}>−</button>
           <span className="w-8 text-center font-semibold">{qty}</span>
           <button type="button" aria-label="Больше" className="px-4 py-2 text-lg" onClick={() => { setAdded(false); setQty((q) => Math.min(maxQty, q + 1)); }}>+</button>
         </div>
         <button type="button" disabled={!p.available || !!missing}
           onClick={() => { add({ productId: p.id, quantity: qty, optionIds }); setAdded(true); }}
-          className="rounded-full bg-ink px-6 py-3 font-semibold text-white hover:bg-leaf disabled:cursor-not-allowed disabled:bg-line disabled:text-muted">
+          className="sticker press rounded-full bg-lime px-6 py-3 font-bold text-ink disabled:cursor-not-allowed disabled:bg-line disabled:text-muted disabled:shadow-none">
           {!p.available ? "Нет в наличии" : `В корзину · ${sum(unit * qty)}`}
         </button>
       </div>
