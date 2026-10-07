@@ -40,9 +40,9 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                 <p className="flex items-center justify-between text-sm font-semibold"><span>{STATUS_LABEL[c]}</span><span className="rounded bg-white px-2 py-0.5 text-xs">{list.length}</span></p>
                 {list.length === 0 && <p className="py-4 text-center text-xs text-neutral-400">Пусто</p>}
                 {list.map((o) => (
-                  <div key={o.id} className={`space-y-2 rounded-xl bg-white p-3 text-sm shadow-sm ${o.delayed ? "ring-2 ring-red-300" : ""}`}>
+                  <div key={o.id} className={`relative space-y-2 rounded-xl bg-white p-3 text-sm shadow-sm transition-shadow hover:shadow-md ${o.delayed ? "ring-2 ring-red-300" : ""}`}>
                     <div className="flex items-center justify-between">
-                      <Link href={`/admin/orders/${o.id}`} className="font-bold text-green-800 underline">№{o.number}</Link>
+                      <Link href={`/admin/orders/${o.id}`} aria-label={`Открыть заказ №${o.number}`} className="font-bold text-green-800 underline after:absolute after:inset-0 after:content-['']">№{o.number}</Link>
                       <span className={`text-xs ${o.delayed ? "font-semibold text-red-700" : "text-neutral-500"}`}>{o.ageMin} мин</span>
                     </div>
                     <p className="text-neutral-700">{o.summary}</p>
@@ -52,10 +52,10 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                     <p className="flex items-center justify-between"><b>{money(o.total)}</b>
                       {o.payment && <span className={`rounded px-2 py-0.5 text-xs ${PAY_CLS[o.payment.status]}`}>{METHOD_LABEL[o.payment.method]} · {PAY_LABEL[o.payment.status]}</span>}</p>
                     {manage && o.status === "NEW" && o.payment?.method === "ONLINE" && o.payment.status === "PENDING" && (
-                      <ActionButton action={confirmPaymentAction} fields={{ id: o.id }} label="Подтвердить оплату" />
+                      <div className="relative z-10"><ActionButton action={confirmPaymentAction} fields={{ id: o.id }} label="Подтвердить оплату" /></div>
                     )}
                     {manage && NEXT[o.status] && !(o.status === "NEW" && o.payment?.method === "ONLINE" && o.payment.status === "PENDING") && (
-                      <ActionButton action={advanceOrderAction} fields={{ id: o.id, to: NEXT[o.status]!.to, back: "/admin/orders?view=board" }} label={NEXT[o.status]!.label} />
+                      <div className="relative z-10"><ActionButton action={advanceOrderAction} fields={{ id: o.id, to: NEXT[o.status]!.to, back: "/admin/orders?view=board" }} label={NEXT[o.status]!.label} /></div>
                     )}
                   </div>
                 ))}
@@ -97,8 +97,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           <tbody>
             {r.rows.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-neutral-500">Заказов не найдено</td></tr>}
             {r.rows.map((o) => (
-              <tr key={o.id} className="border-t border-neutral-100 align-top">
-                <td className="p-3"><Link href={`/admin/orders/${o.id}`} className="font-semibold text-green-800 underline">{o.number}</Link></td>
+              <tr key={o.id} className="relative cursor-pointer border-t border-neutral-100 align-top transition-colors hover:bg-green-50/70 has-[a:focus-visible]:bg-green-50/70">
+                <td className="p-3"><Link href={`/admin/orders/${o.id}`} aria-label={`Открыть заказ №${o.number}`} className="font-semibold text-green-800 underline after:absolute after:inset-0 after:content-['']">{o.number}</Link></td>
                 <td className="whitespace-nowrap">{dateTimeStr(o.createdAt)}</td>
                 <td>{SOURCE_LABEL[o.source]}<span className="block text-xs text-neutral-500">{o.tableNumber != null ? `№${o.tableNumber}` : FULFILL_LABEL[o.fulfillment]}</span></td>
                 <td className="max-w-48 truncate">{o.customer ?? "—"}</td>
