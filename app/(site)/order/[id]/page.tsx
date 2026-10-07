@@ -29,30 +29,30 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
     <div className="mx-auto max-w-2xl space-y-5">
       <AutoRefresh active={(ACTIVE as readonly string[]).includes(o.status)} />
       <div>
-        <p className="text-sm text-muted">{o.customerName ? `${o.customerName}, спасибо за заказ!` : "Спасибо за заказ!"}</p>
+        <p className="text-sm text-white/60">{o.customerName ? `${o.customerName}, спасибо за заказ!` : "Спасибо за заказ!"}</p>
         <h1 className="text-3xl font-extrabold">Заказ №{o.number}</h1>
-        <p className="text-sm text-muted">{dateTimeStr(o.createdAt)} · {FULFILL_LABEL[o.fulfillment]} · {o.location.name}</p>
+        <p className="text-sm text-white/60">{dateTimeStr(o.createdAt)} · {FULFILL_LABEL[o.fulfillment]} · {o.location.name}</p>
       </div>
 
-      <div className={`rounded-2xl p-5 pop ${cancelled ? "bg-red-50" : "bg-white"}`}>
+      <div className={`rounded-2xl p-5 pop ${cancelled ? "bg-red-950/50" : "bg-surface"}`}>
         <p className="font-bold">{HINT[o.status]?.(delivery)}</p>
         {!cancelled && (
           <ol className="mt-4 grid grid-cols-5 gap-1 text-center text-xs">
             {STEPS.map(([s, l], i) => (
               <li key={s}>
-                <div className={`mx-auto grid h-8 w-8 place-items-center rounded-full font-bold border-2 border-ink ${i <= idx ? "bg-lime text-ink" : "bg-white text-muted"}`}>{i < idx || o.status === "COMPLETED" ? "✓" : i + 1}</div>
-                <p className={`mt-1 ${i === idx ? "font-semibold" : "text-muted"}`}>{l}</p>
+                <div className={`mx-auto grid h-8 w-8 place-items-center rounded-full font-bold border ${i <= idx ? "border-neon bg-neon text-night" : "border-white/25 bg-surface text-white/60"}`}>{i < idx || o.status === "COMPLETED" ? "✓" : i + 1}</div>
+                <p className={`mt-1 ${i === idx ? "font-semibold" : "text-white/60"}`}>{l}</p>
               </li>
             ))}
           </ol>
         )}
-        <p className="mt-4 text-xs text-muted">Страница обновляется сама. Сохраните эту ссылку, чтобы следить за заказом.</p>
+        <p className="mt-4 text-xs text-white/60">Страница обновляется сама. Сохраните эту ссылку, чтобы следить за заказом.</p>
       </div>
 
-      <div className="space-y-2 rounded-2xl bg-white p-5 pop">
+      <div className="space-y-2 rounded-2xl bg-surface p-5 pop">
         {o.items.map((i) => (
           <div key={i.id} className="flex justify-between gap-3 text-sm">
-            <span>{i.quantity} × <b>{i.name}</b>{i.options.length > 0 && <span className="text-muted"> ({i.options.join(", ")})</span>}</span>
+            <span>{i.quantity} × <b>{i.name}</b>{i.options.length > 0 && <span className="text-white/60"> ({i.options.join(", ")})</span>}</span>
             <span className="whitespace-nowrap">{sum(i.unitPrice * i.quantity)}</span>
           </div>
         ))}
@@ -62,9 +62,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           {o.deliveryFee > 0 && <p className="flex justify-between"><span>Доставка</span><span>{sum(o.deliveryFee)}</span></p>}
           <p className="flex justify-between text-lg font-bold"><span>Итого</span><span>{sum(o.total)}</span></p>
         </div>
-        {o.payment && <p className="text-sm text-muted">Оплата: {METHOD_LABEL[o.payment.method]} при получении · {PAY_LABEL[o.payment.status]}</p>}
-        {delivery && o.address && <p className="text-sm text-muted">Адрес доставки: {o.address}</p>}
-        {!delivery && o.location.address && <p className="text-sm text-muted">Забрать: {o.location.name}, {o.location.address}</p>}
+        {o.payment && <p className="text-sm text-white/60">Оплата: {METHOD_LABEL[o.payment.method]} при получении · {PAY_LABEL[o.payment.status]}</p>}
+        {delivery && o.address && <p className="text-sm text-white/60">Адрес доставки: {o.address}</p>}
+        {!delivery && o.location.address && <p className="text-sm text-white/60">Забрать: {o.location.name}, {o.location.address}</p>}
         {o.pointsEarned > 0 && <p className="text-sm font-semibold text-leaf">Начислено баллов: {o.pointsEarned}</p>}
       </div>
       <Link href="/menu" className="btn btn-white pop">Заказать ещё</Link>

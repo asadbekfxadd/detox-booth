@@ -40,7 +40,7 @@ export function Configurator({ p }: { p: PublicProduct }) {
               const on = (sel[m.id] ?? []).includes(o.id);
               return (
                 <button key={o.id} type="button" aria-pressed={on} onClick={() => pick(m.id, o.id, m.multiple, m.required)}
-                  className={`rounded-full border-2 px-4 py-2 text-sm font-semibold transition ${on ? "sticker-sm bg-(--tone) text-ink" : "border-ink/25 bg-white hover:border-ink"}`}>
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${on ? "border-(--tone) bg-(--tone) text-night" : "border-white/20 text-white/85 hover:border-white/60"}`}>
                   {o.name}{o.priceDelta !== 0 && <span className="ml-1 opacity-75">{o.priceDelta > 0 ? "+" : "−"}{sum(Math.abs(o.priceDelta))}</span>}
                 </button>
               );
@@ -49,20 +49,20 @@ export function Configurator({ p }: { p: PublicProduct }) {
         </fieldset>
       ))}
       <div className="flex flex-wrap items-center gap-4">
-        <div className="sticker-sm flex items-center rounded-full bg-white">
+        <div className="flex items-center rounded-xl border border-white/20 bg-surface text-white">
           <button type="button" aria-label="Меньше" className="px-4 py-2 text-lg" onClick={() => { setAdded(false); setQty((q) => Math.max(1, q - 1)); }}>−</button>
           <span className="w-8 text-center font-semibold">{qty}</span>
           <button type="button" aria-label="Больше" className="px-4 py-2 text-lg" onClick={() => { setAdded(false); setQty((q) => Math.min(maxQty, q + 1)); }}>+</button>
         </div>
         <button type="button" disabled={!p.available || !!missing}
           onClick={() => { add({ productId: p.id, quantity: qty, optionIds }); setAdded(true); }}
-          className="sticker press rounded-full bg-lime px-6 py-3 font-bold text-ink disabled:cursor-not-allowed disabled:bg-line disabled:text-muted disabled:shadow-none">
+          className="press rounded-xl bg-neon px-7 py-3.5 text-lg font-black text-night disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40 disabled:shadow-none">
           {!p.available ? "Нет в наличии" : `В корзину · ${sum(unit * qty)}`}
         </button>
       </div>
-      {missing && <p className="text-sm text-red-700">Выберите «{missing.name}»</p>}
+      {missing && <p className="text-sm text-red-400">Выберите «{missing.name}»</p>}
       {added && <p className="text-sm text-leaf">Добавлено в корзину. <Link href="/cart" className="font-semibold underline">Перейти в корзину</Link></p>}
-      {p.portions !== null && p.portions > 0 && p.portions <= 5 && <p className="text-sm text-amber-700">Осталось всего {p.portions} шт. на этой точке</p>}
+      {p.portions !== null && p.portions > 0 && p.portions <= 5 && <p className="text-sm text-amber-300">Осталось всего {p.portions} шт. на этой точке</p>}
     </div>
   );
 }
