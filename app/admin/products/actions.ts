@@ -36,7 +36,7 @@ async function run(fn: (id: string, userId: string) => Promise<unknown>, id: str
   revalidatePath("/admin/products");
   return undefined;
 }
-export async function archiveAction(id: string, _p?: FormState) { return run((i, u) => svc.setArchived(i, true, u), id); }
-export async function restoreAction(id: string, _p?: FormState) { return run((i, u) => svc.setArchived(i, false, u), id); }
-export async function deleteAction(id: string, _p?: FormState) { return run((i, u) => svc.deleteProduct(i, u), id); }
-export async function availabilityAction(id: string, value: boolean, _p?: FormState) { return run((i, u) => svc.setAvailable(i, value, u), id); }
+export async function archiveAction(id: string) { return run((i, u) => svc.setArchived(i, true, u), id); }
+export async function restoreAction(id: string) { return run((i, u) => svc.setArchived(i, false, u), id); }
+export async function deleteAction(id: string) { return run((i, u) => svc.deleteProduct(i, u), id); }
+export async function availabilityAction(id: string, value: boolean) { return run((i, u) => svc.setAvailable(i, value, u), id); }

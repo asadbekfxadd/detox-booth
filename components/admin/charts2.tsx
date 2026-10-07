@@ -22,7 +22,7 @@ export function FinanceChart({ data }: { data: { label: string; revenue: number;
   );
 }
 
-export function CountBars({ data, xKey, name = "Заказов" }: { data: Record<string, any>[]; xKey: string; name?: string }) {
+export function CountBars({ data, xKey, name = "Заказов" }: { data: Record<string, string | number>[]; xKey: string; name?: string }) {
   return (
     <div className="h-64">
       <ResponsiveContainer width="100%" height="100%">

@@ -35,7 +35,7 @@ export function OrdersChart({ data }: { data: { label: string; orders: number }[
   );
 }
 
-export function HBarChart({ data, dataKey, nameKey }: { data: Record<string, any>[]; dataKey: string; nameKey: string }) {
+export function HBarChart({ data, dataKey, nameKey }: { data: Record<string, string | number>[]; dataKey: string; nameKey: string }) {
   return (
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">

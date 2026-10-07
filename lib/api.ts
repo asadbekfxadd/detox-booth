@@ -20,5 +20,5 @@ export function handleError(e: unknown) {
   if (e instanceof ApiError) return NextResponse.json({ error: e.message }, { status: e.status });
   if (e instanceof ZodError) return NextResponse.json({ error: "Некорректные данные" }, { status: 400 });
   console.error("[API ERROR]", e);
-  return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+  return NextResponse.json({ error: "Что-то пошло не так. Попробуйте ещё раз." }, { status: 500 });
 }

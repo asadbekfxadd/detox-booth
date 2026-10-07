@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-store";
+import { useMounted } from "@/lib/use-mounted";
 import { sum } from "@/lib/format";
 import { checkoutQuoteAction, placeOrderAction, quoteCartAction } from "@/app/(site)/actions";
 import type { WebQuote } from "@/services/web-orders";
@@ -14,7 +15,7 @@ const LS = "detox-customer";
 export function CheckoutForm({ locationName, locationId }: { locationName: string; locationId: string }) {
   const router = useRouter();
   const { lines, clear } = useCart();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [referrer, setReferrer] = useState("");
@@ -31,9 +32,14 @@ export function CheckoutForm({ locationName, locationId }: { locationName: strin
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
 
+  // имя и телефон из прошлого заказа (необязательно); читаем после гидратации, не в теле эффекта
   useEffect(() => {
-    setMounted(true);
-    try { const s = JSON.parse(localStorage.getItem(LS) ?? "null"); if (s) { setName(s.name ?? ""); setPhone(s.phone ?? ""); } } catch { /* необязательно */ }
+    let alive = true;
+    queueMicrotask(() => {
+      if (!alive) return;
+      try { const s = JSON.parse(localStorage.getItem(LS) ?? "null"); if (s) { setName(s.name ?? ""); setPhone(s.phone ?? ""); } } catch { /* необязательно */ }
+    });
+    return () => { alive = false; };
   }, []);
 
   const sig = JSON.stringify([lines, promo, fulfillment]);

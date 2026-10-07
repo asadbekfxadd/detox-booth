@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, Role, type Prisma, type WriteOffReason } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { randomUUID } from "crypto";
 
@@ -218,7 +218,8 @@ async function main() {
   });
 
   // ---------- Orders (30 дней) ----------
-  const orders: any[] = [], items: any[] = [], payments: any[] = [], loyaltyTx: any[] = [];
+  type SeedLoyaltyTx = { customerId: string; orderId: string; points: number; createdAt: Date };
+  const orders: (Prisma.OrderCreateManyInput & { id: string })[] = [], items: Prisma.OrderItemCreateManyInput[] = [], payments: (Prisma.PaymentCreateManyInput & { id: string })[] = [], loyaltyTx: SeedLoyaltyTx[] = [];
   const points: Record<string, number> = {};
   const totalWeight = prods.reduce((a, p) => a + p.weight, 0);
   const pickProd = () => { let r = rnd() * totalWeight; for (const p of prods) { r -= p.weight; if (r <= 0) return p; } return prods[0]; };
@@ -280,9 +281,9 @@ async function main() {
     (["NEW", "PREPARING", "READY"] as const).forEach((status, i) => {
       const o = orders[live[i]]; if (!o) return;
       Object.assign(o, { source: "WEB", cashierId: null, status, cogs: 0, inventoryDeducted: false, completedAt: null, pointsEarned: 0, createdAt: new Date(now.getTime() - (20 - i * 6) * 60000) });
-      const pay = payments.find((p) => p.orderId === o.id); pay.method = "ONLINE"; pay.status = status === "NEW" ? "PENDING" : "PAID";
+      const pay = payments.find((p) => p.orderId === o.id); if (pay) { pay.method = "ONLINE"; pay.status = status === "NEW" ? "PENDING" : "PAID"; }
       const lt = loyaltyTx.findIndex((x) => x.orderId === o.id);
-      if (lt >= 0) { points[o.customerId] -= loyaltyTx[lt].points; loyaltyTx.splice(lt, 1); }
+      if (lt >= 0) { if (o.customerId) points[o.customerId] -= loyaltyTx[lt].points; loyaltyTx.splice(lt, 1); }
     });
   }
 
@@ -296,7 +297,7 @@ async function main() {
   }
 
   // ---------- Write-offs, Expenses, Notifications, Settings ----------
-  const wo: [number, string, number, any][] = [
+  const wo: [number, string, number, WriteOffReason][] = [
     [0, "SPN", 600, "EXPIRED"], [0, "STR", 400, "SPOILED"], [1, "BAN", 900, "SPOILED"],
     [1, "CUP", 25, "DAMAGED"], [2, "MNG", 500, "PRODUCTION_WASTE"], [0, "YOG", 800, "EXPIRED"],
   ];

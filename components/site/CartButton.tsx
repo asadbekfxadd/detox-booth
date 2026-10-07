@@ -1,12 +1,11 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart-store";
+import { useMounted } from "@/lib/use-mounted";
 
 export function CartButton() {
   const count = useCart((s) => s.lines.reduce((a, l) => a + l.quantity, 0));
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
   const n = mounted ? count : 0;
   return (
     <Link href="/cart" aria-label={n > 0 ? `Корзина, позиций: ${n}` : "Корзина"} className="btn btn-primary !px-4 !py-2.5 text-sm">

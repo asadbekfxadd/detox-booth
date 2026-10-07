@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useMounted } from "@/lib/use-mounted";
 import { lineKey, useCart } from "@/lib/cart-store";
 import { sum } from "@/lib/format";
 import { quoteCartAction } from "@/app/(site)/actions";
@@ -10,10 +11,9 @@ import { QuickAdd } from "./QuickAdd";
 
 export function CartView({ locationId }: { locationId: string | null }) {
   const { lines, setQty, remove, clear } = useCart();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => setMounted(true), []);
 
   const sig = JSON.stringify(lines);
   useEffect(() => {
