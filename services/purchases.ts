@@ -6,6 +6,7 @@ import { audit } from "@/lib/audit";
 import { canSwitchLocation } from "@/lib/rbac";
 import { resolveLocation } from "@/services/inventory";
 import { receiveIntoStock } from "@/services/receive";
+import { lockStock } from "@/lib/stock-lock";
 
 type Actor = { id: string; role: string; locationId: string | null };
 const D = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n);
@@ -14,7 +15,7 @@ const qty = z.coerce.number({ error: "Укажите количество" }).po
 const cost = z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number({ error: "Укажите цену" }).min(0, "Цена не может быть отрицательной").max(100_000_000, "Слишком большая цена"));
 
 function assertScope(user: Actor, locationId: string) {
-  if (!canSwitchLocation(user.role) && user.locationId !== locationId) throw new ApiError(404, "Заказ не найден");
+  if (!canSwitchLocation(user.role) && user.locationId !== locationId) throw new ApiError(404, "Закупка не найдена");
 }
 
 export const purchaseSchema = z.object({
@@ -45,7 +46,7 @@ export async function createPurchase(input: unknown, user: Actor) {
 
 export async function setPurchaseStatus(id: string, to: "ORDERED" | "CANCELLED", user: Actor) {
   const po = await prisma.purchaseOrder.findUnique({ where: { id } });
-  if (!po) throw new ApiError(404, "Заказ не найден");
+  if (!po) throw new ApiError(404, "Закупка не найдена");
   assertScope(user, po.locationId);
   const from = to === "ORDERED" ? ["DRAFT" as const] : ["DRAFT" as const, "ORDERED" as const];
   const r = await prisma.purchaseOrder.updateMany({ where: { id, status: { in: from } }, data: { status: to } });
@@ -61,11 +62,12 @@ export async function receivePurchase(id: string, input: unknown, user: Actor) {
   const d = receiveSchema.parse(input);
   const result = await prisma.$transaction(async (tx) => {
     const po = await tx.purchaseOrder.findUnique({ where: { id }, include: { items: true } });
-    if (!po) throw new ApiError(404, "Заказ не найден");
+    if (!po) throw new ApiError(404, "Закупка не найдена");
     assertScope(user, po.locationId);
+    await lockStock(tx, po.locationId);
     // атомарный переход статуса: повторная приёмка невозможна
     const lock = await tx.purchaseOrder.updateMany({ where: { id, status: { in: ["DRAFT", "ORDERED"] } }, data: { status: "RECEIVED", receivedAt: new Date() } });
-    if (lock.count === 0) throw new ApiError(400, "Заказ уже принят или отменён");
+    if (lock.count === 0) throw new ApiError(400, "Закупка уже принята или отменена");
     const lines = new Map(d.lines.map((l) => [l.itemId, l]));
     let total = D(0);
     for (const item of po.items) {

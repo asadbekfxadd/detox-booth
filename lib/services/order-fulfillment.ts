@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLoyaltySettings } from "@/lib/loyalty-settings";
 import { referralBonusTx } from "@/lib/services/loyalty";
+import { lockStock } from "@/lib/stock-lock";
 
 type Tx = Prisma.TransactionClient;
 type ChosenOption = { optionId: string };
@@ -18,6 +19,9 @@ export async function deductInventoryTx(tx: Tx, orderId: string, userId?: string
   });
   if (order.inventoryDeducted) return order;
   if (order.status === "CANCELLED") throw new Error("ORDER_CANCELLED");
+  await lockStock(tx, order.locationId);
+  // после блокировки перечитываем флаг: параллельная транзакция могла уже списать этот заказ
+  if ((await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { inventoryDeducted: true } })).inventoryDeducted) return order;
 
   const need = new Map<string, Prisma.Decimal>();
   const add = (id: string, q: Prisma.Decimal) => need.set(id, (need.get(id) ?? D(0)).plus(q));

@@ -123,6 +123,7 @@ model Location {
   id String @id @default(cuid())
   name String
   address String?
+  phone String?
   isActive Boolean @default(true)
   createdAt DateTime @default(now())
   users User[]
@@ -413,12 +414,18 @@ model Order {
   pointsSpent Int @default(0)
   inventoryDeducted Boolean @default(false)
   address String?
+  /// Желаемое время получения; null — «как можно скорее»
+  scheduledFor DateTime?
+  /// Комментарий клиента к заказу
+  note String?
   createdAt DateTime @default(now())
   completedAt DateTime?
   items OrderItem[]
   payments Payment[]
   @@index([locationId, createdAt])
   @@index([status])
+  @@index([customerId, createdAt])
+  @@index([shiftId])
 }
 model OrderItem {
   id String @id @default(cuid())
@@ -429,6 +436,8 @@ model OrderItem {
   quantity Int
   unitPrice Decimal @db.Decimal(12,2)
   modifiers Json @default("[]")
+  @@index([orderId])
+  @@index([productId])
 }
 model Payment {
   id String @id @default(cuid())
@@ -437,7 +446,13 @@ model Payment {
   method PaymentMethod
   status PaymentStatus @default(PENDING)
   amount Decimal @db.Decimal(14,2)
+  /// Платёжный провайдер для онлайн-оплаты (null — оплата при получении)
+  provider String?
+  /// Идентификатор транзакции у провайдера: защита от повторной обработки вебхука
+  externalId String?
   createdAt DateTime @default(now())
+  @@index([orderId])
+  @@unique([provider, externalId])
 }
 
 model Expense {

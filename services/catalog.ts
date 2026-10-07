@@ -10,14 +10,14 @@ export type PublicProduct = {
   price: number; defaultPrice: number; defaultOptionIds: string[];
   category: { id: string; name: string; slug: string };
   calories: number | null; protein: number | null; carbs: number | null; fat: number | null;
-  volumeMl: number | null; prepMinutes: number; allergens: string[];
+  volumeMl: number | null; prepMinutes: number; allergens: string[]; ingredients: string[];
   isVegan: boolean; isHighProtein: boolean; isSugarFree: boolean;
   available: boolean; portions: number | null; modifiers: PublicModifier[];
 };
 
 const productInclude = {
   category: true,
-  recipe: { include: { items: true } },
+  recipe: { include: { items: { include: { ingredient: { select: { name: true, category: true } } } } } },
   modifiers: { include: { options: { orderBy: [{ priceDelta: "asc" }, { name: "asc" }] } } },
 } satisfies Prisma.ProductInclude;
 type Row = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
@@ -39,6 +39,8 @@ function toPublic(p: Row, stock: Map<string, Prisma.Decimal>): PublicProduct {
     category: { id: p.category.id, name: p.category.name, slug: p.category.slug },
     calories: p.calories, protein: p.protein == null ? null : Number(p.protein), carbs: p.carbs == null ? null : Number(p.carbs), fat: p.fat == null ? null : Number(p.fat),
     volumeMl: p.volumeMl, prepMinutes: p.prepMinutes, allergens: p.allergens,
+    // состав для покупателя: без упаковки (стаканы, крышки)
+    ingredients: items.filter((i) => i.ingredient.category.toLowerCase() !== "packaging").map((i) => i.ingredient.name),
     isVegan: p.isVegan, isHighProtein: p.isHighProtein, isSugarFree: p.isSugarFree,
     available: p.isAvailable && (portions === null || portions > 0), portions, modifiers,
   };

@@ -9,7 +9,7 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const path = nextUrl.pathname;
       if (path === "/login") return auth?.user ? Response.redirect(new URL("/after-login", nextUrl)) : true;
-      const protectedArea = path.startsWith("/admin") || path.startsWith("/pos");
+      const protectedArea = path.startsWith("/admin") || path.startsWith("/pos") || path.startsWith("/kitchen");
       if (!protectedArea) return true;
       if (!auth?.user) return false; // -> /login
       const rule = ROUTE_PERMISSIONS.find(([p]) => path === p || path.startsWith(p + "/"));

@@ -9,6 +9,7 @@ import { assertInStock, usableStock, type CartItem } from "@/services/availabili
 import { fulfillOrderTx } from "@/lib/services/order-fulfillment";
 import { getLoyaltySettings } from "@/lib/loyalty-settings";
 import { createCustomerTx } from "@/lib/services/loyalty";
+import { lockStock } from "@/lib/stock-lock";
 
 type Tx = Prisma.TransactionClient;
 export type Actor = { id: string; role: Role; locationId: string | null };
@@ -288,6 +289,7 @@ export async function createPosOrder(input: unknown, user: Actor): Promise<Extra
     const shift = await tx.shift.findFirst({ where: { userId: user.id, status: "OPEN" } });
     if (!shift) throw new ApiError(400, "Сначала откройте смену");
     const locationId = shift.locationId;
+    await lockStock(tx, locationId);
     if (d.customerId && !(await tx.customer.findUnique({ where: { id: d.customerId } }))) throw new ApiError(404, "Клиент не найден");
 
     const { lines, subtotal } = await priceItems(tx, d.items);

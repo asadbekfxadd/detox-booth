@@ -49,10 +49,11 @@ export const ROUTE_PERMISSIONS: [string, Permission][] = [
   ["/admin/analytics", "dashboard.view"],
   ["/admin/audit", "audit.view"],
   ["/pos", "pos.use"],
+  ["/kitchen", "orders.manage"],
 ];
 
 /** Куда отправлять после входа */
-export const homeFor = (role: Role) => (can(role, "dashboard.view") ? "/admin/dashboard" : can(role, "pos.use") ? "/pos" : can(role, "inventory.view") ? "/admin/inventory" : "/forbidden");
+export const homeFor = (role: Role) => (can(role, "dashboard.view") ? "/admin/dashboard" : can(role, "pos.use") ? "/pos" : can(role, "orders.manage") ? "/kitchen" : can(role, "inventory.view") ? "/admin/inventory" : "/forbidden");
 
 /** Роли, которым доступен выбор точки (остальные привязаны к своей). */
 export const canSwitchLocation = (role: string) => role === "OWNER" || role === "WAREHOUSE";

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { canSwitchLocation } from "@/lib/rbac";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
+import { lockStock } from "@/lib/stock-lock";
 
 type Tx = Prisma.TransactionClient;
 type Actor = { id: string; role: string; locationId: string | null };
@@ -78,6 +79,7 @@ export async function stockIn(input: unknown, user: Actor) {
   const d = stockInSchema.parse(input);
   const locationId = resolveLocation(user, d.locationId);
   const batchId = await prisma.$transaction(async (tx) => {
+    await lockStock(tx, locationId);
     const ing = await mustIngredient(tx, d.ingredientId);
     await mustLocation(tx, locationId);
     const total = await tx.stockItem.aggregate({ where: { ingredientId: ing.id }, _sum: { quantity: true } });
@@ -107,6 +109,7 @@ export async function writeOff(input: unknown, user: Actor) {
   const d = writeOffSchema.parse(input);
   const locationId = resolveLocation(user, d.locationId);
   const res = await prisma.$transaction(async (tx) => {
+    await lockStock(tx, locationId);
     const ing = await mustIngredient(tx, d.ingredientId);
     await mustLocation(tx, locationId);
     const stock = await tx.stockItem.findUnique({ where: { locationId_ingredientId: { locationId, ingredientId: ing.id } } });
@@ -143,6 +146,7 @@ export async function transfer(input: unknown, user: Actor) {
   const from = resolveLocation(user, d.fromLocationId);
   if (from === d.toLocationId) throw new ApiError(400, "Точки отправления и назначения совпадают");
   await prisma.$transaction(async (tx) => {
+    await lockStock(tx, from, d.toLocationId);
     const ing = await mustIngredient(tx, d.ingredientId);
     await mustLocation(tx, from); await mustLocation(tx, d.toLocationId);
     const q = D(d.quantity);
@@ -173,6 +177,7 @@ export async function countInventory(input: unknown, user: Actor) {
   const d = countSchema.parse(input);
   const locationId = resolveLocation(user, d.locationId);
   const results = await prisma.$transaction(async (tx) => {
+    await lockStock(tx, locationId);
     await mustLocation(tx, locationId);
     const out: { ing: Awaited<ReturnType<typeof mustIngredient>>; expected: Prisma.Decimal; actual: Prisma.Decimal; variance: Prisma.Decimal }[] = [];
     for (const it of d.items) {

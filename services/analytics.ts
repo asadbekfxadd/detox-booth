@@ -75,7 +75,6 @@ export async function getAnalytics(r: Range, locationId: string | null) {
   });
 
   // меню-инжиниринг: популярность × маржа на единицу (по рецепту)
-  const totalQty = abc.reduce((a, p) => a + p.qty, 0);
   const costed = abc.filter((p) => unitCost.has(p.id) && p.qty > 0).map((p) => ({ ...p, avgPrice: p.revenue / p.qty, cost: unitCost.get(p.id)! }))
     .map((p) => ({ ...p, margin: p.avgPrice - p.cost, marginPct: p.avgPrice ? ((p.avgPrice - p.cost) / p.avgPrice) * 100 : 0 }));
   const popThreshold = costed.length ? (1 / costed.length) * 0.7 : 0;

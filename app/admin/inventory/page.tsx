@@ -4,6 +4,7 @@ import { can } from "@/lib/rbac";
 import { getScope } from "@/lib/location";
 import { getStockOverview } from "@/services/inventory";
 import { money, qty, unitLabel, dateStr } from "@/lib/format";
+import { nowMs } from "@/lib/time";
 
 const OK: Record<string, string> = { stockin: "Приход оформлен", transfer: "Перемещение выполнено" };
 const btn = "rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm hover:bg-neutral-50";
@@ -15,7 +16,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
   const rows = await getStockOverview(locationId);
   const edit = can(user.role, "inventory.edit");
   const showCost = can(user.role, "products.cost");
-  const now = Date.now();
+  const now = nowMs();
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">

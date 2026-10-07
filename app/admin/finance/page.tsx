@@ -10,6 +10,7 @@ import { FormShell, Field, fieldClass } from "@/components/admin/ops";
 import { ActionButton } from "@/components/admin/ActionButton";
 import { createExpenseAction, deleteExpenseAction } from "./actions";
 import { money, pct, dateStr } from "@/lib/format";
+import { tashkentDay } from "@/lib/time";
 
 type SP = { range?: string; from?: string; to?: string; ok?: string };
 const OK: Record<string, string> = { created: "Расход добавлен", deleted: "Расход удалён" };
@@ -26,7 +27,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const range = parseRange(sp);
   const f = await getFinance(range, locationId);
   const edit = can(user.role, "finance.edit");
-  const today = new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 10);
+  const today = tashkentDay();
   const q = new URLSearchParams({ report: "finance", range: range.key, ...(range.key === "custom" ? { from: sp.from ?? "", to: sp.to ?? "" } : {}) }).toString();
   const row = (label: string, v: number, opts?: { bold?: boolean; minus?: boolean; note?: string }) => (
     <tr className={`border-t border-neutral-100 ${opts?.bold ? "font-bold" : ""}`}>

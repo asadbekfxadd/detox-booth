@@ -46,6 +46,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                       <span className={`text-xs ${o.delayed ? "font-semibold text-red-700" : "text-neutral-500"}`}>{o.ageMin} мин</span>
                     </div>
                     <p className="text-neutral-700">{o.summary}</p>
+                    {o.scheduledFor && <p className="inline-block rounded bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-900">К {dateTimeStr(o.scheduledFor)}</p>}
+                    {o.note && <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-900">«{o.note}»</p>}
                     <p className="text-xs text-neutral-500">{SOURCE_LABEL[o.source]} · {FULFILL_LABEL[o.fulfillment]}{o.customer && ` · ${o.customer}`}</p>
                     <p className="flex items-center justify-between"><b>{money(o.total)}</b>
                       {o.payment && <span className={`rounded px-2 py-0.5 text-xs ${PAY_CLS[o.payment.status]}`}>{METHOD_LABEL[o.payment.method]} · {PAY_LABEL[o.payment.status]}</span>}</p>

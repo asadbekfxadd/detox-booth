@@ -13,7 +13,8 @@ type Method = "CASH" | "CARD" | "ONLINE";
 type Applied = { kind: "promo"; code: string } | { kind: "manual"; type: "PERCENT" | "FIXED"; value: number } | null;
 type Receipt = Extract<OrderResult, { ok: true }>;
 
-const GENERIC_ERROR = "Something went wrong. Please try again.";
+const GENERIC_ERROR = "Что-то пошло не так. Попробуйте ещё раз.";
+const ZERO_QUOTE = { discount: 0, pointsAmt: 0, maxRedeem: 0 };
 const METHODS: [Method, string][] = [["CASH", "Наличные"], ["CARD", "Карта"], ["ONLINE", "Онлайн / перевод"]];
 const METHOD_LABEL: Record<string, string> = { CASH: "Наличные", CARD: "Карта", ONLINE: "Онлайн" };
 const STATUS_LABEL: Record<string, string> = { COMPLETED: "Оплачен", CANCELLED: "Возврат", CONFIRMED: "В работе" };
@@ -36,7 +37,7 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
   // клиент
   const [customer, setCustomer] = useState<CustomerLite | null>(null);
   const [cq, setCq] = useState("");
-  const [found, setFound] = useState<CustomerLite[]>([]);
+  const [foundRaw, setFound] = useState<CustomerLite[]>([]);
   const [newCust, setNewCust] = useState(false);
   const [ncName, setNcName] = useState("");
   const [ncPhone, setNcPhone] = useState("");
@@ -48,11 +49,9 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
   const [mType, setMType] = useState<"PERCENT" | "FIXED">("PERCENT");
   const [mValue, setMValue] = useState("");
   const [applied, setApplied] = useState<Applied>(null);
-  const [discount, setDiscount] = useState(0);
+  const [quoted, setQuoted] = useState(ZERO_QUOTE);
   const [discErr, setDiscErr] = useState("");
   const [redeem, setRedeem] = useState("");
-  const [pointsAmt, setPointsAmt] = useState(0);
-  const [maxRedeem, setMaxRedeem] = useState(0);
 
   // оплата
   const [method, setMethod] = useState<Method>("CASH");
@@ -70,6 +69,10 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
   const items = useMemo(() => cart.map((l) => ({ productId: l.product.id, quantity: l.quantity, optionIds: l.optionIds })), [cart]);
   const itemsKey = JSON.stringify(items);
   const subtotal = cart.reduce((a, l) => a + unitPrice(l.product, l.optionIds) * l.quantity, 0);
+  // сервер считает скидку и баллы только при активной корзине со скидкой/клиентом; иначе нули
+  const quoteActive = cart.length > 0 && (!!applied || !!customer);
+  const { discount, pointsAmt, maxRedeem } = quoteActive ? quoted : ZERO_QUOTE;
+  const found = cq.trim().length >= 2 ? foundRaw : [];
   const total = Math.max(0, subtotal - discount);
   const redeemNum = customer ? Math.max(0, Math.floor(Number(redeem) || 0)) : 0;
   const tenderedNum = tendered === "" ? null : Number(tendered);
@@ -80,7 +83,7 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
 
   // серверный пересчёт скидки и баллов при любом изменении корзины
   useEffect(() => {
-    if (cart.length === 0 || (!applied && !customer)) { setDiscount(0); setPointsAmt(0); setMaxRedeem(0); return; }
+    if (!quoteActive) return;
     let cancelled = false;
     quoteAction({
       items, customerId: customer?.id ?? null, redeemPoints: redeemNum,
@@ -88,16 +91,16 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
       manualDiscount: applied?.kind === "manual" ? { type: applied.type, value: applied.value } : null,
     }).then((r) => {
       if (cancelled) return;
-      if (r.ok) { setDiscount(r.discount); setPointsAmt(r.pointsAmount); setMaxRedeem(r.maxRedeemPoints); setDiscErr(""); }
-      else { setDiscErr(r.error); setApplied(null); setRedeem(""); setDiscount(0); setPointsAmt(0); }
-    }).catch(() => { if (!cancelled) { setDiscErr(GENERIC_ERROR); setApplied(null); setRedeem(""); setDiscount(0); setPointsAmt(0); } });
+      if (r.ok) { setQuoted({ discount: r.discount, pointsAmt: r.pointsAmount, maxRedeem: r.maxRedeemPoints }); setDiscErr(""); }
+      else { setDiscErr(r.error); setApplied(null); setRedeem(""); setQuoted(ZERO_QUOTE); }
+    }).catch(() => { if (!cancelled) { setDiscErr(GENERIC_ERROR); setApplied(null); setRedeem(""); setQuoted(ZERO_QUOTE); } });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applied, itemsKey, customer?.id, redeemNum]);
 
   // поиск клиента
   useEffect(() => {
-    if (cq.trim().length < 2) { setFound([]); return; }
+    if (cq.trim().length < 2) return;
     let cancelled = false;
     const t = setTimeout(() => {
       searchCustomersAction(cq).then((r) => { if (!cancelled && r.ok) setFound(r.customers); }).catch(() => {});
@@ -128,7 +131,7 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
     if (p.modifiers.length) setDialog(p); else addToCart(p, []);
   }
   function resetOrder() {
-    setCart([]); setCustomer(null); setCq(""); setFound([]); setApplied(null); setDiscount(0); setPointsAmt(0); setMaxRedeem(0); setRedeem(""); setPromo(""); setMValue("");
+    setCart([]); setCustomer(null); setCq(""); setFound([]); setApplied(null); setQuoted(ZERO_QUOTE); setRedeem(""); setPromo(""); setMValue("");
     setDiscErr(""); setTendered(""); setMethod("CASH"); setError(""); setNotice("");
   }
 
@@ -295,7 +298,7 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
               {applied ? (
                 <div className="flex items-center justify-between rounded-xl bg-lime-50 px-3 py-2 text-sm">
                   <span>{applied.kind === "promo" ? `Промокод ${applied.code}` : `Ручная: ${applied.value}${applied.type === "PERCENT" ? "%" : " UZS"}`} · <b>−{money(Math.max(0, discount - pointsAmt))}</b></span>
-                  <button onClick={() => { setApplied(null); setDiscount(0); }} className="text-neutral-500 hover:text-red-700" aria-label="Убрать скидку">×</button>
+                  <button onClick={() => { setApplied(null); setQuoted(ZERO_QUOTE); }} className="text-neutral-500 hover:text-red-700" aria-label="Убрать скидку">×</button>
                 </div>
               ) : (
                 <>
