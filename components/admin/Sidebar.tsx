@@ -15,7 +15,7 @@ export function Sidebar({ items }: { items: { label: string; href: string; group
     </nav>
     <aside className="hidden md:flex w-60 shrink-0 flex-col gap-5 border-r border-neutral-200 bg-white p-4">
       <div className="px-2">
-        <p className="text-lg font-extrabold tracking-wide text-green-800">DETOX BOOTH</p>
+        <p className="text-lg font-extrabold tracking-wide text-green-800">Vitamin B</p>
         <p className="text-xs text-neutral-500">Панель управления</p>
       </div>
       {groups.map((g) => (

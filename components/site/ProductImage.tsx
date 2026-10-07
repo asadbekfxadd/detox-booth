@@ -22,7 +22,7 @@ export function ProductImage({ image, name, categorySlug, shape = "arch", classN
       {image && !broken
         // eslint-disable-next-line @next/next/no-img-element
         ? <img ref={ref} src={image} alt={name} loading={priority ? "eager" : "lazy"} decoding="async" onError={() => setBroken(true)} className="absolute inset-0 h-full w-full object-cover" />
-        : <div className={`absolute inset-0 grid place-items-center text-night ${size}`} role="img" aria-label={name}><span aria-hidden>{categoryEmoji(categorySlug)}</span></div>}
+        : <div className={`absolute inset-0 grid place-items-center text-forest-deep ${size}`} role="img" aria-label={name}><span aria-hidden>{categoryEmoji(categorySlug)}</span></div>}
     </div>
   );
 }

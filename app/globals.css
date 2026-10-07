@@ -1,35 +1,34 @@
 @import "tailwindcss";
 
-/* Дизайн-токены. Клиентский сайт (.site) тёмный и неоновый, админка и касса остаются светлыми. */
+/* Дизайн-токены Vitamin B: глубокий зелёный, апельсиновый, листва, тёплый белый. Админка и касса остаются нейтральными. */
 @theme {
-  --font-display: "Unbounded Variable", "Onest Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Onest Variable", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Onest Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-script: "Caveat Variable", "Onest Variable", cursive;
 
-  --color-ink: #14231a;
-  --color-night: #07100a;
-  --color-surface: #101a13;
-  --color-surface-2: #17251b;
-  --color-neon: #c6ff2b;
-  --color-leaf: #19d46b;
-  --color-mango: #ffb800;
-  --color-tangerine: #ff6a1a;
-  --color-pom: #ff2d55;
-  --color-magenta: #ff2fa0;
-  --color-berry: #7b3cff;
-  --color-sky: #19c8ff;
-  --color-muted: #9bab9f;
+  --color-forest: #0d4a27;
+  --color-forest-deep: #072d17;
+  --color-orange: #ff8a00;
+  --color-orange-deep: #e45a00;
+  --color-sun: #ffb000;
+  --color-leaf: #2f9e2f;
+  --color-leaf-soft: #e6f4dc;
+  --color-cream: #fffdf8;
+  --color-sand: #fff1d6;
+  --color-surface: #ffffff;
+  --color-muted: #5b7264;
 }
 
-/* У каждой категории свой неоновый цвет: подсветка карточки, цена, выбранные опции. */
-.tone { --tone: #c6ff2b; }
-.tone-smoothies { --tone: #ffb800; }
-.tone-fresh { --tone: #ff6a1a; }
-.tone-detox { --tone: #19d46b; }
-.tone-bowls { --tone: #ff2fa0; }
-.tone-salads { --tone: #b6f01f; }
-.tone-healthy-snacks { --tone: #ff9d4a; }
-.tone-fruits { --tone: #ff3b4e; }
-.tone-sets { --tone: #8a4dff; }
+/* У каждой категории свой сочный оттенок: свечение карточки, баннер меню, метки. */
+.tone { --tone: #ffb000; }
+.tone-smoothies { --tone: #ffb000; }
+.tone-fresh { --tone: #ff8a00; }
+.tone-detox { --tone: #4cb944; }
+.tone-bowls { --tone: #ff7a59; }
+.tone-salads { --tone: #8fc93a; }
+.tone-healthy-snacks { --tone: #d9a066; }
+.tone-fruits { --tone: #ff5a5f; }
+.tone-sets { --tone: #f5c518; }
 
 html { background: #f7f3ea; }
 body {
@@ -38,100 +37,80 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
-/* Страница с тёмным сайтом красит и корень, чтобы при прокрутке за край не было светлой полосы. */
-html:has(.site), body:has(.site) { background: var(--color-night); }
+html:has(.site), body:has(.site) { background: var(--color-cream); }
 
-.site { background: var(--color-night); color: #f2f7ee; color-scheme: dark; position: relative; }
-.site h1, .site h2, .site h3, .site .display { font-family: var(--font-display); letter-spacing: -0.03em; }
-.site ::selection { background: var(--color-neon); color: var(--color-night); }
+.site { background: var(--color-cream); color: var(--color-forest); position: relative; }
+.site h1, .site h2 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; line-height: 1.04; }
+.site h3, .site .display { font-family: var(--font-display); letter-spacing: -0.015em; }
+.site .script { font-family: var(--font-script); font-weight: 700; letter-spacing: 0; text-transform: none; }
+.site ::selection { background: var(--color-orange); color: var(--color-forest-deep); }
 
 @layer base {
-  .site *, .site ::before, .site ::after { border-color: rgb(255 255 255 / 0.12); }
-  .site ::placeholder { color: rgb(255 255 255 / 0.4); }
+  .site *, .site ::before, .site ::after { border-color: rgb(13 74 39 / 0.14); }
+  .site ::placeholder { color: rgb(13 74 39 / 0.45); }
 }
 
-/* Зерно поверх всего сайта: убирает «пластиковую» плоскость цвета. */
-.site::after {
-  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-}
-
-/* Карточка: тёмная поверхность, цветное свечение сверху, подсветка рамки при наведении. */
-.pop {
-  border: 1px solid rgb(255 255 255 / 0.14);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
-}
-.pop-sm { }
-a.pop:hover, label.pop:hover { border-color: rgb(255 255 255 / 0.4); }
+/* Карточка: белая, с цветным свечением категории сверху. */
+.pop { border: 1px solid rgb(13 74 39 / 0.14); transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; }
+a.pop:hover, label.pop:hover { border-color: rgb(13 74 39 / 0.4); }
 .pop-card {
-  border: 1px solid rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(13 74 39 / 0.1);
   background:
-    radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--tone) 42%, transparent), transparent 72%),
-    var(--color-surface);
+    radial-gradient(120% 50% at 50% 0%, color-mix(in srgb, var(--tone) 30%, transparent), transparent 75%),
+    #fff;
+  box-shadow: 0 1px 2px rgb(13 74 39 / 0.05);
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
-.pop-card:hover { transform: translateY(-5px); border-color: var(--tone); box-shadow: 0 18px 44px -18px var(--tone); }
+.pop-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--tone) 70%, transparent); box-shadow: 0 20px 40px -22px var(--tone); }
 
-/* Блоки-наклейки на страницах меню и продукта. */
-.sticker { border: 1px solid rgb(255 255 255 / 0.14); }
-.sticker-sm { border: 1px solid transparent; }
 .press { transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.15s ease; }
-.press:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px -10px var(--color-neon); }
+.press:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 24px -10px var(--color-orange); }
 .press:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 
-/* Лучи за заголовком: белый конус поверх цвета категории. */
+/* Лучи за заголовком баннера: белый конус поверх цвета. */
 .sunburst {
-  background: repeating-conic-gradient(from 0deg at 80% 120%, rgb(255 255 255 / 0.22) 0deg 7deg, transparent 7deg 14deg);
-  mask-image: radial-gradient(circle at 80% 120%, #000 0%, transparent 80%);
+  background: repeating-conic-gradient(from 0deg at 85% 130%, rgb(255 255 255 / 0.28) 0deg 7deg, transparent 7deg 14deg);
+  mask-image: radial-gradient(circle at 85% 130%, #000 0%, transparent 80%);
 }
 
 /* Кнопки */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 0.8rem; padding: 0.85rem 1.5rem; font-weight: 800; line-height: 1.1; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.15s ease, color 0.15s ease; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border: 1px solid transparent; border-radius: 999px; padding: 0.85rem 1.6rem; font-weight: 800; line-height: 1.1; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
 .btn:hover:not(:disabled) { transform: translateY(-2px); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
-.btn:disabled { cursor: not-allowed; background: rgb(255 255 255 / 0.08); color: rgb(255 255 255 / 0.4); box-shadow: none; border-color: transparent; }
-.btn-lime { background: var(--color-neon); color: var(--color-night); border-color: transparent; }
-.btn-lime:hover:not(:disabled) { box-shadow: 0 10px 34px -8px var(--color-neon); }
-.btn-ink { background: var(--color-night); color: var(--color-neon); border-color: transparent; }
-.btn-ink:hover:not(:disabled) { box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.7); }
-.btn-white { background: transparent; color: #fff; border-color: rgb(255 255 255 / 0.3); }
-.btn-white:hover:not(:disabled) { background: #fff; color: var(--color-night); }
-.btn-pom { background: var(--color-magenta); color: #fff; border-color: transparent; }
-.btn-pom:hover:not(:disabled) { box-shadow: 0 10px 34px -8px var(--color-magenta); }
+.btn:disabled { cursor: not-allowed; background: rgb(13 74 39 / 0.08); color: rgb(13 74 39 / 0.4); box-shadow: none; border-color: transparent; }
+/* Главная кнопка: апельсиновый градиент, тёмно-зелёный текст (контраст выше 7:1). */
+.btn-primary { background: linear-gradient(135deg, var(--color-sun), var(--color-orange)); color: var(--color-forest-deep); }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 12px 28px -10px var(--color-orange); }
+.btn-forest { background: var(--color-forest); color: #fff; }
+.btn-forest:hover:not(:disabled) { background: var(--color-forest-deep); box-shadow: 0 12px 28px -12px var(--color-forest); }
+.btn-ghost { background: transparent; color: var(--color-forest); border-color: rgb(13 74 39 / 0.35); }
+.btn-ghost:hover:not(:disabled) { background: var(--color-forest); color: #fff; border-color: var(--color-forest); }
+.btn-accent { background: #fff; color: var(--color-orange-deep); border-color: var(--color-orange); }
+.btn-accent:hover:not(:disabled) { background: var(--color-orange); color: var(--color-forest-deep); }
 
 /* Движение. Всё отключается при prefers-reduced-motion. */
-@keyframes arch-rise { from { transform: translateY(46px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes arch-rise { from { transform: translateY(36px); opacity: 0; } to { transform: none; opacity: 1; } }
 .arch-rise { animation: arch-rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .arch-rise:nth-child(2) { animation-delay: 0.12s; }
 .arch-rise:nth-child(3) { animation-delay: 0.24s; }
 
-@keyframes float-a { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-12px) rotate(calc(var(--r, 0deg) + 4deg)); } }
+@keyframes float-a { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-10px) rotate(calc(var(--r, 0deg) + 4deg)); } }
 .float { animation: float-a 6s ease-in-out infinite; }
 .float-2 { animation-duration: 7.5s; animation-delay: -2s; }
-.float-3 { animation-duration: 5s; animation-delay: -1s; }
 
 @keyframes spin-slow { to { transform: rotate(360deg); } }
-.spin-slow { animation: spin-slow 18s linear infinite; }
+.spin-slow { animation: spin-slow 20s linear infinite; }
 
 @keyframes marquee { to { transform: translateX(-50%); } }
-.marquee-track { display: flex; width: max-content; animation: marquee 32s linear infinite; }
-.marquee-rev .marquee-track { animation-direction: reverse; animation-duration: 40s; }
+.marquee-track { display: flex; width: max-content; animation: marquee 38s linear infinite; }
 .marquee:hover .marquee-track { animation-play-state: paused; }
-
-/* Живой фон главного экрана: три размытых цветных пятна медленно плывут. */
-@keyframes orb-a { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(6%, 10%) scale(1.15); } }
-@keyframes orb-b { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-10%, -6%) scale(1.2); } }
-.orb { position: absolute; border-radius: 999px; filter: blur(90px); pointer-events: none; }
-.orb-a { animation: orb-a 14s ease-in-out infinite; }
-.orb-b { animation: orb-b 18s ease-in-out infinite; }
 
 @keyframes wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 .wiggle:hover { animation: wiggle 0.4s ease-in-out 2; }
 
 @media (prefers-reduced-motion: reduce) {
-  .arch-rise, .float, .spin-slow, .marquee-track, .orb-a, .orb-b, .wiggle:hover { animation: none !important; }
+  .arch-rise, .float, .spin-slow, .marquee-track, .wiggle:hover { animation: none !important; }
   .pop, .pop-card, .pop-card:hover, .btn, .btn:hover, .press, .press:hover { transition: none; transform: none; }
 }
 
-:focus-visible { outline: 3px solid var(--color-neon); outline-offset: 3px; border-radius: 8px; }
-.site :focus-visible { outline-color: var(--color-neon); }
+:focus-visible { outline: 3px solid var(--color-orange); outline-offset: 3px; border-radius: 8px; }
