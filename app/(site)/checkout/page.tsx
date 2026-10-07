@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getSiteLocation } from "@/lib/site";
+import { prisma } from "@/lib/prisma";
+import { enabledProviders } from "@/services/payments";
 import { CheckoutForm } from "@/components/site/CheckoutForm";
 import { Page } from "@/components/site/Page";
 
@@ -7,6 +9,7 @@ export const metadata = { title: "Оформление заказа", robots: { 
 
 export default async function CheckoutPage() {
   const { current } = await getSiteLocation();
+  const lead = (await prisma.setting.findUnique({ where: { key: "orders.minLeadMinutes" } }))?.value;
   return (
     <Page className="space-y-6">
       <div>
@@ -14,7 +17,7 @@ export default async function CheckoutPage() {
         <h1 className="text-3xl font-extrabold">Оформление заказа</h1>
       </div>
       {current
-        ? <CheckoutForm locationName={current.name} locationId={current.id} />
+        ? <CheckoutForm locationName={current.name} locationId={current.id} leadMin={typeof lead === "number" ? lead : 15} online={enabledProviders().length > 0} />
         : <p className="rounded-2xl bg-white p-6 pop">Сейчас нет доступных точек для заказа.</p>}
     </Page>
   );

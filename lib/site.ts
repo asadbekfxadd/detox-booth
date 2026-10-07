@@ -7,7 +7,7 @@ export const SITE_LOC_COOKIE = "site_loc";
 /** Активные точки и выбранная клиентом точка (cookie), по умолчанию — первая. */
 export const getSiteLocation = cache(async () => {
   const c = (await cookies()).get(SITE_LOC_COOKIE)?.value;
-  const locations = await prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, address: true } });
+  const locations = await prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, address: true, phone: true } });
   const current = locations.find((l) => l.id === c) ?? locations[0] ?? null;
   return { locations, current };
 });

@@ -24,6 +24,10 @@ type Mod = { name: string; multiple: boolean; required: boolean; options: Opt[] 
 
 const SIZE_DRINK: Mod = { name: "Объём", multiple: false, required: true, options: [["300 мл", 0], ["450 мл", 10000, 1.5]] };
 const SIZE_FRESH: Mod = { name: "Объём", multiple: false, required: true, options: [["300 мл", 0], ["500 мл", 10000, 1.6]] };
+/** Пожелания к напитку: бесплатные и необязательные, на цену и состав рецепта не влияют. */
+const ICE: Mod = { name: "Лёд", multiple: false, required: false, options: [["Без льда", 0], ["Немного льда", 0], ["Много льда", 0]] };
+const SUGAR: Mod = { name: "Сладость", multiple: false, required: false, options: [["Без добавок", 0], ["Послаще", 0]] };
+const DRINK_CATEGORIES = ["smoothies", "fresh", "detox"];
 const MILK: Mod = { name: "Молоко", multiple: false, required: true, options: [["Обычное", 0], ["Миндальное", 5000], ["Овсяное", 5000], ["Кокосовое", 6000]] };
 const BOOST: Mod = { name: "Добавки", multiple: true, required: false, options: [["Протеин", 8000], ["Чиа", 4000], ["Мёд", 3000], ["Семена льна", 3000], ["Спирулина", 6000], ["Гранола", 5000]] };
 const TOPPINGS: Mod = { name: "Топпинги", multiple: true, required: false, options: [["Свежие ягоды", 8000], ["Кокосовая стружка", 3000], ["Арахисовая паста", 5000], ["Мёд", 3000], ["Чиа", 4000], ["Протеин", 8000]] };
@@ -160,6 +164,16 @@ export async function seedMenu(prisma: PrismaClient, log: (s: string) => void = 
     });
     created++;
   }
-  log(`MENU: добавлено ${created}, уже было ${skipped}, категорий ${CATEGORIES.length}`);
-  return { created, skipped };
+  // Напиткам, которые уже есть в базе, добавляем «Лёд» и «Сладость», если их ещё нет (повторный запуск ничего не дублирует).
+  let extras = 0;
+  const drinks = await prisma.product.findMany({ where: { category: { slug: { in: DRINK_CATEGORIES } } }, include: { modifiers: { select: { name: true } } } });
+  for (const p of drinks) {
+    for (const mod of [ICE, SUGAR]) {
+      if (p.modifiers.some((x) => x.name === mod.name)) continue;
+      await prisma.modifier.create({ data: { productId: p.id, name: mod.name, multiple: mod.multiple, required: mod.required, options: { create: mod.options.map(([name, priceDelta]) => ({ name, priceDelta, recipeMultiplier: 1 })) } } });
+      extras++;
+    }
+  }
+  log(`MENU: добавлено ${created}, уже было ${skipped}, категорий ${CATEGORIES.length}, пожеланий к напиткам ${extras}`);
+  return { created, skipped, extras };
 }

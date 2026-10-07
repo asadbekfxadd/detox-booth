@@ -7,7 +7,6 @@ import { siteUrl } from "@/lib/site-url";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   applicationName: "Vitamin B",
-  alternates: { canonical: "/" },
   openGraph: { type: "website", siteName: "Vitamin B", locale: "ru_RU", title: "Vitamin B — fresh juice bar", description: "Натуральные фрукты, настоящий вкус: свежие соки, смузи, боулы и салаты. Закажите онлайн и заберите готовым.", images: [{ url: "/brand/family.jpg", alt: "Vitamin B — juice & fresh" }] },
   twitter: { card: "summary_large_image" },
   title: { default: "Vitamin B — fresh juice bar: соки, смузи и фреши", template: "%s · Vitamin B" },

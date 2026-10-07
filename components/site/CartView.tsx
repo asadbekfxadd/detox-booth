@@ -38,7 +38,12 @@ export function CartView({ locationId }: { locationId: string | null }) {
         <Link href="/menu" className="btn btn-primary pop mt-4">Выбрать в меню</Link>
       </div>
     );
-  if (error) return <p className="rounded-2xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>;
+  if (error) return (
+    <div role="alert" className="space-y-3 rounded-2xl border border-red-300 bg-red-50 p-4 text-red-800">
+      <p>{error}</p>
+      <button className="btn btn-ghost" onClick={() => clear()}>Очистить корзину</button>
+    </div>
+  );
   if (!quote) return <p className="py-16 text-center text-forest/60">Считаем стоимость…</p>;
 
   return (
@@ -58,20 +63,20 @@ export function CartView({ locationId }: { locationId: string | null }) {
                     </div>
                     <p className="whitespace-nowrap font-bold">{l.problem ? "—" : sum(l.lineTotal)}</p>
                   </div>
-                  {l.problem && <p className="mt-1 text-sm text-red-600">{l.problem}</p>}
+                  {l.problem && <p role="alert" className="mt-1 text-sm text-red-700">{l.problem}</p>}
                   <div className="mt-2 flex items-center justify-between">
                     <div className="flex items-center rounded-xl border border-forest/20 bg-white font-bold">
-                      <button aria-label="Меньше" className="px-3 py-1" onClick={() => setQty(key, l.quantity - 1)}>−</button>
-                      <span className="w-7 text-center text-sm font-semibold">{l.quantity}</span>
-                      <button aria-label="Больше" className="px-3 py-1" onClick={() => setQty(key, l.quantity + 1)}>+</button>
+                      <button aria-label={`Меньше: ${l.name}`} className="grid min-h-11 min-w-11 place-items-center" onClick={() => setQty(key, l.quantity - 1)}>−</button>
+                      <span className="w-7 text-center text-sm font-semibold" aria-live="polite">{l.quantity}</span>
+                      <button aria-label={`Больше: ${l.name}`} className="grid min-h-11 min-w-11 place-items-center" onClick={() => setQty(key, l.quantity + 1)}>+</button>
                     </div>
-                    <button className="text-sm text-forest/60 underline hover:text-red-600" onClick={() => remove(key)}>Удалить</button>
+                    <button className="min-h-11 px-2 text-sm text-forest/70 underline hover:text-red-700" aria-label={`Удалить: ${l.name}`} onClick={() => remove(key)}>Удалить</button>
                   </div>
                 </div>
               </div>
             );
           })}
-          <button className="text-sm text-forest/60 underline" onClick={() => { if (confirm("Очистить корзину?")) clear(); }}>Очистить корзину</button>
+          <button className="min-h-11 text-sm text-forest/70 underline" onClick={() => { if (confirm("Очистить корзину?")) clear(); }}>Очистить корзину</button>
         </div>
         <aside className="h-fit space-y-3 rounded-2xl bg-white p-5 pop lg:sticky lg:top-24">
           <h2 className="text-lg font-bold">Ваш заказ</h2>

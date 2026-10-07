@@ -95,6 +95,10 @@ const ADDONS = [
 ];
 
 async function main() {
+  // Демо-сидер стирает ВСЕ данные. Если в базе уже есть сотрудники или заказы, без явного подтверждения он не запустится.
+  const existing = (await prisma.user.count()) + (await prisma.order.count());
+  if (existing > 0 && process.env.ALLOW_DESTRUCTIVE_SEED !== "yes")
+    throw new Error("В базе уже есть данные: сидер удалил бы их все. Если это точно тестовая база, запустите с ALLOW_DESTRUCTIVE_SEED=yes.");
   console.log("Очистка базы...");
   await reset();
 

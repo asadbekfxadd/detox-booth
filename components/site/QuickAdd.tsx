@@ -6,7 +6,7 @@ import { useCart } from "@/lib/cart-store";
 export function QuickAdd({ productId, optionIds, available, name }: { productId: string; optionIds: string[]; available: boolean; name?: string }) {
   const add = useCart((s) => s.add);
   const [done, setDone] = useState(false);
-  if (!available) return <span className="rounded-full border border-forest/20 px-3 py-1.5 text-xs font-bold text-forest/55">Нет в наличии</span>;
+  if (!available) return <span className="rounded-full border border-forest/20 px-3 py-1.5 text-xs font-bold text-forest/55">Скоро вернём</span>;
   return (
     <button type="button" aria-label={done ? "Добавлено в корзину" : `Добавить в корзину${name ? `: ${name}` : ""}`}
       onClick={() => { add({ productId, quantity: 1, optionIds }); setDone(true); setTimeout(() => setDone(false), 1400); }}

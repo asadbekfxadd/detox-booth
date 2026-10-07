@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vitamin B — сайт, касса и управление сетью соковых баров
 
-## Getting Started
+Полный цикл одной системой: сайт для заказа, касса (POS), экран кухни, склад с рецептурами и партиями (FEFO), закупки, списания, клиенты и лояльность, финансы и аналитика, журнал действий.
 
-First, run the development server:
+**Стек:** Next.js 16 (App Router), TypeScript, Prisma 6 + PostgreSQL, Auth.js v5, Tailwind v4, Zod 4, Zustand, Recharts. Деньги — UZS, время — Ташкент (UTC+5).
+
+## Быстрый старт
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+cp .env.example .env        # заполните DATABASE_URL, AUTH_SECRET и SEED_*_PASSWORD
+npx prisma migrate deploy   # создаёт таблицы
+npx prisma db seed          # демо-данные (только для пустой тестовой базы!)
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Войти в админку: `/login`, логины демо-сотрудников выводит сидер (`owner@`, `admin@`, `cashier@`, `warehouse@`, `barista@detoxbooth.uz`), пароли — из `SEED_*_PASSWORD`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Меню из 41 позиции (с фото, опциями размера, молока, добавок, льда и сладости) загружается отдельно и безопасно запускается повторно:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx tsx prisma/seed-menu.ts
+```
 
-## Learn More
+## Что где
 
-To learn more about Next.js, take a look at the following resources:
+| Адрес | Для кого | Что делает |
+|---|---|---|
+| `/`, `/menu`, `/menu/[slug]` | клиенты | витрина, состав, КБЖУ, аллергены, опции |
+| `/cart`, `/checkout`, `/order/[id]` | клиенты | корзина, оформление (время получения, комментарий), отслеживание |
+| `/orders` | клиенты | история заказов с этого устройства и «Повторить заказ» |
+| `/locations` | клиенты | точки |
+| `/pos` | кассир | продажа, смена, скидки и баллы, возврат |
+| `/kitchen` | бариста | экран кухни: Новые → Готовятся → Готовы |
+| `/admin/*` | владелец, администратор, менеджер, склад, бухгалтер | заказы, продукты, рецепты, склад, закупки, списания, клиенты, финансы, аналитика, настройки, журнал |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Права по ролям — `lib/rbac.ts`; страница проверяет право на сервере, а каждый API-вызов и серверное действие — ещё раз.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Команды
 
-## Deploy on Vercel
+```bash
+npm run lint        # ESLint
+npm run typecheck   # tsc --noEmit
+npm test            # vitest
+npm run build       # production-сборка
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+CI (`.github/workflows/ci.yml`) прогоняет всё это на каждый pull request.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Деплой (Railway)
+
+Сборка: `npx prisma generate && npm run build`. Запуск: `npx prisma migrate deploy && npx next start -H 0.0.0.0 -p $PORT` — миграции применяются автоматически перед стартом.
+
+Обязательные переменные: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST=true`, `NEXTAUTH_URL`. Остальное — в `.env.example`.
+
+## Безопасность и эксплуатация
+
+- Цены, скидки, баллы и наличие всегда считает сервер; браузер присылает только id, опции и количество.
+- Склад: любая операция с остатками берёт блокировку точки, поэтому два одновременных заказа не уведут партию в минус.
+- Вход ограничен по частоте (30 попыток с адреса и 8 на логин за 15 минут), заказы с сайта — 8 за 10 минут с адреса. Счётчики хранятся в памяти процесса: при нескольких экземплярах сервера их нужно вынести в Redis.
+- Заголовки безопасности заданы в `next.config.ts`.
+- Сидер `prisma/seed.ts` стирает все данные и откажется работать в непустой базе без `ALLOW_DESTRUCTIVE_SEED=yes`.
+- Онлайн-оплата: слой готов (`services/payments`, вебхук `/api/payments/webhook/[provider]` с проверкой подписи). Подключение Payme/Click/Uzum требует данных мерчанта; по умолчанию включена только оплата при получении.
+
+Подробнее об устройстве: `docs/ARCHITECTURE.md`. Результаты аудита: `docs/AUDIT.md`.

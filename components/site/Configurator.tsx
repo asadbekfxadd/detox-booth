@@ -40,7 +40,7 @@ export function Configurator({ p }: { p: PublicProduct }) {
               const on = (sel[m.id] ?? []).includes(o.id);
               return (
                 <button key={o.id} type="button" aria-pressed={on} onClick={() => pick(m.id, o.id, m.multiple, m.required)}
-                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${on ? "border-(--tone) bg-(--tone) text-forest-deep" : "border-forest/20 text-forest/85 hover:border-forest/60"}`}>
+                  className={`min-h-11 rounded-lg border px-4 py-2 text-sm font-semibold transition ${on ? "border-(--tone) bg-(--tone) text-forest-deep" : "border-forest/20 text-forest/85 hover:border-forest/60"}`}>
                   {o.name}{o.priceDelta !== 0 && <span className="ml-1 opacity-75">{o.priceDelta > 0 ? "+" : "−"}{sum(Math.abs(o.priceDelta))}</span>}
                 </button>
               );
@@ -50,18 +50,18 @@ export function Configurator({ p }: { p: PublicProduct }) {
       ))}
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center rounded-xl border border-forest/20 bg-white text-forest">
-          <button type="button" aria-label="Меньше" className="px-4 py-2 text-lg" onClick={() => { setAdded(false); setQty((q) => Math.max(1, q - 1)); }}>−</button>
-          <span className="w-8 text-center font-semibold">{qty}</span>
-          <button type="button" aria-label="Больше" className="px-4 py-2 text-lg" onClick={() => { setAdded(false); setQty((q) => Math.min(maxQty, q + 1)); }}>+</button>
+          <button type="button" aria-label="Меньше" className="grid min-h-11 min-w-11 place-items-center text-lg" onClick={() => { setAdded(false); setQty((q) => Math.max(1, q - 1)); }}>−</button>
+          <span className="w-8 text-center font-semibold" aria-live="polite" aria-label={`Количество: ${qty}`}>{qty}</span>
+          <button type="button" aria-label="Больше" className="grid min-h-11 min-w-11 place-items-center text-lg" onClick={() => { setAdded(false); setQty((q) => Math.min(maxQty, q + 1)); }}>+</button>
         </div>
         <button type="button" disabled={!p.available || !!missing}
           onClick={() => { add({ productId: p.id, quantity: qty, optionIds }); setAdded(true); }}
           className="press rounded-xl bg-orange px-7 py-3.5 text-lg font-black text-forest-deep disabled:cursor-not-allowed disabled:bg-forest/8 disabled:text-forest/40 disabled:shadow-none">
-          {!p.available ? "Нет в наличии" : `В корзину · ${sum(unit * qty)}`}
+          {!p.available ? "Скоро вернём" : `В корзину · ${sum(unit * qty)}`}
         </button>
       </div>
-      {missing && <p className="text-sm text-red-600">Выберите «{missing.name}»</p>}
-      {added && <p className="text-sm text-leaf">Добавлено в корзину. <Link href="/cart" className="font-semibold underline">Перейти в корзину</Link></p>}
+      {missing && <p role="status" className="text-sm text-red-700">Выберите «{missing.name}»</p>}
+      {added && <p role="status" className="text-sm font-semibold text-forest">Добавлено в корзину. <Link href="/cart" className="font-semibold underline">Перейти в корзину</Link></p>}
       {p.portions !== null && p.portions > 0 && p.portions <= 5 && <p className="text-sm text-amber-700">Осталось всего {p.portions} шт. на этой точке</p>}
     </div>
   );

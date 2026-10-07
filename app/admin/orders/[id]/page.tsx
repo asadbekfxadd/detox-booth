@@ -39,6 +39,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         <span>{SOURCE_LABEL[o.source]} · {FULFILL_LABEL[o.fulfillment]}</span>
         <span>Точка: <b>{o.location}</b></span>
         <span>Создан: <b>{dateTimeStr(o.createdAt)}</b></span>
+        <span>Получить: <b>{o.scheduledFor ? dateTimeStr(o.scheduledFor) : "как можно скорее"}</b></span>
         {o.completedAt && <span>Завершён: <b>{dateTimeStr(o.completedAt)}</b></span>}
         {o.cashier && <span>Кассир: <b>{o.cashier}</b></span>}
       </div>
@@ -48,6 +49,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <h2 className="font-bold">Клиент</h2>
           {o.customer ? <p><b>{o.customer.name}</b><br />{o.customer.phone}</p> : <p className="text-neutral-500">Не указан</p>}
           {o.address && <p>Адрес: {o.address}</p>}
+          {o.note && <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-900">Комментарий: {o.note}</p>}
           {o.pointsEarned > 0 && <p className="text-green-800">Начислено баллов: {o.pointsEarned}</p>}
         </div>
         <div className="space-y-2 rounded-2xl bg-white p-5 text-sm shadow-sm">

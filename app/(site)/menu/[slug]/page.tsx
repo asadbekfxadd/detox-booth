@@ -60,6 +60,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 {n.map(([l, v]) => <div key={l} className="flex flex-col-reverse px-1"><dt className="text-xs text-forest/55">{l}</dt><dd className="display text-xl font-extrabold text-forest">{v ?? "—"}</dd></div>)}
               </dl>
             )}
+            {p.ingredients.length > 0 && <p className="text-sm text-forest/70"><b className="text-forest">Состав:</b> {p.ingredients.join(", ")}</p>}
             <p className="text-sm text-forest/60"><b className="text-forest">Аллергены:</b> {p.allergens.length ? p.allergens.map((a) => ALLERGEN[a] ?? a).join(", ") : "не указаны"}</p>
           </div>
         </div>

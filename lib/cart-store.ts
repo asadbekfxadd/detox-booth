@@ -24,4 +24,9 @@ export const useCart = create<State>()(persist((set) => ({
   setQty: (key, q) => set((s) => ({ lines: s.lines.map((x) => (lineKey(x) === key ? { ...x, quantity: Math.max(1, Math.min(50, q)) } : x)) })),
   remove: (key) => set((s) => ({ lines: s.lines.filter((x) => lineKey(x) !== key) })),
   clear: () => set({ lines: [] }),
-}), { name: "detox-cart" }));
+}), {
+  name: "detox-cart",
+  version: 1,
+  // при смене формата старая корзина сбрасывается, а не ломает страницу
+  migrate: () => ({ lines: [] }) as unknown as State,
+}));
