@@ -51,7 +51,7 @@ export async function getAnalytics(r: Range, locationId: string | null) {
     const h = hours[shifted.getUTCHours()]; h.orders++; h.revenue += t;
     const w = wd.find((x) => x.day === shifted.getUTCDay())!; w.orders++; w.revenue += t;
     const ck = `${o.source}-${o.fulfillment}`;
-    const lbl = o.source === "POS" ? "Касса" : o.fulfillment === "DELIVERY" ? "Сайт · доставка" : "Сайт · самовывоз";
+    const lbl = o.source === "POS" ? "Касса" : o.source === "TABLE" ? "Столы (QR)" : o.fulfillment === "DELIVERY" ? "Сайт · доставка" : "Сайт · самовывоз";
     const c = channels.get(ck) ?? { label: lbl, orders: 0, revenue: 0 }; c.orders++; c.revenue += t; channels.set(ck, c);
     for (const p of o.payments) pay[p.method] += Number(p.amount);
     const l = byLoc.get(o.locationId) ?? { revenue: 0, cogs: 0, orders: 0 }; l.revenue += t; l.cogs += Number(o.cogs); l.orders++; byLoc.set(o.locationId, l);

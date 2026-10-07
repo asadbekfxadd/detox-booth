@@ -78,7 +78,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           <option value="all">Все статусы</option><option value="active">Активные</option>
           {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
-        <select name="source" defaultValue={sp.source ?? ""} className={input}><option value="">Все источники</option><option value="WEB">Сайт</option><option value="POS">Касса</option></select>
+        <select name="source" defaultValue={sp.source ?? ""} className={input}><option value="">Все источники</option><option value="WEB">Сайт</option><option value="POS">Касса</option><option value="TABLE">Столы (QR)</option></select>
         <select name="method" defaultValue={sp.method ?? ""} className={input}><option value="">Любая оплата</option>{Object.entries(METHOD_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         <label className="text-xs text-neutral-500">с<input type="date" name="from" defaultValue={sp.from} className={`${input} ml-1`} /></label>
         <label className="text-xs text-neutral-500">по<input type="date" name="to" defaultValue={sp.to} className={`${input} ml-1`} /></label>
@@ -100,7 +100,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
               <tr key={o.id} className="border-t border-neutral-100 align-top">
                 <td className="p-3"><Link href={`/admin/orders/${o.id}`} className="font-semibold text-green-800 underline">{o.number}</Link></td>
                 <td className="whitespace-nowrap">{dateTimeStr(o.createdAt)}</td>
-                <td>{SOURCE_LABEL[o.source]}<span className="block text-xs text-neutral-500">{FULFILL_LABEL[o.fulfillment]}</span></td>
+                <td>{SOURCE_LABEL[o.source]}<span className="block text-xs text-neutral-500">{o.tableNumber != null ? `№${o.tableNumber}` : FULFILL_LABEL[o.fulfillment]}</span></td>
                 <td className="max-w-48 truncate">{o.customer ?? "—"}</td>
                 <td className="max-w-64 truncate text-neutral-600">{o.summary}</td>
                 <td className="whitespace-nowrap text-right">{money(o.total)}</td>

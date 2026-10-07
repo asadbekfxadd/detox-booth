@@ -187,6 +187,7 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
         <span className="text-sm text-neutral-600">{locationName} · {cashier}</span>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-sm">
           <button onClick={() => { setOrdersOpen(true); loadOrders(); }} className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Заказы смены</button>
+          <Link href="/pos/tables" className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Столы</Link>
           <Link href="/pos/shift" className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Смена</Link>
           {adminHref && <Link href={adminHref} className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Админка</Link>}
           <form action={logoutAction}><button className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Выйти</button></form>

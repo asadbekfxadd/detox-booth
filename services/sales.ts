@@ -16,7 +16,7 @@ export async function getSales(r: Range, locationId: string | null) {
   const days = new Map<number, { orders: number; revenue: number; discount: number }>();
   for (let d = startOfDay(r.from.getTime() + 1); d < r.to.getTime(); d += DAY) days.set(d, { orders: 0, revenue: 0, discount: 0 });
   const prods = new Map<string, { category: string; qty: number; revenue: number }>();
-  const src = { POS: { orders: 0, revenue: 0 }, WEB: { orders: 0, revenue: 0 } };
+  const src = { POS: { orders: 0, revenue: 0 }, WEB: { orders: 0, revenue: 0 }, TABLE: { orders: 0, revenue: 0 } };
   for (const o of orders) {
     const x = days.get(startOfDay(o.createdAt.getTime()));
     if (x) { x.orders++; x.revenue += Number(o.total); x.discount += Number(o.discount); }

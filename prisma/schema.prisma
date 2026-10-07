@@ -29,6 +29,12 @@ enum OrderStatus {
 enum OrderSource {
   WEB
   POS
+  /// Гость заказал сам по QR-коду на столе
+  TABLE
+}
+enum BillStatus {
+  OPEN
+  PAID
 }
 
 enum FulfillmentType {
@@ -124,6 +130,7 @@ model Location {
   name String
   address String?
   phone String?
+  tables DiningTable[]
   lat Float?
   lng Float?
   isActive Boolean @default(true)
@@ -420,10 +427,17 @@ model Order {
   scheduledFor DateTime?
   /// Комментарий клиента к заказу
   note String?
+  /// Стол и счёт стола (заказы по QR). Заказы одного гостя за визит копятся в одном счёте.
+  tableId String?
+  table DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  billId String?
+  bill TableBill? @relation(fields: [billId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   completedAt DateTime?
   items OrderItem[]
   payments Payment[]
+  @@index([billId])
+  @@index([tableId, status])
   @@index([locationId, createdAt])
   @@index([status])
   @@index([customerId, createdAt])
@@ -495,4 +509,41 @@ model AuditLog {
 model Setting {
   key String @id
   value Json
+}
+
+/// Столик в зале. По токену из QR-кода гость попадает в меню с уже привязанным столом.
+model DiningTable {
+  id String @id @default(cuid())
+  locationId String
+  location Location @relation(fields: [locationId], references: [id])
+  number Int
+  /// Неугадываемый токен в ссылке QR. Перевыпуск делает старый QR нерабочим.
+  token String @unique
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  orders Order[]
+  bills TableBill[]
+  @@unique([locationId, number])
+}
+
+/// Счёт стола. Один открытый счёт на стол (частичный уникальный индекс в миграции).
+model TableBill {
+  id String @id @default(cuid())
+  number Int @default(autoincrement())
+  tableId String
+  table DiningTable @relation(fields: [tableId], references: [id])
+  locationId String
+  status BillStatus @default(OPEN)
+  openedAt DateTime @default(now())
+  /// Гость нажал «Попросить счёт»
+  billRequestedAt DateTime?
+  closedAt DateTime?
+  closedById String?
+  shiftId String?
+  method PaymentMethod?
+  /// Итог на момент закрытия (без отменённых заказов)
+  total Decimal? @db.Decimal(14,2)
+  orders Order[]
+  @@index([tableId, status])
+  @@index([locationId, status])
 }

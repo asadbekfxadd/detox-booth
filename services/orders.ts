@@ -29,7 +29,7 @@ function buildWhere(locationId: string | null, f: OrderFilters): Prisma.OrderWhe
   if (locationId) where.locationId = locationId;
   if (f.status === "active") where.status = { in: [...ACTIVE] };
   else if (f.status && (ORDER_STATUSES as readonly string[]).includes(f.status)) where.status = f.status as OrderStatus;
-  if (f.source === "WEB" || f.source === "POS") where.source = f.source;
+  if (f.source === "WEB" || f.source === "POS" || f.source === "TABLE") where.source = f.source;
   if (f.method === "CASH" || f.method === "CARD" || f.method === "ONLINE") where.payments = { some: { method: f.method } };
   const range: { gte?: Date; lt?: Date } = {};
   if (f.from && /^\d{4}-\d{2}-\d{2}$/.test(f.from)) range.gte = dayStart(f.from);
@@ -52,7 +52,7 @@ export async function listOrders(locationId: string | null, f: OrderFilters) {
   const [rows, count, done, cancelled, delaySetting] = await Promise.all([
     prisma.order.findMany({
       where, orderBy: { createdAt: "desc" }, skip: (page - 1) * PAGE, take: PAGE,
-      include: { customer: { select: { name: true, phone: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
+      include: { customer: { select: { name: true, phone: true } }, table: { select: { number: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
     }),
     prisma.order.count({ where }),
     prisma.order.aggregate({ where: { ...where, status: "COMPLETED" }, _sum: { total: true }, _count: true }),
@@ -65,7 +65,7 @@ export async function listOrders(locationId: string | null, f: OrderFilters) {
     page, pages: Math.max(1, Math.ceil(count / PAGE)), count,
     stats: { completed: done._count, revenue: Number(done._sum.total ?? 0), cancelled },
     rows: rows.map((o) => ({
-      id: o.id, number: o.number, createdAt: o.createdAt, scheduledFor: o.scheduledFor, source: o.source, fulfillment: o.fulfillment, status: o.status,
+      id: o.id, number: o.number, createdAt: o.createdAt, scheduledFor: o.scheduledFor, source: o.source, fulfillment: o.fulfillment, status: o.status, tableNumber: o.table?.number ?? null,
       customer: o.customer ? `${o.customer.name} · ${o.customer.phone}` : null, total: Number(o.total),
       payment: o.payments[0] ? { method: o.payments[0].method, status: o.payments[0].status } : null,
       summary: o.items.map((i) => `${i.quantity}× ${i.product.name}`).join(", "),
@@ -146,7 +146,8 @@ export async function advanceOrder(input: unknown, user: Actor) {
 
     if (d.to === "CONFIRMED") await deductInventoryTx(tx, o.id, user.id);
     if (d.to === "COMPLETED") {
-      await tx.payment.updateMany({ where: { orderId: o.id, status: "PENDING", method: { in: ["CASH", "CARD"] } }, data: { status: "PAID" } }); // оплата на месте при получении
+      // оплата на месте при получении; за столом платят одним счётом, его закрывает кассир
+      if (o.source !== "TABLE") await tx.payment.updateMany({ where: { orderId: o.id, status: "PENDING", method: { in: ["CASH", "CARD"] } }, data: { status: "PAID" } });
       await deductInventoryTx(tx, o.id, user.id); // на случай заказов, не прошедших подтверждение
       await awardPointsTx(tx, o.id);
     }
@@ -201,12 +202,12 @@ export async function kitchenOrders(locationId: string | null) {
   const rows = await prisma.order.findMany({
     where: { ...(locationId ? { locationId } : {}), status: { in: [...ACTIVE] } },
     take: 60,
-    include: { customer: { select: { name: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
+    include: { customer: { select: { name: true } }, table: { select: { number: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
   });
   const now = Date.now();
   return rows
     .map((o) => ({
-      id: o.id, number: o.number, status: o.status, source: o.source, fulfillment: o.fulfillment,
+      id: o.id, number: o.number, status: o.status, source: o.source, fulfillment: o.fulfillment, tableNumber: o.table?.number ?? null,
       dueAt: o.scheduledFor ?? o.createdAt, scheduled: !!o.scheduledFor, note: o.note,
       customer: o.customer?.name.split(" ")[0] ?? null,
       unpaidOnline: o.payments[0]?.method === "ONLINE" && o.payments[0]?.status === "PENDING",
