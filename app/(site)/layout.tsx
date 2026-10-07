@@ -4,6 +4,9 @@ import { CartButton } from "@/components/site/CartButton";
 import { LocationSelect } from "@/components/site/LocationSelect";
 import { Logo } from "@/components/site/Logo";
 import { Marquee } from "@/components/site/Marquee";
+import { ContactMap } from "@/components/site/ContactMap";
+import { Icon } from "@/components/site/Icon";
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +39,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         </nav>
       </header>
       <main className="flex-1">{children}</main>
+      <ContactMap location={current} />
       <footer className="overflow-hidden bg-forest-deep text-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-6 pt-12 sm:grid-cols-[1.4fr_1fr_1fr]">
           <div>
@@ -66,6 +70,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         <div className="border-t border-white/10">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-white/60">
             <span>© Vitamin B, juice &amp; fresh</span>
+            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-white"><Icon name="instagram" size={16} />@{INSTAGRAM_HANDLE}</a>
             <Link href="/login" className="hover:text-white">Вход для сотрудников</Link>
           </div>
         </div>
