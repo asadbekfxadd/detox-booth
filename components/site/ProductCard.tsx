@@ -11,7 +11,7 @@ const tag = "rounded-full bg-forest/8 px-2.5 py-0.5 text-[11px] font-bold text-f
 export function ProductCard({ p, priority = false }: { p: PublicProduct; priority?: boolean }) {
   const customizable = p.modifiers.length > 0;
   return (
-    <article className={`${toneClass(p.category.slug)} pop-card flex flex-col rounded-3xl p-2.5 sm:p-3 ${p.available ? "" : "opacity-70"}`}>
+    <article data-product={p.slug} className={`${toneClass(p.category.slug)} pop-card flex flex-col rounded-3xl p-2.5 sm:p-3 ${p.available ? "" : "opacity-70"}`}>
       <Link href={`/menu/${p.slug}`} className="block" aria-label={p.name}>
         <ProductImage image={p.image} name={p.name} categorySlug={p.category.slug} priority={priority} />
       </Link>

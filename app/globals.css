@@ -114,3 +114,61 @@ a.pop:hover, label.pop:hover { border-color: rgb(13 74 39 / 0.4); }
 }
 
 :focus-visible { outline: 3px solid var(--color-orange); outline-offset: 3px; border-radius: 8px; }
+
+/* ───────── Мандаринка: персонаж-помощник ───────── */
+.mdr { display: block; width: 100%; height: 100%; overflow: visible; }
+.mdr-flip { transform-origin: 60px 80px; transform: scaleX(var(--face, 1)); transition: transform 0.18s ease; }
+.mdr-body-wrap { transform-origin: 60px 132px; }
+.mdr-leaf-wrap { transform-origin: 60px 36px; animation: mdr-sway 3.2s ease-in-out infinite alternate; }
+.mdr-eyes { transform-origin: 60px 71px; animation: mdr-blink 4.8s infinite; }
+.mdr-leg { transform-origin: 60px 108px; }
+.mdr-arm-l { transform-origin: 24px 78px; }
+.mdr-arm-r { transform-origin: 96px 78px; transition: transform 0.25s ease; }
+.mdr-mouth-open, .mdr-spark { opacity: 0; }
+.mdr-shadow { transform-origin: 60px 145px; }
+
+.mdr[data-state="idle"] .mdr-body-wrap { animation: mdr-idle 2.8s ease-in-out infinite; }
+.mdr[data-state="idle"] .mdr-arm-l { animation: mdr-wave-l 5s ease-in-out infinite; }
+
+.mdr[data-state="run"] .mdr-body-wrap { animation: mdr-run 0.34s ease-in-out infinite; }
+.mdr[data-state="run"] .mdr-leg-l { animation: mdr-leg 0.34s ease-in-out infinite; }
+.mdr[data-state="run"] .mdr-leg-r { animation: mdr-leg 0.34s ease-in-out infinite reverse; }
+.mdr[data-state="run"] .mdr-arm-l { animation: mdr-arm 0.34s ease-in-out infinite reverse; }
+.mdr[data-state="run"] .mdr-arm-r { animation: mdr-arm 0.34s ease-in-out infinite; }
+.mdr[data-state="run"] .mdr-shadow { animation: mdr-shadow 0.34s ease-in-out infinite; }
+.mdr[data-state="run"] .mdr-smile, .mdr[data-state="talk"] .mdr-smile { opacity: 0; }
+.mdr[data-state="run"] .mdr-mouth-open { opacity: 1; }
+
+.mdr[data-state="talk"] .mdr-body-wrap { animation: mdr-idle 1.6s ease-in-out infinite; }
+.mdr[data-state="talk"] .mdr-mouth-open { opacity: 1; transform-origin: 60px 85px; animation: mdr-talk 0.36s ease-in-out infinite; }
+
+.mdr[data-state="point"] .mdr-body-wrap { animation: mdr-hop 0.7s ease-out 2; }
+.mdr[data-state="point"] .mdr-arm-r { transform: rotate(-150deg); }
+.mdr[data-state="point"] .mdr-spark { animation: mdr-spark 1.1s ease-in-out infinite; }
+
+@keyframes mdr-idle { 0%, 100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(-3px) scale(1.015, 0.985); } }
+@keyframes mdr-run { 0%, 100% { transform: translateY(0) rotate(calc(var(--face, 1) * 5deg)) scale(1.05, 0.93); } 50% { transform: translateY(-10px) rotate(calc(var(--face, 1) * 5deg)) scale(0.97, 1.05); } }
+@keyframes mdr-leg { 0%, 100% { transform: rotate(-34deg); } 50% { transform: rotate(34deg); } }
+@keyframes mdr-arm { 0%, 100% { transform: rotate(-38deg); } 50% { transform: rotate(38deg); } }
+@keyframes mdr-wave-l { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-28deg); } 94% { transform: rotate(8deg); } 97% { transform: rotate(-22deg); } }
+@keyframes mdr-shadow { 0%, 100% { transform: scaleX(1); opacity: 0.16; } 50% { transform: scaleX(0.6); opacity: 0.08; } }
+@keyframes mdr-hop { 0% { transform: translateY(0) scale(1.06, 0.94); } 40% { transform: translateY(-16px) scale(0.96, 1.06); } 100% { transform: translateY(0) scale(1); } }
+@keyframes mdr-talk { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+@keyframes mdr-blink { 0%, 94%, 100% { transform: scaleY(1); } 96.5% { transform: scaleY(0.08); } }
+@keyframes mdr-sway { from { transform: rotate(-4deg); } to { transform: rotate(5deg); } }
+@keyframes mdr-spark { 0%, 100% { opacity: 0; transform: scale(0.4); } 50% { opacity: 1; transform: scale(1); } }
+
+.mdr-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; animation: mdr-dot 1s ease-in-out infinite; }
+.mdr-dot:nth-child(2) { animation-delay: 0.15s; }
+.mdr-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes mdr-dot { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+/* Подсветка карточки, к которой прибежала Мандаринка */
+@keyframes mdr-glow { 0%, 100% { box-shadow: 0 0 0 0 rgb(255 138 0 / 0); } 50% { box-shadow: 0 0 0 10px rgb(255 138 0 / 0.28); } }
+.mandarin-glow { outline: 3px solid var(--color-orange); outline-offset: 4px; border-radius: 1.5rem; animation: mdr-glow 1.1s ease-in-out 4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mdr *, .mdr-dot, .mandarin-glow { animation: none !important; transition: none !important; }
+  .mdr[data-state="run"] .mdr-mouth-open, .mdr[data-state="talk"] .mdr-mouth-open { opacity: 1; }
+  .mdr[data-state="point"] .mdr-spark { opacity: 1; }
+}

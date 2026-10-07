@@ -9,6 +9,7 @@ import { Icon } from "@/components/site/Icon";
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/brand";
 import { getCurrentTable } from "@/lib/site-table";
 import { leaveTableAction } from "./actions";
+import { MandarinAssistant } from "@/components/site/mandarin/MandarinAssistant";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           </div>
         </div>
       </footer>
+      <MandarinAssistant />
     </div>
   );
 }
