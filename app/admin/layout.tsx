@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-[#f7f3ea] md:flex">
       <Sidebar items={items} />
       <div className="min-w-0 flex-1">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 bg-white px-6 py-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 bg-white px-6 py-3 print:hidden">
           {canSwitch
             ? <LocationSwitcher locations={locations.map((l) => ({ id: l.id, name: l.name }))} current={locationId} />
             : <span className="text-sm font-medium">{locations.find((l) => l.id === locationId)?.name ?? "Все точки"}</span>}
@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </form>
           </div>
         </header>
-        <main className="p-6">{children}</main>
+        <main className="p-6 print:p-0">{children}</main>
       </div>
     </div>
   );

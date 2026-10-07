@@ -7,6 +7,8 @@ import { Marquee } from "@/components/site/Marquee";
 import { ContactMap } from "@/components/site/ContactMap";
 import { Icon } from "@/components/site/Icon";
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/brand";
+import { getCurrentTable } from "@/lib/site-table";
+import { leaveTableAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ const TICKER = ["Good juice, good mood", "Натуральные фрукты", 
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const { locations, current } = await getSiteLocation();
+  const table = await getCurrentTable();
   return (
     <div className="site flex min-h-screen flex-col">
       <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream/90 backdrop-blur-xl">
@@ -38,8 +41,19 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <Link href="/orders" className={`${navLink} whitespace-nowrap`}>Мои заказы</Link>
         </nav>
       </header>
+      {table && (
+        <div className="border-b border-forest/10 bg-sand">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-sm">
+            <p className="font-bold text-forest-deep">Вы за столом №{table.number}. Заказ принесём к столу.</p>
+            <div className="flex items-center gap-3">
+              <Link href="/table" className="font-bold text-orange-deep underline underline-offset-4">Мой счёт</Link>
+              <form action={leaveTableAction}><button className="text-forest/60 underline underline-offset-4 hover:text-forest">Это не мой стол</button></form>
+            </div>
+          </div>
+        </div>
+      )}
       <main className="flex-1">{children}</main>
-      <ContactMap location={current} />
+      {!table && <ContactMap location={current} />}
       <footer className="overflow-hidden bg-forest-deep text-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-6 pt-12 sm:grid-cols-[1.4fr_1fr_1fr]">
           <div>

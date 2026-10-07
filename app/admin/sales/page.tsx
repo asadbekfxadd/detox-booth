@@ -24,7 +24,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
       <RangeBar base="/admin/sales" range={range} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Kpi l="Выручка" v={money(s.revenue)} /><Kpi l="Заказов" v={num(s.orders)} /><Kpi l="Средний чек" v={money(s.avgCheck)} />
-        <Kpi l="Скидки и баллы" v={money(s.discount)} /><Kpi l="Касса / сайт" v={`${s.sources.POS.orders} / ${s.sources.WEB.orders}`} />
+        <Kpi l="Скидки и баллы" v={money(s.discount)} /><Kpi l="Касса / сайт / столы" v={`${s.sources.POS.orders} / ${s.sources.WEB.orders} / ${s.sources.TABLE.orders}`} />
       </div>
       <p className="text-xs text-neutral-500">Учитываются завершённые заказы. Возвращённые и отменённые в продажи не входят.</p>
       <div className="grid gap-4 lg:grid-cols-2">

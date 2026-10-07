@@ -53,16 +53,17 @@ export default async function KitchenPage() {
               <h2 className="flex items-center justify-between px-1 text-lg font-bold"><span>{col.title}</span><span className="rounded-full bg-neutral-800 px-3 py-0.5 text-sm">{list.length}</span></h2>
               {list.length === 0 && <p className="py-8 text-center text-neutral-500">Пока пусто</p>}
               {list.map((o) => {
-                const btn = NEXT_BTN[o.status];
+                const base = NEXT_BTN[o.status];
+                const btn = base && o.source === "TABLE" && o.status === "READY" ? { ...base, label: "Подано к столу" } : base; // оплата за столом идёт отдельно, на кассе
                 const late = o.ageMin >= 15 && !o.scheduled;
                 return (
                   <article key={o.id} className={`space-y-3 rounded-xl border-l-8 bg-neutral-800 p-4 ${col.accent} ${late ? "ring-2 ring-red-500" : ""}`}>
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className="text-3xl font-black">№{o.number}</p>
+                      <p className="text-3xl font-black">№{o.number}{o.tableNumber != null && <span className="ml-3 rounded-lg bg-orange-500 px-3 py-0.5 align-middle text-2xl text-neutral-950">Стол {o.tableNumber}</span>}</p>
                       <p className={`text-sm font-semibold ${late ? "text-red-300" : "text-neutral-300"}`}>{o.ageMin} мин назад</p>
                     </div>
                     <p className="text-sm text-neutral-300">
-                      {o.source === "WEB" ? "Сайт" : "Касса"} · {o.fulfillment === "DELIVERY" ? "Доставка" : "Самовывоз"}{o.customer ? ` · ${o.customer}` : ""}
+                      {o.source === "TABLE" ? `Гость за столом ${o.tableNumber ?? ""}, принести к столу` : `${o.source === "WEB" ? "Сайт" : "Касса"} · ${o.fulfillment === "DELIVERY" ? "Доставка" : "Самовывоз"}${o.customer ? ` · ${o.customer}` : ""}`}
                     </p>
                     {o.scheduled && <p className="inline-block rounded-lg bg-sky-900 px-3 py-1 text-sm font-bold text-sky-100">Выдать к {dateTimeStr(o.dueAt)}</p>}
                     <ul className="space-y-2">

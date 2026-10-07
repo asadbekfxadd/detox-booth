@@ -11,7 +11,7 @@ export const NEXT: Record<string, { to: string; label: string } | undefined> = {
   PREPARING: { to: "READY", label: "Готов к выдаче" },
   READY: { to: "COMPLETED", label: "Выдан клиенту" },
 };
-export const SOURCE_LABEL: Record<string, string> = { WEB: "Сайт", POS: "Касса" };
+export const SOURCE_LABEL: Record<string, string> = { WEB: "Сайт", POS: "Касса", TABLE: "Стол" };
 export const FULFILL_LABEL: Record<string, string> = { PICKUP: "Самовывоз", DELIVERY: "Доставка" };
 export const METHOD_LABEL: Record<string, string> = { CASH: "Наличные", CARD: "Карта", ONLINE: "Онлайн" };
 export const PAY_LABEL: Record<string, string> = { PENDING: "Ожидает оплаты", PAID: "Оплачен", FAILED: "Не оплачен", REFUNDED: "Возврат" };
