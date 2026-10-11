@@ -166,7 +166,7 @@ export default async function HomePage() {
 
       {/* Энергия на твои цели: тёмный «спортивный» блок */}
       <section aria-labelledby="energy" className="relative overflow-hidden bg-forest-deep text-white">
-        <div aria-hidden className="absolute -right-24 top-0 h-[28rem] w-[28rem] rounded-full bg-orange/30 blur-[100px]" />
+        <div aria-hidden className="absolute -right-24 top-0 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(closest-side,rgb(255_138_0/0.32),transparent)]" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:py-24 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <p className="script text-3xl text-orange">Натуральные фрукты. Настоящий вкус.</p>

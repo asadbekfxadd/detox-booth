@@ -9,7 +9,7 @@ export function ContactMap({ location }: { location: Loc | null }) {
   const exact = !!location && hasMap(location);
   const link = "btn !px-5 !py-2.5 text-sm";
   return (
-    <section aria-labelledby="where" className="mx-auto w-full max-w-6xl px-4 pb-14 pt-6 sm:pb-20">
+    <section aria-labelledby="where" className="defer mx-auto w-full max-w-6xl px-4 pb-14 pt-6 sm:pb-20">
       <div className={`grid gap-6 overflow-hidden rounded-[2rem] border border-forest/12 bg-white p-4 sm:p-6 ${exact ? "lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]" : ""}`}>
         <div className="flex flex-col justify-between gap-6 p-2 sm:p-4">
           <div>

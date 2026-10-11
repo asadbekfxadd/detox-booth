@@ -27,7 +27,7 @@ export function PromoBanners() {
       </Link>
 
       <Link href="/menu?diet=protein" className={`${card} bg-forest-deep text-white`}>
-        <div aria-hidden className="absolute -right-10 -top-12 -z-10 h-44 w-44 rounded-full bg-orange/40 blur-3xl" />
+        <div aria-hidden className="absolute -right-10 -top-12 -z-10 h-44 w-44 rounded-full bg-[radial-gradient(closest-side,rgb(255_138_0/0.42),transparent)]" />
         <Image src="/brand/gym.jpg" alt="" width={295} height={330} sizes="200px" className={`${photo} w-2/5`} />
         <div className="flex max-w-[62%] flex-col justify-between gap-3">
           <h2 className="text-xl font-black sm:text-2xl">Энергия на твои цели</h2>
