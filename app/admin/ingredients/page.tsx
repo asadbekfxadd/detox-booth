@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClickableRow } from "@/components/admin/ClickableRow";
 import { pageGuard } from "@/lib/guard";
 import { getScope } from "@/lib/location";
 import { listIngredients } from "@/services/ingredients";
@@ -37,9 +38,9 @@ export default async function IngredientsPage({ searchParams }: { searchParams: 
               </td></tr>
             )}
             {rows.map((r) => (
-              <tr key={r.id} className="relative border-t border-neutral-100 transition-colors hover:bg-green-50/70">
+              <ClickableRow key={r.id} href={`/admin/ingredients/${r.id}`} className="border-t border-neutral-100 transition-colors hover:bg-green-50/70">
                 <td className="p-3 font-medium">
-                  <Link href={`/admin/ingredients/${r.id}`} className="after:absolute after:inset-0 after:content-['']">{r.name}</Link>
+                  <Link href={`/admin/ingredients/${r.id}`}>{r.name}</Link>
                 </td>
                 <td>{r.category}</td>
                 <td className="text-right">
@@ -49,7 +50,7 @@ export default async function IngredientsPage({ searchParams }: { searchParams: 
                 <td className="text-right whitespace-nowrap">{r.price > 0 ? `${money(r.price)} / ${bigUnit(r.unit).label}` : "—"}</td>
                 <td className="text-right">{r.recipes || <span className="text-neutral-400">—</span>}</td>
                 <td className="p-3 text-right text-green-800">Открыть</td>
-              </tr>
+              </ClickableRow>
             ))}
           </tbody>
         </table>
