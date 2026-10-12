@@ -1,5 +1,6 @@
 import { FilterForm } from "@/components/admin/FilterForm";
 import Link from "next/link";
+import { ClickableRow } from "@/components/admin/ClickableRow";
 import { pageGuard } from "@/lib/guard";
 import { can } from "@/lib/rbac";
 import { getScope } from "@/lib/location";
@@ -97,8 +98,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
           <tbody>
             {r.rows.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-neutral-500">Заказов не найдено</td></tr>}
             {r.rows.map((o) => (
-              <tr key={o.id} className="relative cursor-pointer border-t border-neutral-100 align-top transition-colors hover:bg-green-50/70 has-[a:focus-visible]:bg-green-50/70">
-                <td className="p-3"><Link href={`/admin/orders/${o.id}`} aria-label={`Открыть заказ №${o.number}`} className="font-semibold text-green-800 underline after:absolute after:inset-0 after:content-['']">{o.number}</Link></td>
+              <ClickableRow key={o.id} href={`/admin/orders/${o.id}`} className="border-t border-neutral-100 align-top transition-colors hover:bg-green-50/70 has-[a:focus-visible]:bg-green-50/70">
+                <td className="p-3"><Link href={`/admin/orders/${o.id}`} aria-label={`Открыть заказ №${o.number}`} className="font-semibold text-green-800 underline">{o.number}</Link></td>
                 <td className="whitespace-nowrap">{dateTimeStr(o.createdAt)}</td>
                 <td>{SOURCE_LABEL[o.source]}<span className="block text-xs text-neutral-500">{o.tableNumber != null ? `№${o.tableNumber}` : FULFILL_LABEL[o.fulfillment]}</span></td>
                 <td className="max-w-48 truncate">{o.customer ?? "—"}</td>
@@ -106,7 +107,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                 <td className="whitespace-nowrap text-right">{money(o.total)}</td>
                 <td>{o.payment ? <span className={`rounded px-2 py-0.5 text-xs ${PAY_CLS[o.payment.status]}`}>{METHOD_LABEL[o.payment.method]} · {PAY_LABEL[o.payment.status]}</span> : "—"}</td>
                 <td className="p-3"><span className={`rounded px-2 py-0.5 text-xs ${STATUS_CLS[o.status]}`}>{STATUS_LABEL[o.status]}</span>{o.delayed && <span className="ml-1 text-xs font-semibold text-red-700">задержка</span>}</td>
-              </tr>
+              </ClickableRow>
             ))}
           </tbody>
         </table>
