@@ -9,7 +9,7 @@ import { Icon } from "@/components/site/Icon";
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/brand";
 import { getCurrentTable } from "@/lib/site-table";
 import { leaveTableAction } from "./actions";
-import { MandarinAssistant } from "@/components/site/mandarin/MandarinAssistant";
+import { MandarinLoader } from "@/components/site/mandarin/MandarinLoader";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const table = await getCurrentTable();
   return (
     <div className="site flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream">
         <Marquee items={TICKER} className="bg-forest-deep py-2 text-white" />
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
           <Link href="/" className="group" aria-label="Vitamin B — на главную"><Logo /></Link>
@@ -55,7 +55,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       )}
       <main className="flex-1">{children}</main>
       {!table && <ContactMap location={current} />}
-      <footer className="overflow-hidden bg-forest-deep text-white">
+      <footer className="defer overflow-hidden bg-forest-deep text-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-6 pt-12 sm:grid-cols-[1.4fr_1fr_1fr]">
           <div>
             <Logo light />
@@ -90,7 +90,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           </div>
         </div>
       </footer>
-      <MandarinAssistant />
+      <MandarinLoader />
     </div>
   );
 }

@@ -61,10 +61,10 @@ a.pop:hover, label.pop:hover { border-color: rgb(13 74 39 / 0.4); }
   box-shadow: 0 1px 2px rgb(13 74 39 / 0.05);
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
-.pop-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--tone) 70%, transparent); box-shadow: 0 20px 40px -22px var(--tone); }
+@media (hover: hover) { .pop-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--tone) 70%, transparent); box-shadow: 0 20px 40px -22px var(--tone); } }
 
 .press { transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.15s ease; }
-.press:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 24px -10px var(--color-orange); }
+@media (hover: hover) { .press:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 24px -10px var(--color-orange); } }
 .press:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 
 /* Лучи за заголовком баннера: белый конус поверх цвета. */
@@ -99,10 +99,14 @@ a.pop:hover, label.pop:hover { border-color: rgb(13 74 39 / 0.4); }
 .float-2 { animation-duration: 7.5s; animation-delay: -2s; }
 
 @keyframes spin-slow { to { transform: rotate(360deg); } }
-.spin-slow { animation: spin-slow 20s linear infinite; }
+.spin-slow { will-change: transform; animation: spin-slow 20s linear infinite; }
 
-@keyframes marquee { to { transform: translateX(-50%); } }
-.marquee-track { display: flex; width: max-content; animation: marquee 38s linear infinite; }
+@keyframes marquee { to { transform: translate3d(-50%, 0, 0); } }
+.marquee { contain: paint; }
+.marquee-track { display: flex; width: max-content; will-change: transform; animation: marquee 38s linear infinite; }
+
+/* Блоки под первым экраном браузер не рисует, пока до них не доскроллили. */
+.defer { content-visibility: auto; contain-intrinsic-size: auto 480px; }
 .marquee:hover .marquee-track { animation-play-state: paused; }
 
 @keyframes wiggle { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
@@ -116,7 +120,7 @@ a.pop:hover, label.pop:hover { border-color: rgb(13 74 39 / 0.4); }
 :focus-visible { outline: 3px solid var(--color-orange); outline-offset: 3px; border-radius: 8px; }
 
 /* ───────── Мандаринка: персонаж-помощник ───────── */
-.mdr { display: block; width: 100%; height: 100%; overflow: visible; }
+.mdr { display: block; width: 100%; height: 100%; overflow: visible; will-change: transform; }
 .mdr-flip { transform-origin: 60px 80px; transform: scaleX(var(--face, 1)); transition: transform 0.18s ease; }
 .mdr-body-wrap { transform-origin: 60px 132px; }
 .mdr-leaf-wrap { transform-origin: 60px 36px; animation: mdr-sway 3.2s ease-in-out infinite alternate; }
