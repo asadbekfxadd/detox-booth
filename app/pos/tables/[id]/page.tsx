@@ -28,6 +28,7 @@ export default async function PosTablePage({ params, searchParams }: { params: P
         <header className="flex items-center gap-3">
           <Link href="/pos/tables" className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50">← Все столы</Link>
           <h1 className="text-2xl font-bold">Стол {table.number}</h1>
+          {bill && live.length > 0 && <a href={`/print/bill/${bill.id}`} target="_blank" rel="noreferrer" className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50">Печать счёта</a>}
           {bill?.requested && <span className="rounded-full bg-orange-500 px-3 py-1 text-sm font-bold text-white">Просит счёт</span>}
         </header>
         {paid != null && <p role="status" className="rounded-xl bg-lime-100 px-4 py-3 font-semibold text-green-900">Принято: {sum(Number(paid) || 0)}{Number(tip) > 0 && ` + чаевые ${sum(Number(tip))}`}. За столом остались неоплаченные заказы.</p>}

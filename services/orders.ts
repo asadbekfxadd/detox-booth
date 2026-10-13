@@ -145,6 +145,7 @@ export async function advanceOrder(input: unknown, user: Actor) {
     const lock = await tx.order.updateMany({ where: { id: o.id, status: FROM[d.to] as never }, data: { status: d.to, ...(d.to === "COMPLETED" ? { completedAt: new Date() } : {}) } });
     if (lock.count === 0) throw new ApiError(400, "Статус заказа уже изменился, обновите страницу");
 
+    if (d.to === "READY") await tx.orderItem.updateMany({ where: { orderId: o.id, readyAt: null }, data: { readyAt: new Date() } });
     if (d.to === "CONFIRMED") await deductInventoryTx(tx, o.id, user.id);
     if (d.to === "COMPLETED") {
       // оплата на месте при получении; за столом платят одним счётом, его закрывает кассир
@@ -155,6 +156,30 @@ export async function advanceOrder(input: unknown, user: Actor) {
     return { from: o.status };
   }, { timeout: 20000, maxWait: 10000 });
   await safeAudit({ userId: user.id, action: "ORDER_STATUS_CHANGED", entity: "Order", entityId: d.id, oldValue: { status: from }, newValue: { status: d.to } });
+}
+
+/**
+ * Станция отмечает свои позиции готовыми. Когда готовы все позиции заказа, заказ становится «Готов».
+ * station — id станции или "none" для позиций без станции.
+ */
+export async function markStationReady(input: unknown, user: Actor) {
+  const d = z.object({ id: z.string().min(1), station: z.string().min(1) }).parse(input);
+  const result = await prisma.$transaction(async (tx) => {
+    // две станции могут нажать «Готово» одновременно: сериализуем по заказу, чтобы последняя увидела, что все готовы
+    await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Order" WHERE "id" = ${d.id} FOR UPDATE`);
+    const o = await tx.order.findUnique({ where: { id: d.id }, include: { items: { include: { product: { select: { category: { select: { stationId: true } } } } } } } });
+    if (!o) throw new ApiError(404, "Заказ не найден");
+    assertScope(user, o.locationId);
+    if (o.onHold || o.status !== "PREPARING") throw new ApiError(400, "Статус заказа уже изменился, обновите страницу");
+    const mine = o.items.filter((i) => (d.station === "none" ? i.product.category.stationId == null : i.product.category.stationId === d.station));
+    if (mine.length === 0) throw new ApiError(400, "В заказе нет позиций этой станции");
+    await tx.orderItem.updateMany({ where: { id: { in: mine.map((i) => i.id) }, readyAt: null }, data: { readyAt: new Date() } });
+    const left = await tx.orderItem.count({ where: { orderId: o.id, readyAt: null } });
+    return { number: o.number, complete: left === 0 };
+  }, { timeout: 20000, maxWait: 10000 });
+  await safeAudit({ userId: user.id, action: "STATION_READY", entity: "Order", entityId: d.id, newValue: { number: result.number, station: d.station, orderReady: result.complete } });
+  if (result.complete) await advanceOrder({ id: d.id, to: "READY" }, user);
+  return result;
 }
 
 export async function confirmPayment(id: string, user: Actor) {
@@ -203,7 +228,7 @@ export async function kitchenOrders(locationId: string | null) {
   const rows = await prisma.order.findMany({
     where: { ...(locationId ? { locationId } : {}), status: { in: [...ACTIVE] }, onHold: false },
     take: 60,
-    include: { customer: { select: { name: true } }, table: { select: { number: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
+    include: { customer: { select: { name: true } }, table: { select: { number: true } }, payments: true, items: { orderBy: { id: "asc" }, include: { product: { select: { name: true, category: { select: { stationId: true } } } } } } },
   });
   const now = Date.now();
   return rows
@@ -214,7 +239,7 @@ export async function kitchenOrders(locationId: string | null) {
       unpaidOnline: o.payments[0]?.method === "ONLINE" && o.payments[0]?.status === "PENDING",
       ageMin: Math.floor((now - o.createdAt.getTime()) / 60000),
       lines: o.items.map((i) => ({
-        id: i.id, name: i.product.name, quantity: i.quantity,
+        id: i.id, name: i.product.name, quantity: i.quantity, stationId: i.product.category.stationId, readyAt: i.readyAt,
         options: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { name?: string }[]) : []).map((m) => m?.name).filter((x): x is string => !!x),
       })),
     }))

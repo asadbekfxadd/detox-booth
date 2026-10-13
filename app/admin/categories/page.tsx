@@ -14,17 +14,21 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Категории</h1>
-        <Link href="/admin/categories/new" className="rounded-xl bg-green-700 px-5 py-2 text-sm font-semibold text-white hover:bg-green-800">+ Новая категория</Link>
+        <div className="flex gap-2">
+          <Link href="/admin/stations" className="rounded-xl border border-neutral-200 bg-white px-5 py-2 text-sm font-semibold hover:bg-neutral-50">Станции кухни</Link>
+          <Link href="/admin/categories/new" className="rounded-xl bg-green-700 px-5 py-2 text-sm font-semibold text-white hover:bg-green-800">+ Новая категория</Link>
+        </div>
       </div>
       {sp.ok && OK[sp.ok] && <p className="rounded-lg bg-lime-100 px-4 py-2 text-sm text-green-900">{OK[sp.ok]}</p>}
       <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-neutral-500"><th className="p-3">Название</th><th className="text-right">Порядок</th><th className="text-right">Продуктов</th><th className="p-3 text-right">Действия</th></tr></thead>
+          <thead><tr className="text-left text-neutral-500"><th className="p-3">Название</th><th>Станция</th><th className="text-right">Порядок</th><th className="text-right">Продуктов</th><th className="p-3 text-right">Действия</th></tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-neutral-500">Категорий пока нет</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-neutral-500">Категорий пока нет</td></tr>}
             {rows.map((c) => (
               <tr key={c.id} className="border-t border-neutral-100">
                 <td className="p-3 font-medium">{c.name}</td>
+                <td className="text-neutral-600">{c.station?.name ?? "—"}</td>
                 <td className="text-right">{c.sort}</td>
                 <td className="text-right">{c._count.products}</td>
                 <td className="p-3">
