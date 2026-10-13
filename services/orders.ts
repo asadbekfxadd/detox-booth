@@ -228,13 +228,13 @@ export async function kitchenOrders(locationId: string | null) {
   const rows = await prisma.order.findMany({
     where: { ...(locationId ? { locationId } : {}), status: { in: [...ACTIVE] }, onHold: false },
     take: 60,
-    include: { customer: { select: { name: true } }, table: { select: { number: true } }, payments: true, items: { orderBy: { id: "asc" }, include: { product: { select: { name: true, category: { select: { stationId: true } } } } } } },
+    include: { customer: { select: { name: true } }, courier: { select: { name: true } }, table: { select: { number: true } }, payments: true, items: { orderBy: { id: "asc" }, include: { product: { select: { name: true, category: { select: { stationId: true } } } } } } },
   });
   const now = Date.now();
   return rows
     .map((o) => ({
       id: o.id, number: o.number, status: o.status, source: o.source, fulfillment: o.fulfillment, tableNumber: o.table?.number ?? null,
-      dueAt: o.scheduledFor ?? o.createdAt, scheduled: !!o.scheduledFor, note: o.note,
+      dueAt: o.scheduledFor ?? o.createdAt, scheduled: !!o.scheduledFor, note: o.note, address: o.address, courierName: o.courier?.name ?? null, pickedUp: !!o.pickedUpAt,
       customer: o.customer?.name.split(" ")[0] ?? null,
       unpaidOnline: o.payments[0]?.method === "ONLINE" && o.payments[0]?.status === "PENDING",
       ageMin: Math.floor((now - o.createdAt.getTime()) / 60000),

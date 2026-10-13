@@ -21,6 +21,7 @@ export default async function KitchenTicketPage({ params, searchParams }: { para
       <p className="mt-1 text-center text-[18px] font-bold">№{t.number}{t.stationName ? ` · ${t.stationName}` : ""}</p>
       {t.courseLabel && <p className="mt-1 text-center text-[15px] font-bold">** {t.courseLabel.toUpperCase()} **</p>}
       <p className="mt-1 text-center">{dateTimeStr(t.createdAt)}{t.waiter ? ` · ${t.waiter}` : ""}{t.customer && t.tableNumber == null ? ` · ${t.customer}` : ""}</p>
+      {t.address && <p className="mt-1 text-center font-bold">{t.address}{t.phone ? ` · ${t.phone}` : ""}</p>}
       {t.scheduledFor && <p className="mt-1 text-center font-bold">ВЫДАТЬ К {dateTimeStr(t.scheduledFor)}</p>}
       <Dash />
       <ul className="space-y-1.5">

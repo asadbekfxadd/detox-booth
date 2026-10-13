@@ -17,6 +17,8 @@ export const ACTION_LABEL: Record<string, string> = {
   RECIPE_CHANGED: "Рецепт изменён",
   INGREDIENT_CREATED: "Ингредиент добавлен", INGREDIENT_UPDATED: "Ингредиент изменён", INGREDIENT_DELETED: "Ингредиент удалён",
   SETTINGS_CHANGED: "Изменены настройки", BRAND_CHANGED: "Изменён бренд и оформление сайта", LOCATION_UPDATED: "Изменены адрес или телефон точки",
+  ZONE_CREATED: "Зона доставки добавлена", ZONE_UPDATED: "Зона доставки изменена", ZONE_DELETED: "Зона доставки удалена",
+  DELIVERY_ASSIGNED: "Курьер назначен", DELIVERY_UNASSIGNED: "Курьер снят с заказа", DELIVERY_CLAIMED: "Курьер взял заказ", DELIVERY_RELEASED: "Курьер отказался от заказа", DELIVERY_PICKED_UP: "Курьер забрал заказ", DELIVERY_DELIVERED: "Заказ доставлен",
   STATION_CREATED: "Станция кухни добавлена", STATION_UPDATED: "Станция кухни изменена", STATION_DELETED: "Станция кухни удалена", STATION_READY: "Станция отметила заказ готовым",
   WAITER_ORDER_CREATED: "Заказ официанта", WAITER_ORDER_FIRED: "Заказ отправлен на кухню", WAITER_HELD_CANCELLED: "Отмена отложенного заказа", TABLE_MOVED: "Перенос/объединение столов",
   TABLE_ORDER_CREATED: "Заказ гостя за столом", TABLE_BILL_CLOSED: "Закрыт счёт стола", TABLE_CREATED: "Стол добавлен", TABLE_UPDATED: "Стол включён или выключен", TABLE_TOKEN_RESET: "Перевыпущен QR стола",

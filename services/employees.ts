@@ -7,7 +7,7 @@ import { audit } from "@/lib/audit";
 
 export const ROLE_LABEL: Record<Role, string> = {
   OWNER: "Владелец", ADMIN: "Администратор", MANAGER: "Менеджер", CASHIER: "Кассир",
-  BARISTA: "Бариста", WAREHOUSE: "Кладовщик", ACCOUNTANT: "Бухгалтер", WAITER: "Официант",
+  BARISTA: "Бариста", WAREHOUSE: "Кладовщик", ACCOUNTANT: "Бухгалтер", WAITER: "Официант", COURIER: "Курьер",
 };
 const ROLES = Object.keys(ROLE_LABEL) as Role[];
 /** Роли без привязки к точке (видят всё). */

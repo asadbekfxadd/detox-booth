@@ -8,6 +8,7 @@ export const NAV: NavItem[] = [
   { group: "Продажи", label: "Заказы", href: "/admin/orders", perm: "orders.view" },
   { group: "Продажи", label: "Касса (POS)", href: "/pos", perm: "pos.use" },
   { group: "Продажи", label: "Официант", href: "/waiter", perm: "waiter.use" },
+  { group: "Продажи", label: "Доставка", href: "/admin/delivery", perm: "orders.manage" },
   { group: "Меню", label: "Продукты", href: "/admin/products", perm: "products.edit" },
   { group: "Меню", label: "Категории", href: "/admin/categories", perm: "products.edit" },
   { group: "Меню", label: "Рецепты", href: "/admin/recipes", perm: "recipes.edit" },

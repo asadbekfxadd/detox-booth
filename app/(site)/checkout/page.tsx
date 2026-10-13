@@ -5,6 +5,7 @@ import { enabledProviders } from "@/services/payments";
 import { CheckoutForm } from "@/components/site/CheckoutForm";
 import { TableCheckoutForm } from "@/components/site/TableCheckoutForm";
 import { getCurrentTable } from "@/lib/site-table";
+import { activeZones } from "@/services/delivery";
 import { Page } from "@/components/site/Page";
 
 export const metadata = { title: "Оформление заказа", robots: { index: false, follow: false } };
@@ -12,6 +13,7 @@ export const metadata = { title: "Оформление заказа", robots: { 
 export default async function CheckoutPage() {
   const { current } = await getSiteLocation();
   const table = await getCurrentTable();
+  const zones = current ? await activeZones(current.id) : [];
   const lead = (await prisma.setting.findUnique({ where: { key: "orders.minLeadMinutes" } }))?.value;
   return (
     <Page className="space-y-6">
@@ -22,7 +24,7 @@ export default async function CheckoutPage() {
       {table
         ? <TableCheckoutForm tableNumber={table.number} />
         : current
-        ? <CheckoutForm locationName={current.name} locationId={current.id} leadMin={typeof lead === "number" ? lead : 15} online={enabledProviders().length > 0} />
+        ? <CheckoutForm locationName={current.name} locationId={current.id} leadMin={typeof lead === "number" ? lead : 15} online={enabledProviders().length > 0} zones={zones} />
         : <p className="rounded-2xl bg-white p-6 pop">Сейчас нет доступных точек для заказа.</p>}
     </Page>
   );

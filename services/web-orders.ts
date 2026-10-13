@@ -9,6 +9,7 @@ import { checkScheduled } from "@/lib/slots";
 import { enabledProviders } from "@/services/payments";
 import { siteUrl } from "@/lib/site-url";
 import { priceItems, computeDiscount, normalizePhone, cartSchema } from "@/services/pos";
+import { quoteDelivery } from "@/lib/delivery";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const WEB_ACTOR = { id: "web", role: "BARISTA" as Role, locationId: null }; // ручных скидок на сайте нет
@@ -25,8 +26,25 @@ export const quoteSchema = z.object({
   items: cartSchema.shape.items,
   promoCode: z.string().trim().max(40).nullable().optional(),
   fulfillment: z.enum(["PICKUP", "DELIVERY"]),
+  /** Зона доставки (если у точки они настроены) */
+  zoneId: z.string().max(40).nullable().optional(),
 });
-export type WebQuote = { subtotal: number; discount: number; deliveryFee: number; total: number; points: number; promoCode: string | null };
+export type WebQuote = { subtotal: number; discount: number; deliveryFee: number; freeDelivery: boolean; total: number; points: number; promoCode: string | null };
+
+/**
+ * Цена доставки. Если у точки настроены зоны — клиент обязан выбрать зону (цена, минимальный заказ, бесплатно от суммы).
+ * Зон нет — одна общая цена из настроек, как раньше. amount — сумма заказа после скидки.
+ */
+async function resolveDelivery(db: typeof prisma, locationId: string, zoneId: string | null | undefined, amount: number): Promise<{ fee: number; zoneId: string | null; free: boolean }> {
+  const zones = await db.deliveryZone.findMany({ where: { locationId, isActive: true } });
+  if (zones.length === 0) return { fee: await setting("delivery.fee", 0), zoneId: null, free: false };
+  if (!zoneId) throw new ApiError(400, "Выберите зону доставки");
+  const z = zones.find((x) => x.id === zoneId);
+  if (!z) throw new ApiError(400, "Эта зона доставки недоступна, выберите другую");
+  const q = quoteDelivery({ id: z.id, name: z.name, fee: Number(z.fee), minOrder: Number(z.minOrder), freeFrom: z.freeFrom == null ? null : Number(z.freeFrom) }, amount);
+  if (!q.ok) throw new ApiError(400, q.error);
+  return { fee: q.fee, zoneId: z.id, free: q.free };
+}
 
 export async function quoteWeb(input: unknown, locationId: string | null): Promise<WebQuote> {
   const d = quoteSchema.parse(input);
@@ -34,10 +52,11 @@ export async function quoteWeb(input: unknown, locationId: string | null): Promi
   const { subtotal } = await priceItems(prisma, d.items);
   await assertInStock(prisma, locationId, d.items);
   const disc = await computeDiscount(prisma, subtotal, { promoCode: d.promoCode, manualDiscount: null }, WEB_ACTOR);
-  const deliveryFee = d.fulfillment === "DELIVERY" ? await setting("delivery.fee", 0) : 0;
+  const dl = d.fulfillment === "DELIVERY" ? await resolveDelivery(prisma, locationId, d.zoneId, r2(subtotal - disc.discount)) : { fee: 0, zoneId: null, free: false };
+  const deliveryFee = dl.fee;
   const total = r2(subtotal - disc.discount + deliveryFee);
   const rate = await setting("loyalty.earnRate", 1);
-  return { subtotal, discount: disc.discount, deliveryFee, total, points: Math.floor(total * rate), promoCode: disc.promoCode };
+  return { subtotal, discount: disc.discount, deliveryFee, freeDelivery: dl.free, total, points: Math.floor(total * rate), promoCode: disc.promoCode };
 }
 
 export const checkoutSchema = quoteSchema.extend({
@@ -82,11 +101,12 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
   const pending = await prisma.order.count({ where: { customerId: customer.id, source: "WEB", status: "NEW", createdAt: { gte: new Date(Date.now() - 30 * 60000) } } });
   if (pending >= 3) throw new ApiError(400, "У вас уже есть неподтверждённые заказы. Подождите, пока точка их подтвердит.");
 
-  const deliveryFee = d.fulfillment === "DELIVERY" ? await setting("delivery.fee", 0) : 0;
   const order = await prisma.$transaction(async (tx) => {
     const { lines, subtotal } = await priceItems(tx, d.items);
     await assertInStock(tx, locationId, d.items);
     const disc = await computeDiscount(tx, subtotal, { promoCode: d.promoCode, manualDiscount: null }, WEB_ACTOR);
+    const dl = d.fulfillment === "DELIVERY" ? await resolveDelivery(tx as unknown as typeof prisma, locationId, d.zoneId, r2(subtotal - disc.discount)) : { fee: 0, zoneId: null, free: false };
+    const deliveryFee = dl.fee;
     const total = r2(subtotal - disc.discount + deliveryFee);
     if (disc.promoId) {
       if (disc.promoUsageLimit != null) {
@@ -97,7 +117,7 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
     return tx.order.create({
       data: {
         locationId, customerId: customer.id, source: "WEB", fulfillment: d.fulfillment, status: "NEW",
-        subtotal, discount: disc.discount, deliveryFee, total, promoCode: disc.promoCode,
+        subtotal, discount: disc.discount, deliveryFee, deliveryZoneId: dl.zoneId, total, promoCode: disc.promoCode,
         address: d.fulfillment === "DELIVERY" ? d.address : null, scheduledFor, note: d.note || null,
         items: { create: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice, modifiers: l.modifiers })) },
         payments: { create: { method: d.method, status: "PENDING", amount: total, provider: provider?.id ?? null } },
@@ -127,13 +147,14 @@ export async function getPublicOrder(id: string) {
   if (!/^[a-z0-9]{20,40}$/i.test(id)) return null;
   const o = await prisma.order.findFirst({
     where: { id, source: "WEB" },
-    include: { location: { select: { name: true, address: true } }, customer: { select: { name: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
+    include: { location: { select: { name: true, address: true } }, customer: { select: { name: true } }, courier: { select: { name: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
   });
   if (!o) return null;
   const pay = o.payments[0];
   return {
     id: o.id, number: o.number, status: o.status, fulfillment: o.fulfillment, address: o.address, createdAt: o.createdAt, scheduledFor: o.scheduledFor, note: o.note,
     location: o.location, customerName: o.customer?.name.split(" ")[0] ?? null,
+    courierName: o.courier?.name.split(" ")[0] ?? null, pickedUp: !!o.pickedUpAt,
     subtotal: Number(o.subtotal), discount: Number(o.discount), deliveryFee: Number(o.deliveryFee), total: Number(o.total), promoCode: o.promoCode, pointsEarned: o.pointsEarned,
     payment: pay ? { method: pay.method, status: pay.status } : null,
     items: o.items.map((i) => ({
