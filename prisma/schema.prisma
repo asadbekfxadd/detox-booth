@@ -15,6 +15,7 @@ enum Role {
   BARISTA
   WAREHOUSE
   ACCOUNTANT
+  WAITER
 }
 
 enum OrderStatus {
@@ -160,7 +161,8 @@ model User {
   shifts Shift[]
   writeOffs WriteOff[]
   audit AuditLog[]
-  orders Order[]
+  orders Order[] @relation("OrderCashier")
+  waiterOrders Order[] @relation("OrderWaiter")
   @@index([role])
 }
 
@@ -407,7 +409,7 @@ model Order {
   customerId String?
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   cashierId String?
-  cashier User? @relation(fields: [cashierId], references: [id], onDelete: SetNull)
+  cashier User? @relation("OrderCashier", fields: [cashierId], references: [id], onDelete: SetNull)
   shiftId String?
   shift Shift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   source OrderSource
@@ -427,6 +429,13 @@ model Order {
   scheduledFor DateTime?
   /// Комментарий клиента к заказу
   note String?
+  /// Официант, принявший заказ у стола
+  waiterId String?
+  waiter User? @relation("OrderWaiter", fields: [waiterId], references: [id], onDelete: SetNull)
+  /// Очередь подачи: 1 — сразу, 2 — горячее, 3 — десерт
+  course Int @default(1)
+  /// Заказ принят, но ещё не отправлен на кухню (ждёт команды официанта)
+  onHold Boolean @default(false)
   /// Стол и счёт стола (заказы по QR). Заказы одного гостя за визит копятся в одном счёте.
   tableId String?
   table DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
@@ -442,6 +451,7 @@ model Order {
   @@index([status])
   @@index([customerId, createdAt])
   @@index([shiftId])
+  @@index([waiterId])
 }
 model OrderItem {
   id String @id @default(cuid())

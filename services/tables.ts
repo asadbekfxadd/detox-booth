@@ -25,7 +25,7 @@ export async function getTableByToken(token: unknown): Promise<TableInfo | null>
 }
 
 /** Открытый счёт стола; если его нет — создаёт. Два одновременных заказа не создадут два счёта (частичный уникальный индекс). */
-async function ensureOpenBill(tableId: string, locationId: string) {
+export async function ensureOpenBill(tableId: string, locationId: string) {
   const open = () => prisma.tableBill.findFirst({ where: { tableId, status: "OPEN" } });
   const found = await open();
   if (found) return found;
@@ -47,7 +47,7 @@ export const tableOrderSchema = z.object({
 export async function createTableOrder(input: unknown, table: TableInfo) {
   const d = tableOrderSchema.parse(input);
   // защита от спама с одного стола: не больше 5 заказов, которые ещё никто не принял
-  if ((await prisma.order.count({ where: { tableId: table.id, status: "NEW" } })) >= 5)
+  if ((await prisma.order.count({ where: { tableId: table.id, status: "NEW", onHold: false } })) >= 5)
     throw new ApiError(400, "С вашего стола уже ждут несколько заказов. Подождите, пока на кухне их примут.");
   const bill = await ensureOpenBill(table.id, table.locationId);
   const order = await prisma.$transaction(async (tx) => {
@@ -80,7 +80,7 @@ export async function getGuestBill(table: TableInfo) {
     include: { orders: { orderBy: { createdAt: "asc" }, include: { items: { include: { product: { select: { name: true } } } } } } },
   });
   const orders = (bill?.orders ?? []).map((o) => ({
-    id: o.id, number: o.number, status: o.status, createdAt: o.createdAt, note: o.note, total: Number(o.total),
+    id: o.id, number: o.number, status: o.status, onHold: o.onHold, createdAt: o.createdAt, note: o.note, total: Number(o.total),
     items: o.items.map((i) => ({
       id: i.id, name: i.product.name, quantity: i.quantity, lineTotal: r2(Number(i.unitPrice) * i.quantity),
       options: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { name?: string }[]) : []).map((m) => m?.name).filter((x): x is string => !!x),
@@ -105,16 +105,16 @@ export async function requestBill(table: TableInfo) {
 export async function listTablesWithBills(locationId: string) {
   const tables = await prisma.diningTable.findMany({
     where: { locationId, isActive: true }, orderBy: { number: "asc" },
-    include: { bills: { where: { status: "OPEN" }, include: { orders: { select: { id: true, number: true, status: true, total: true } } } } },
+    include: { bills: { where: { status: "OPEN" }, include: { orders: { select: { id: true, number: true, status: true, total: true, onHold: true } } } } },
   });
   return tables.map((t) => {
     const bill = t.bills[0];
-    const orders = (bill?.orders ?? []).map((o) => ({ number: o.number, status: o.status as string, total: Number(o.total) }));
+    const orders = (bill?.orders ?? []).map((o) => ({ number: o.number, status: o.status as string, total: Number(o.total), onHold: o.onHold }));
     const live = orders.filter((o) => o.status !== "CANCELLED");
     return {
       id: t.id, number: t.number,
       bill: bill && live.length > 0
-        ? { id: bill.id, openedAt: bill.openedAt, total: billTotal(orders), orders: live.length, fresh: live.filter((o) => o.status === "NEW").length, inWork: closeBlockers(orders).length, requested: !!bill.billRequestedAt }
+        ? { id: bill.id, openedAt: bill.openedAt, total: billTotal(orders), orders: live.length, fresh: live.filter((o) => o.status === "NEW" && !o.onHold).length, held: live.filter((o) => o.status === "NEW" && o.onHold).length, ready: live.filter((o) => o.status === "READY").length, inWork: closeBlockers(orders).length, requested: !!bill.billRequestedAt }
         : null,
     };
   });
@@ -132,6 +132,7 @@ export async function getStaffTable(tableId: string, user: Actor) {
   });
   const orders = (bill?.orders ?? []).map((o) => ({
     id: o.id, number: o.number, status: o.status as string, createdAt: o.createdAt, note: o.note, total: Number(o.total),
+    course: o.course, onHold: o.onHold,
     items: o.items.map((i) => ({
       id: i.id, name: i.product.name, quantity: i.quantity, lineTotal: r2(Number(i.unitPrice) * i.quantity),
       options: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { name?: string }[]) : []).map((m) => m?.name).filter((x): x is string => !!x),
