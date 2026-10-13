@@ -5,20 +5,22 @@ export type Permission =
   | "orders.view" | "orders.manage" | "orders.cancel" | "pos.use" | "pos.refund"
   | "products.edit" | "products.cost" | "recipes.edit"
   | "inventory.view" | "inventory.edit" | "writeoffs.create" | "purchases.manage"
-  | "customers.view" | "customers.manage" | "employees.manage" | "settings.edit" | "audit.view";
+  | "customers.view" | "customers.manage" | "employees.manage" | "settings.edit" | "audit.view"
+  | "waiter.use";
 
 const ALL: Permission[] = [
   "dashboard.view","finance.view","finance.edit","orders.view","orders.manage","orders.cancel","pos.use","pos.refund",
   "products.edit","products.cost","recipes.edit","inventory.view","inventory.edit","writeoffs.create",
-  "purchases.manage","customers.view","customers.manage","employees.manage","settings.edit","audit.view",
+  "purchases.manage","customers.view","customers.manage","employees.manage","settings.edit","audit.view","waiter.use",
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   OWNER: ALL,
   ADMIN: ALL.filter((p) => p !== "finance.edit"),
   MANAGER: ["dashboard.view","orders.view","orders.manage","orders.cancel","pos.use","pos.refund","products.edit","recipes.edit",
-            "inventory.view","inventory.edit","writeoffs.create","purchases.manage","customers.view","customers.manage"],
-  CASHIER: ["orders.view","orders.manage","pos.use"],
+            "inventory.view","inventory.edit","writeoffs.create","purchases.manage","customers.view","customers.manage","waiter.use"],
+  CASHIER: ["orders.view","orders.manage","pos.use","waiter.use"],
+  WAITER: ["waiter.use"],
   BARISTA: ["orders.view","orders.manage","inventory.view","writeoffs.create"],
   WAREHOUSE: ["inventory.view","inventory.edit","writeoffs.create","purchases.manage"],
   ACCOUNTANT: ["dashboard.view","finance.view","finance.edit","orders.view","audit.view"],
@@ -53,10 +55,11 @@ export const ROUTE_PERMISSIONS: [string, Permission][] = [
   ["/admin/audit", "audit.view"],
   ["/pos", "pos.use"],
   ["/kitchen", "orders.manage"],
+  ["/waiter", "waiter.use"],
 ];
 
 /** Куда отправлять после входа */
-export const homeFor = (role: Role) => (can(role, "dashboard.view") ? "/admin/dashboard" : can(role, "pos.use") ? "/pos" : can(role, "orders.manage") ? "/kitchen" : can(role, "inventory.view") ? "/admin/inventory" : "/forbidden");
+export const homeFor = (role: Role) => (can(role, "dashboard.view") ? "/admin/dashboard" : can(role, "pos.use") ? "/pos" : can(role, "waiter.use") ? "/waiter" : can(role, "orders.manage") ? "/kitchen" : can(role, "inventory.view") ? "/admin/inventory" : "/forbidden");
 
 /** Роли, которым доступен выбор точки (остальные привязаны к своей). */
 export const canSwitchLocation = (role: string) => role === "OWNER" || role === "WAREHOUSE";

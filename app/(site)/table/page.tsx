@@ -50,7 +50,7 @@ export default async function TablePage() {
               <li key={o.id} className={`space-y-2 rounded-2xl bg-white p-5 pop ${o.status === "CANCELLED" ? "opacity-60" : ""}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-extrabold">Заказ №{o.number} <span className="font-medium text-forest/55">· {dateTimeStr(o.createdAt)}</span></p>
-                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${CLS[o.status] ?? ""}`}>{GUEST_STATUS[o.status] ?? o.status}</span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${CLS[o.status] ?? ""}`}>{o.onHold && o.status === "NEW" ? "Скоро отправим на кухню" : (GUEST_STATUS[o.status] ?? o.status)}</span>
                 </div>
                 <ul className="space-y-1 text-sm">
                   {o.items.map((i) => (

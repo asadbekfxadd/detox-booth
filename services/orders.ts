@@ -78,7 +78,7 @@ export async function listOrders(locationId: string | null, f: OrderFilters) {
 /** Доска: активные заказы по колонкам. */
 export async function activeBoard(locationId: string | null) {
   const all = await prisma.order.findMany({
-    where: { ...(locationId ? { locationId } : {}), status: { in: [...ACTIVE] } }, orderBy: { createdAt: "asc" }, take: 100,
+    where: { ...(locationId ? { locationId } : {}), status: { in: [...ACTIVE] }, onHold: false }, orderBy: { createdAt: "asc" }, take: 100,
     include: { customer: { select: { name: true, phone: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
   });
   const delaySetting = await prisma.setting.findUnique({ where: { key: "orders.delayMinutes" } });
@@ -131,6 +131,7 @@ export async function advanceOrder(input: unknown, user: Actor) {
     if (!o) throw new ApiError(404, "Заказ не найден");
     assertScope(user, o.locationId);
     if (NEXT[o.status]?.to !== d.to) throw new ApiError(400, "Статус заказа уже изменился, обновите страницу");
+    if (o.onHold) throw new ApiError(400, "Заказ ещё не отправлен на кухню: официант отправляет его кнопкой «На кухню»");
 
     if (d.to === "CONFIRMED") {
       await lockStock(tx, o.locationId);
@@ -200,7 +201,7 @@ export type KitchenOrder = Awaited<ReturnType<typeof kitchenOrders>>[number];
 /** Активные заказы для кухни: состав с опциями, время получения, комментарий. Сначала те, что нужно отдать раньше. */
 export async function kitchenOrders(locationId: string | null) {
   const rows = await prisma.order.findMany({
-    where: { ...(locationId ? { locationId } : {}), status: { in: [...ACTIVE] } },
+    where: { ...(locationId ? { locationId } : {}), status: { in: [...ACTIVE] }, onHold: false },
     take: 60,
     include: { customer: { select: { name: true } }, table: { select: { number: true } }, payments: true, items: { include: { product: { select: { name: true } } } } },
   });
