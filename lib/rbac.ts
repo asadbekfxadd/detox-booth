@@ -62,6 +62,7 @@ export const ROUTE_PERMISSIONS: [string, Permission][] = [
   ["/courier", "courier.use"],
   ["/admin/delivery/zones", "settings.edit"],
   ["/admin/happy-hour", "settings.edit"],
+  ["/admin/promotions", "settings.edit"],
   ["/admin/reservations", "reservations.manage"],
   ["/admin/delivery", "orders.manage"],
 ];

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { loadRules } from "@/services/happy-hour";
 import { priceAt, type HappyRule } from "@/lib/happy-hour";
 import { usableStock } from "@/services/availability";
+import { promotionsForCart, type Applied, type Hint } from "@/services/promotions";
 
 export type PublicOption = { id: string; name: string; priceDelta: number };
 export type PublicModifier = { id: string; name: string; multiple: boolean; required: boolean; options: PublicOption[] };
@@ -115,7 +116,7 @@ export type QuotedLine = {
   slug: string; name: string; categorySlug: string; image: string | null; optionNames: string[];
   unitPrice: number; lineTotal: number; problem: string | null;
 };
-export type CartQuote = { lines: QuotedLine[]; subtotal: number; ok: boolean; suggestions: PublicProduct[] };
+export type CartQuote = { lines: QuotedLine[]; subtotal: number; ok: boolean; suggestions: PublicProduct[]; /** Акции, сработавшие на корзину, и подсказки «добавьте ещё…» */ promotions: Applied[]; hints: Hint[]; discount: number };
 
 export async function quoteCart(input: unknown, locationId: string | null): Promise<CartQuote> {
   const items = cartInputSchema.parse(input);
@@ -140,6 +141,10 @@ export async function quoteCart(input: unknown, locationId: string | null): Prom
     const unitPrice = p.price + ok.reduce((a, c) => a + c.o.priceDelta, 0);
     return { ...it, optionIds: ids, slug: p.slug, name: p.name, categorySlug: p.category.slug, image: p.image, optionNames: ok.map((c) => c.o.name), unitPrice, lineTotal: unitPrice * it.quantity, problem };
   });
-  const subtotal = lines.filter((l) => !l.problem).reduce((a, l) => a + l.lineTotal, 0);
-  return { lines, subtotal, ok: lines.length > 0 && lines.every((l) => !l.problem), suggestions: await suggestions(items.map((i) => i.productId), locationId) };
+  const good = lines.filter((l) => !l.problem);
+  const subtotal = good.reduce((a, l) => a + l.lineTotal, 0);
+  const promo = good.length
+    ? await promotionsForCart(prisma, good.map((l) => ({ productId: l.productId, categoryId: byId.get(l.productId)!.category.id, quantity: l.quantity, unitPrice: l.unitPrice, happy: byId.get(l.productId)!.happyPct > 0 })), { channel: "SITE" })
+    : { discount: 0, applied: [], hints: [] };
+  return { lines, subtotal, ok: lines.length > 0 && lines.every((l) => !l.problem), suggestions: await suggestions(items.map((i) => i.productId), locationId), promotions: promo.applied, hints: promo.hints, discount: promo.discount };
 }

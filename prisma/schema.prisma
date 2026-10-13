@@ -222,6 +222,60 @@ model PromoCode {
   isActive Boolean @default(true)
 }
 
+enum PromotionKind {
+  /// Купи N — следующие M со скидкой (2+1, второй за полцены)
+  BUY_GET
+  /// Набор из позиций за фиксированную цену
+  COMBO
+  /// Скидка от суммы заказа (ступени)
+  THRESHOLD
+  /// Скидка на первый заказ клиента
+  FIRST_ORDER
+}
+
+/// Акция, которая применяется к корзине сама, без промокода. Условия лежат в config (формат зависит от kind).
+model Promotion {
+  id String @id @default(cuid())
+  name String
+  description String?
+  kind PromotionKind
+  config Json
+  isActive Boolean @default(true)
+  onSite Boolean @default(true)
+  onPos Boolean @default(true)
+  /// Можно ли вводить промокод вместе с этой акцией
+  allowCode Boolean @default(false)
+  /// Действует ли на позиции, которые уже подешевели по счастливым часам
+  withHappyHour Boolean @default(false)
+  /// Дни недели 1–7; пусто — каждый день
+  days Int[]
+  startMin Int @default(0)
+  endMin Int @default(1440)
+  startsAt DateTime?
+  endsAt DateTime?
+  totalLimit Int?
+  perCustomerLimit Int?
+  usedCount Int @default(0)
+  discountTotal Decimal @default(0) @db.Decimal(14,2)
+  sort Int @default(0)
+  createdAt DateTime @default(now())
+  uses PromotionUse[]
+}
+
+/// Применение акции к заказу: статистика и лимит на клиента.
+model PromotionUse {
+  id String @id @default(cuid())
+  promotionId String
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customerId String?
+  amount Decimal @db.Decimal(14,2)
+  createdAt DateTime @default(now())
+  @@index([promotionId, customerId])
+  @@index([orderId])
+}
+
 /// Транзакция Payme (Merchant API): Payme присылает свой id, время и состояние; суммы в тийинах (1/100 сума).
 /// Состояния: 1 — создана, 2 — оплачена, -1 — отменена до оплаты, -2 — возврат после оплаты.
 model PaymeTransaction {
@@ -552,6 +606,7 @@ model Order {
   @@index([shiftId])
   @@index([waiterId])
   @@index([courierId, status])
+  promotionUses PromotionUse[]
 }
 model OrderItem {
   id String @id @default(cuid())
