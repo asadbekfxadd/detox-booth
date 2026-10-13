@@ -4,7 +4,7 @@ import { pageGuard } from "@/lib/guard";
 import { getScope } from "@/lib/location";
 import { listTablesAdmin } from "@/services/tables";
 import { siteUrl } from "@/lib/site-url";
-import { addTableAction, toggleTableAction, resetTokenAction } from "./actions";
+import { addTableAction, toggleTableAction, resetTokenAction, seatsAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Столы и QR" };
@@ -49,6 +49,11 @@ export default async function TablesAdminPage({ searchParams }: { searchParams: 
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={t.qr} alt={`QR-код стола ${t.number}`} width={180} height={180} className="mx-auto" />
             <p className="break-all text-center text-[11px] text-neutral-400">{t.url}</p>
+            <form action={seatsAction} className="flex items-center justify-center gap-2 text-sm">
+              <input type="hidden" name="id" value={t.id} />
+              <label className="flex items-center gap-1.5">Мест <input name="seats" type="number" min={1} max={50} defaultValue={t.seats} className="w-16 rounded-lg border border-neutral-200 px-2 py-1" /></label>
+              <button className={btn}>Сохранить</button>
+            </form>
             <div className="flex flex-wrap justify-center gap-2">
               <form action={toggleTableAction}><input type="hidden" name="id" value={t.id} /><input type="hidden" name="active" value={t.isActive ? "0" : "1"} /><button className={btn}>{t.isActive ? "Выключить" : "Включить"}</button></form>
               <form action={resetTokenAction}><input type="hidden" name="id" value={t.id} /><button className={btn} title="Старый QR перестанет работать">Новый QR</button></form>

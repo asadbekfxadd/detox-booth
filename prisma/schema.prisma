@@ -44,6 +44,14 @@ enum FulfillmentType {
   DELIVERY
 }
 
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  SEATED
+  CANCELLED
+  NO_SHOW
+}
+
 enum PaymentMethod {
   CASH
   CARD
@@ -134,6 +142,7 @@ model Location {
   phone String?
   tables DiningTable[]
   deliveryZones DeliveryZone[]
+  reservations Reservation[]
   lat Float?
   lng Float?
   isActive Boolean @default(true)
@@ -171,6 +180,7 @@ model User {
 
 model Customer {
   id String @id @default(cuid())
+  reservations Reservation[]
   name String
   phone String @unique
   email String?
@@ -212,6 +222,24 @@ model PromoCode {
   isActive Boolean @default(true)
 }
 
+/// Счастливые часы: скидка на цену позиций по дням недели и времени (Ташкент). Действует на всех точках сети.
+model HappyHour {
+  id String @id @default(cuid())
+  name String
+  /// Скидка на цену позиции, %
+  percent Int
+  /// Дни недели: 1 — понедельник … 7 — воскресенье
+  days Int[]
+  /// Начало и конец в минутах от полуночи (конец не включается); через полночь — двумя правилами
+  startMin Int
+  endMin Int
+  /// Только эта категория; пусто — всё меню
+  categoryId String?
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+}
+
 /// Зона доставки точки: цена, минимальный заказ, порог бесплатной доставки.
 model DeliveryZone {
   id String @id @default(cuid())
@@ -244,6 +272,7 @@ model Category {
   stationId String?
   station Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
   products Product[]
+  happyHours HappyHour[]
   @@index([stationId])
 }
 
@@ -573,13 +602,44 @@ model DiningTable {
   locationId String
   location Location @relation(fields: [locationId], references: [id])
   number Int
+  /// Сколько гостей помещается: для подбора стола при брони
+  seats Int @default(4)
   /// Неугадываемый токен в ссылке QR. Перевыпуск делает старый QR нерабочим.
   token String @unique
   isActive Boolean @default(true)
   createdAt DateTime @default(now())
   orders Order[]
   bills TableBill[]
+  reservations Reservation[]
   @@unique([locationId, number])
+}
+
+/// Бронь стола. Стол подбирается автоматически по числу гостей и свободному времени.
+model Reservation {
+  id String @id @default(cuid())
+  locationId String
+  location Location @relation(fields: [locationId], references: [id])
+  tableId String?
+  table DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  customerId String?
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  name String
+  phone String
+  guests Int
+  startsAt DateTime
+  durationMin Int @default(90)
+  status ReservationStatus @default(PENDING)
+  note String?
+  /// Депозит за бронь, UZS; принимает персонал, на сайте онлайн не оплачивается
+  deposit Decimal @default(0) @db.Decimal(14,2)
+  depositPaid Boolean @default(false)
+  /// WEB — с сайта, STAFF — внесена сотрудником
+  source String @default("WEB")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([locationId, startsAt])
+  @@index([tableId, startsAt])
+  @@index([phone])
 }
 
 /// Счёт стола. Один открытый счёт на стол (частичный уникальный индекс в миграции).

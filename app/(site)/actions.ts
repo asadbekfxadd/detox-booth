@@ -12,6 +12,7 @@ import { hit } from "@/lib/rate-limit";
 import { getCurrentTable } from "@/lib/site-table";
 import { createTableOrder, requestBill } from "@/services/tables";
 import { TABLE_COOKIE } from "@/lib/tables";
+import { freeSlots, createReservation, cancelByGuest } from "@/services/reservations";
 
 export async function setSiteLocation(id: string) {
   const ok = await prisma.location.findFirst({ where: { id, isActive: true }, select: { id: true } });
@@ -76,4 +77,30 @@ export async function requestBillAction(): Promise<void> {
 export async function leaveTableAction(): Promise<void> {
   (await cookies()).delete(TABLE_COOKIE);
   redirect("/menu");
+}
+
+/** Свободное время для брони на выбранную дату и число гостей. */
+export async function bookingSlotsAction(day: string, guests: number): Promise<{ slots: { time: string; free: boolean }[] } | { error: string }> {
+  try {
+    const { current } = await getSiteLocation();
+    if (!current) return { error: "Выберите точку" };
+    const lim = hit(`slots:ip:${await clientIp()}`, 60, 10 * 60_000);
+    if (!lim.ok) return { error: "Слишком много запросов. Подождите минуту." };
+    return { slots: await freeSlots(current.id, String(day), Math.max(1, Math.min(100, Math.floor(Number(guests) || 1)))) };
+  } catch (e) { return { error: toMessage(e) }; }
+}
+
+export async function bookTableAction(input: unknown): Promise<{ id: string } | { error: string }> {
+  try {
+    const lim = hit(`book:ip:${await clientIp()}`, 5, 30 * 60_000);
+    if (!lim.ok) return { error: `Слишком много броней с вашего устройства. Повторите через ${Math.ceil(lim.retryAfterSec / 60)} мин или позвоните в заведение.` };
+    const { current } = await getSiteLocation();
+    const r = await createReservation(input, current?.id ?? null);
+    return { id: r.id };
+  } catch (e) { return { error: toMessage(e) }; }
+}
+
+export async function cancelBookingAction(id: string): Promise<{ ok: true } | { error: string }> {
+  try { await cancelByGuest(String(id)); return { ok: true }; }
+  catch (e) { return { error: toMessage(e) }; }
 }

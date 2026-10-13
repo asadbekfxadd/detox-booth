@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { Prisma, type Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { loadRules } from "@/services/happy-hour";
+import { priceAt } from "@/lib/happy-hour";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { can, canSwitchLocation } from "@/lib/rbac";
@@ -210,6 +212,8 @@ export async function priceItems(db: Tx, items: CartItem[]) {
     include: { modifiers: { include: { options: true } } },
   });
   const pm = new Map(products.map((p) => [p.id, p]));
+  const rules = await loadRules(db);
+  const at = Date.now();
   const lines = items.map((it) => {
     const p = pm.get(it.productId);
     if (!p || p.isArchived || !p.isAvailable) throw new ApiError(400, `«${p?.name ?? "Продукт"}» сейчас недоступен`);
@@ -225,7 +229,8 @@ export async function priceItems(db: Tx, items: CartItem[]) {
       if (m.required && n === 0) throw new ApiError(400, `Выберите «${m.name}» для «${p.name}»`);
       if (!m.multiple && n > 1) throw new ApiError(400, `«${m.name}»: можно выбрать только один вариант`);
     }
-    const unitPrice = r2(Number(p.price) + chosen.reduce((a, c) => a + Number(c.o.priceDelta), 0));
+    // счастливые часы действуют на базовую цену позиции, опции остаются по полной цене
+    const unitPrice = r2(priceAt(rules, p.categoryId, Number(p.price), at).price + chosen.reduce((a, c) => a + Number(c.o.priceDelta), 0));
     return {
       productId: p.id, name: p.name, quantity: it.quantity, unitPrice,
       modifiers: chosen.map((c) => ({ modifierId: c.m.id, optionId: c.o.id, name: c.o.name, priceDelta: Number(c.o.priceDelta) })),

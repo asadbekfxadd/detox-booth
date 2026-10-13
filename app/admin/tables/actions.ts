@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
-import { addTable, setTableActive, resetTableToken } from "@/services/tables";
+import { addTable, setTableActive, resetTableToken, setTableSeats } from "@/services/tables";
 
 const done = (msg: string, err = false): never => { revalidatePath("/admin/tables"); redirect(`/admin/tables?${err ? "error" : "ok"}=${encodeURIComponent(msg)}`); };
 
@@ -13,6 +13,10 @@ export async function addTableAction(fd: FormData): Promise<void> {
 }
 export async function toggleTableAction(fd: FormData): Promise<void> {
   try { const u = await requireUser("settings.edit"); await setTableActive(String(fd.get("id") ?? ""), fd.get("active") === "1", u); done("Сохранено"); }
+  catch (e) { if (isRedirect(e)) throw e; done(toMessage(e), true); }
+}
+export async function seatsAction(fd: FormData): Promise<void> {
+  try { const u = await requireUser("settings.edit"); await setTableSeats(String(fd.get("id") ?? ""), Number(fd.get("seats")), u); done("Сохранено"); }
   catch (e) { if (isRedirect(e)) throw e; done(toMessage(e), true); }
 }
 export async function resetTokenAction(fd: FormData): Promise<void> {
