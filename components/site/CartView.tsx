@@ -81,8 +81,14 @@ export function CartView({ locationId }: { locationId: string | null }) {
         <aside className="h-fit space-y-3 rounded-2xl bg-white p-5 pop lg:sticky lg:top-24">
           <h2 className="text-lg font-bold">Ваш заказ</h2>
           <p className="flex justify-between text-sm text-forest/60"><span>Сумма</span><span>{sum(quote.subtotal)}</span></p>
-          <p className="text-xs text-forest/60">Доставка и скидки считаются при оформлении.</p>
-          <p className="flex justify-between border-t pt-3 text-lg font-bold"><span>Итого</span><span>{sum(quote.subtotal)}</span></p>
+          {quote.promotions.map((a) => <p key={a.id} className="flex justify-between text-sm font-semibold text-forest"><span>Акция «{a.name}»</span><span>−{sum(a.amount)}</span></p>)}
+          <p className="text-xs text-forest/60">Доставка и промокод считаются при оформлении.</p>
+          <p className="flex justify-between border-t pt-3 text-lg font-bold"><span>Итого</span><span>{sum(Math.max(0, quote.subtotal - quote.discount))}</span></p>
+          {quote.hints.length > 0 && (
+            <ul aria-label="Подсказки по акциям" className="space-y-2">
+              {quote.hints.map((h) => <li key={h.id + h.text} className="rounded-xl bg-sun/30 px-3 py-2 text-sm font-semibold text-forest-deep">{h.text}</li>)}
+            </ul>
+          )}
           {quote.ok
             ? <Link href="/checkout" className="btn btn-primary pop w-full">Оформить заказ</Link>
             : <p className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">Исправьте или удалите отмеченные позиции, чтобы оформить заказ.</p>}

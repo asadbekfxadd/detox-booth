@@ -59,12 +59,13 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
     return () => { alive = false; };
   }, []);
 
-  const sig = JSON.stringify([lines, promo, fulfillment, zone]);
+  const phoneKey = phone.replace(/\D/g, "").length >= 12 ? phone : null;
+  const sig = JSON.stringify([lines, promo, fulfillment, zone, phoneKey]);
   useEffect(() => {
     if (!mounted || lines.length === 0) return;
     let alive = true;
     (async () => {
-      const [c, q] = await Promise.all([quoteCartAction(lines), checkoutQuoteAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone })]);
+      const [c, q] = await Promise.all([quoteCartAction(lines), checkoutQuoteAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, phone: phoneKey })]);
       if (!alive) return;
       if ("quote" in c) setView(c.quote.lines);
       if ("error" in q) { setProblem(q.error); setQuote(null); } else { setProblem(null); setQuote(q.quote); }
@@ -76,7 +77,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
   async function applyPromo() {
     const code = promoInput.trim();
     if (!code) { setPromo(null); setPromoMsg(null); return; }
-    const r = await checkoutQuoteAction({ items: lines, promoCode: code, fulfillment, zoneId: zone });
+    const r = await checkoutQuoteAction({ items: lines, promoCode: code, fulfillment, zoneId: zone, phone: phoneKey });
     if ("error" in r) { setPromoMsg({ ok: false, text: r.error }); return; }
     setPromo(code); setPromoMsg({ ok: true, text: `Промокод применён: −${sum(r.quote.discount)}` });
   }
@@ -177,10 +178,16 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
         {quote && (
           <div className="space-y-1 border-t pt-3 text-sm">
             <p className="flex justify-between"><span>Сумма</span><span>{sum(quote.subtotal)}</span></p>
-            {quote.discount > 0 && <p className="flex justify-between font-semibold text-forest"><span>Скидка</span><span>−{sum(quote.discount)}</span></p>}
+            {quote.promotions.map((a) => <p key={a.id} className="flex justify-between font-semibold text-forest"><span>Акция «{a.name}»</span><span>−{sum(a.amount)}</span></p>)}
+            {quote.discount - quote.promotions.reduce((x, a) => x + a.amount, 0) > 0 && <p className="flex justify-between font-semibold text-forest"><span>Промокод</span><span>−{sum(quote.discount - quote.promotions.reduce((x, a) => x + a.amount, 0))}</span></p>}
             {fulfillment === "DELIVERY" && <p className="flex justify-between"><span>Доставка</span><span>{quote.freeDelivery || quote.deliveryFee === 0 ? "бесплатно" : sum(quote.deliveryFee)}</span></p>}
             <p className="flex justify-between border-t pt-2 text-lg font-bold"><span>Итого</span><span>{sum(quote.total)}</span></p>
             {quote.points > 0 && <p className="text-xs text-forest/60">+{quote.points} баллов после получения заказа</p>}
+            {quote.hints.length > 0 && (
+              <ul aria-label="Подсказки по акциям" className="space-y-2 pt-2">
+                {quote.hints.map((h) => <li key={h.id + h.text} className="rounded-xl bg-sun/30 px-3 py-2 font-semibold text-forest-deep">{h.text}</li>)}
+              </ul>
+            )}
           </div>
         )}
         {bad && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{bad.name}: {bad.problem}. <Link href="/cart" className="font-semibold underline">Вернуться в корзину</Link></p>}

@@ -8,7 +8,8 @@ import { createCustomerTx } from "@/lib/services/loyalty";
 import { checkScheduled } from "@/lib/slots";
 import { enabledProviders, repayUrl } from "@/services/payments";
 import { siteUrl } from "@/lib/site-url";
-import { priceItems, computeDiscount, normalizePhone, cartSchema } from "@/services/pos";
+import { priceItems, discountWithPromotions, normalizePhone, cartSchema } from "@/services/pos";
+import { recordUses, type Applied } from "@/services/promotions";
 import { quoteDelivery } from "@/lib/delivery";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -28,8 +29,10 @@ export const quoteSchema = z.object({
   fulfillment: z.enum(["PICKUP", "DELIVERY"]),
   /** Зона доставки (если у точки они настроены) */
   zoneId: z.string().max(40).nullable().optional(),
+  /** Телефон, если гость уже его ввёл: нужен, чтобы применить акцию «на первый заказ» */
+  phone: z.string().trim().max(30).nullable().optional(),
 });
-export type WebQuote = { subtotal: number; discount: number; deliveryFee: number; freeDelivery: boolean; total: number; points: number; promoCode: string | null };
+export type WebQuote = { subtotal: number; discount: number; deliveryFee: number; freeDelivery: boolean; total: number; points: number; promoCode: string | null; promotions: Applied[]; hints: { id: string; name: string; text: string }[] };
 
 /**
  * Цена доставки. Если у точки настроены зоны — клиент обязан выбрать зону (цена, минимальный заказ, бесплатно от суммы).
@@ -49,14 +52,14 @@ async function resolveDelivery(db: typeof prisma, locationId: string, zoneId: st
 export async function quoteWeb(input: unknown, locationId: string | null): Promise<WebQuote> {
   const d = quoteSchema.parse(input);
   if (!locationId) throw new ApiError(400, "Выберите точку");
-  const { subtotal } = await priceItems(prisma, d.items);
+  const { lines, subtotal } = await priceItems(prisma, d.items);
   await assertInStock(prisma, locationId, d.items);
-  const disc = await computeDiscount(prisma, subtotal, { promoCode: d.promoCode, manualDiscount: null }, WEB_ACTOR);
-  const dl = d.fulfillment === "DELIVERY" ? await resolveDelivery(prisma, locationId, d.zoneId, r2(subtotal - disc.discount)) : { fee: 0, zoneId: null, free: false };
+  const x = await discountWithPromotions(prisma, lines, subtotal, { promoCode: d.promoCode, manualDiscount: null }, WEB_ACTOR, { channel: "SITE", phone: d.phone ? normalizePhone(d.phone) : null });
+  const dl = d.fulfillment === "DELIVERY" ? await resolveDelivery(prisma, locationId, d.zoneId, r2(subtotal - x.discount)) : { fee: 0, zoneId: null, free: false };
   const deliveryFee = dl.fee;
-  const total = r2(subtotal - disc.discount + deliveryFee);
+  const total = r2(subtotal - x.discount + deliveryFee);
   const rate = await setting("loyalty.earnRate", 1);
-  return { subtotal, discount: disc.discount, deliveryFee, freeDelivery: dl.free, total, points: Math.floor(total * rate), promoCode: disc.promoCode };
+  return { subtotal, discount: x.discount, deliveryFee, freeDelivery: dl.free, total, points: Math.floor(total * rate), promoCode: x.disc.promoCode, promotions: x.promo.applied, hints: x.promo.hints };
 }
 
 export const checkoutSchema = quoteSchema.extend({
@@ -107,7 +110,8 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
   const order = await prisma.$transaction(async (tx) => {
     const { lines, subtotal } = await priceItems(tx, d.items);
     await assertInStock(tx, locationId, d.items);
-    const disc = await computeDiscount(tx, subtotal, { promoCode: d.promoCode, manualDiscount: null }, WEB_ACTOR);
+    const x = await discountWithPromotions(tx, lines, subtotal, { promoCode: d.promoCode, manualDiscount: null, customerId: customer.id }, WEB_ACTOR, { channel: "SITE", phone });
+    const disc = { ...x.disc, discount: x.discount };
     const dl = d.fulfillment === "DELIVERY" ? await resolveDelivery(tx as unknown as typeof prisma, locationId, d.zoneId, r2(subtotal - disc.discount)) : { fee: 0, zoneId: null, free: false };
     const deliveryFee = dl.fee;
     const total = r2(subtotal - disc.discount + deliveryFee);
@@ -117,7 +121,7 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
         if (u.count === 0) throw new ApiError(400, "Промокод уже использован максимальное число раз");
       } else await tx.promoCode.update({ where: { id: disc.promoId }, data: { usedCount: { increment: 1 } } });
     }
-    return tx.order.create({
+    const created = await tx.order.create({
       data: {
         locationId, customerId: customer.id, source: "WEB", fulfillment: d.fulfillment, status: "NEW",
         subtotal, discount: disc.discount, deliveryFee, deliveryZoneId: dl.zoneId, total, promoCode: disc.promoCode,
@@ -126,6 +130,8 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
         payments: { create: { method: d.method, status: "PENDING", amount: total, provider: provider?.id ?? null } },
       },
     });
+    await recordUses(tx, created.id, customer.id, x.promo.applied);
+    return created;
   }, { timeout: 20000, maxWait: 10000 });
 
   let payUrl: string | null = null;

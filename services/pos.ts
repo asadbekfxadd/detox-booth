@@ -12,6 +12,7 @@ import { fulfillOrderTx } from "@/lib/services/order-fulfillment";
 import { getLoyaltySettings } from "@/lib/loyalty-settings";
 import { createCustomerTx } from "@/lib/services/loyalty";
 import { lockStock } from "@/lib/stock-lock";
+import { promotionsForCart, codeBlockedBy, recordUses, type Applied, type CartLine } from "@/services/promotions";
 
 type Tx = Prisma.TransactionClient;
 export type Actor = { id: string; role: Role; locationId: string | null };
@@ -46,7 +47,7 @@ export type PosCatalog = { categories: { id: string; name: string }[]; products:
 export type CustomerLite = { id: string; name: string; phone: string; points: number };
 export type RecentOrder = { id: string; number: number; total: number; status: string; method: string | null; createdAt: string; summary: string; refundable: boolean };
 export type OrderResult = { ok: true; orderId: string; number: number; total: number; discount: number; change: number; pointsEarned: number; pointsSpent: number; method: string } | { ok: false; error: string };
-export type Quote = { ok: true; subtotal: number; discount: number; total: number; pointsAmount: number; maxRedeemPoints: number } | { ok: false; error: string };
+export type Quote = { ok: true; subtotal: number; discount: number; total: number; pointsAmount: number; maxRedeemPoints: number; promotions: { id: string; name: string; amount: number }[]; hints: { id: string; name: string; text: string }[] } | { ok: false; error: string };
 
 // ───────────── Смена ─────────────
 export const getOpenShift = (userId: string) =>
@@ -230,9 +231,10 @@ export async function priceItems(db: Tx, items: CartItem[]) {
       if (!m.multiple && n > 1) throw new ApiError(400, `«${m.name}»: можно выбрать только один вариант`);
     }
     // счастливые часы действуют на базовую цену позиции, опции остаются по полной цене
-    const unitPrice = r2(priceAt(rules, p.categoryId, Number(p.price), at).price + chosen.reduce((a, c) => a + Number(c.o.priceDelta), 0));
+    const hp = priceAt(rules, p.categoryId, Number(p.price), at);
+    const unitPrice = r2(hp.price + chosen.reduce((a, c) => a + Number(c.o.priceDelta), 0));
     return {
-      productId: p.id, name: p.name, quantity: it.quantity, unitPrice,
+      productId: p.id, name: p.name, quantity: it.quantity, unitPrice, categoryId: p.categoryId, happy: hp.percent > 0,
       modifiers: chosen.map((c) => ({ modifierId: c.m.id, optionId: c.o.id, name: c.o.name, priceDelta: Number(c.o.priceDelta) })),
     };
   });
@@ -267,6 +269,21 @@ export async function computeDiscount(db: Tx, subtotal: number, d: Pick<CartInpu
   return { discount: 0, promoId: null, promoUsageLimit: null, promoCode: null, manual: null };
 }
 
+/**
+ * Скидки заказа: сначала акции (сами), потом промокод или ручная скидка от суммы после акций.
+ * Акция может запрещать промокод — тогда вводить его бесполезно, говорим об этом сразу.
+ */
+export async function discountWithPromotions(db: Tx, lines: CartLine[], subtotal: number, d: Pick<CartInput, "promoCode" | "manualDiscount" | "customerId">, user: Actor, ctx: { channel: "SITE" | "POS"; phone?: string | null }) {
+  const promo = await promotionsForCart(db, lines, { channel: ctx.channel, customerId: d.customerId, phone: ctx.phone });
+  if (d.promoCode?.trim()) {
+    const blocker = codeBlockedBy(promo.applied);
+    if (blocker) throw new ApiError(400, `Промокод не суммируется с акцией «${blocker}»`);
+  }
+  const base = r2(subtotal - promo.discount);
+  const disc = await computeDiscount(db, base, d, user);
+  return { promo, disc, discount: promo.discount + disc.discount };
+}
+
 /** Списание баллов: не больше баланса и не больше доли заказа из настроек. base — сумма после скидки. */
 async function computeRedeem(db: Tx, customerId: string | null | undefined, requested: number | undefined, base: number) {
   const points = requested ?? 0;
@@ -285,12 +302,12 @@ async function computeRedeem(db: Tx, customerId: string | null | undefined, requ
   return { points, amount: Math.round(points * s.pointValue), max, accountId: acc?.id ?? null };
 }
 
-export async function quote(input: unknown, user: Actor): Promise<{ subtotal: number; discount: number; total: number; pointsAmount: number; maxRedeemPoints: number }> {
+export async function quote(input: unknown, user: Actor): Promise<{ subtotal: number; discount: number; total: number; pointsAmount: number; maxRedeemPoints: number; promotions: Applied[]; hints: { id: string; name: string; text: string }[] }> {
   const d = cartSchema.parse(input);
-  const { subtotal } = await priceItems(prisma, d.items);
-  const disc = await computeDiscount(prisma, subtotal, d, user);
-  const rd = await computeRedeem(prisma, d.customerId, d.redeemPoints, subtotal - disc.discount);
-  return { subtotal, discount: disc.discount + rd.amount, total: r2(subtotal - disc.discount - rd.amount), pointsAmount: rd.amount, maxRedeemPoints: rd.max };
+  const { lines, subtotal } = await priceItems(prisma, d.items);
+  const x = await discountWithPromotions(prisma, lines, subtotal, d, user, { channel: "POS" });
+  const rd = await computeRedeem(prisma, d.customerId, d.redeemPoints, subtotal - x.discount);
+  return { subtotal, discount: x.discount + rd.amount, total: r2(subtotal - x.discount - rd.amount), pointsAmount: rd.amount, maxRedeemPoints: rd.max, promotions: x.promo.applied, hints: x.promo.hints };
 }
 
 // ───────────── Создание заказа ─────────────
@@ -305,7 +322,8 @@ export async function createPosOrder(input: unknown, user: Actor): Promise<Extra
 
     const { lines, subtotal } = await priceItems(tx, d.items);
     await assertInStock(tx, locationId, d.items);
-    const disc = await computeDiscount(tx, subtotal, d, user);
+    const x = await discountWithPromotions(tx, lines, subtotal, d, user, { channel: "POS" });
+    const disc = { ...x.disc, discount: x.discount };
     const rd = await computeRedeem(tx, d.customerId, d.redeemPoints, subtotal - disc.discount);
     const total = r2(subtotal - disc.discount - rd.amount);
     if (d.method === "CASH" && d.tendered != null && d.tendered < total) throw new ApiError(400, "Принятая сумма меньше суммы заказа");
@@ -332,13 +350,14 @@ export async function createPosOrder(input: unknown, user: Actor): Promise<Extra
       },
     });
     if (rd.points > 0) await tx.loyaltyTransaction.create({ data: { accountId: rd.accountId!, type: "SPEND", points: -rd.points, orderId: order.id, note: `Оплата баллами, заказ №${order.number}` } });
+    await recordUses(tx, order.id, x.promo.customerId, x.promo.applied);
     const done = await fulfillOrderTx(tx, order.id, user.id);
-    return { order, done, rd, discount: disc.discount, total, manual: disc.manual, promo: disc.promoCode, subtotal };
+    return { order, done, rd, discount: disc.discount, manualAmount: x.disc.discount, promotions: x.promo.applied.map((a) => ({ id: a.id, name: a.name, amount: a.amount })), total, manual: disc.manual, promo: disc.promoCode, subtotal };
   }, { timeout: 20000, maxWait: 10000 }));
 
   await safeAudit({ userId: user.id, action: "POS_ORDER_CREATED", entity: "Order", entityId: res.order.id,
-    newValue: { number: res.order.number, total: res.total, method: d.method, discount: res.discount, pointsSpent: res.rd.points, promo: res.promo, manualDiscount: res.manual } });
-  if (res.manual) await safeAudit({ userId: user.id, action: "MANUAL_DISCOUNT", entity: "Order", entityId: res.order.id, newValue: { ...res.manual, amount: res.discount, subtotal: res.subtotal } });
+    newValue: { number: res.order.number, total: res.total, method: d.method, discount: res.discount, pointsSpent: res.rd.points, promo: res.promo, promotions: res.promotions, manualDiscount: res.manual } });
+  if (res.manual) await safeAudit({ userId: user.id, action: "MANUAL_DISCOUNT", entity: "Order", entityId: res.order.id, newValue: { ...res.manual, amount: res.manualAmount, subtotal: res.subtotal } });
 
   return {
     ok: true, orderId: res.order.id, number: res.order.number, total: res.total, discount: res.discount + res.rd.amount, pointsSpent: res.rd.points, method: d.method,

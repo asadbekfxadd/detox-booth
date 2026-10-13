@@ -14,7 +14,8 @@ type Applied = { kind: "promo"; code: string } | { kind: "manual"; type: "PERCEN
 type Receipt = Extract<OrderResult, { ok: true }>;
 
 const GENERIC_ERROR = "Что-то пошло не так. Попробуйте ещё раз.";
-const ZERO_QUOTE = { discount: 0, pointsAmt: 0, maxRedeem: 0 };
+type QuotedPromo = { id: string; name: string; amount: number };
+const ZERO_QUOTE: { discount: number; pointsAmt: number; maxRedeem: number; promotions: QuotedPromo[]; hints: { id: string; text: string }[] } = { discount: 0, pointsAmt: 0, maxRedeem: 0, promotions: [], hints: [] };
 const METHODS: [Method, string][] = [["CASH", "Наличные"], ["CARD", "Карта"], ["ONLINE", "Онлайн / перевод"]];
 const METHOD_LABEL: Record<string, string> = { CASH: "Наличные", CARD: "Карта", ONLINE: "Онлайн" };
 const STATUS_LABEL: Record<string, string> = { COMPLETED: "Оплачен", CANCELLED: "Возврат", CONFIRMED: "В работе" };
@@ -69,9 +70,11 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
   const items = useMemo(() => cart.map((l) => ({ productId: l.product.id, quantity: l.quantity, optionIds: l.optionIds })), [cart]);
   const itemsKey = JSON.stringify(items);
   const subtotal = cart.reduce((a, l) => a + unitPrice(l.product, l.optionIds) * l.quantity, 0);
-  // сервер считает скидку и баллы только при активной корзине со скидкой/клиентом; иначе нули
-  const quoteActive = cart.length > 0 && (!!applied || !!customer);
-  const { discount, pointsAmt, maxRedeem } = quoteActive ? quoted : ZERO_QUOTE;
+  // сервер считает акции, скидку и баллы при любой непустой корзине
+  const quoteActive = cart.length > 0;
+  const { discount, pointsAmt, maxRedeem, promotions, hints } = quoteActive ? quoted : ZERO_QUOTE;
+  const promoSum = promotions.reduce((a, x) => a + x.amount, 0);
+  const codeDiscount = Math.max(0, discount - pointsAmt - promoSum);
   const found = cq.trim().length >= 2 ? foundRaw : [];
   const total = Math.max(0, subtotal - discount);
   const redeemNum = customer ? Math.max(0, Math.floor(Number(redeem) || 0)) : 0;
@@ -91,7 +94,7 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
       manualDiscount: applied?.kind === "manual" ? { type: applied.type, value: applied.value } : null,
     }).then((r) => {
       if (cancelled) return;
-      if (r.ok) { setQuoted({ discount: r.discount, pointsAmt: r.pointsAmount, maxRedeem: r.maxRedeemPoints }); setDiscErr(""); }
+      if (r.ok) { setQuoted({ discount: r.discount, pointsAmt: r.pointsAmount, maxRedeem: r.maxRedeemPoints, promotions: r.promotions, hints: r.hints }); setDiscErr(""); }
       else { setDiscErr(r.error); setApplied(null); setRedeem(""); setQuoted(ZERO_QUOTE); }
     }).catch(() => { if (!cancelled) { setDiscErr(GENERIC_ERROR); setApplied(null); setRedeem(""); setQuoted(ZERO_QUOTE); } });
     return () => { cancelled = true; };
@@ -298,7 +301,7 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
               <p className="text-sm font-semibold">Скидка</p>
               {applied ? (
                 <div className="flex items-center justify-between rounded-xl bg-lime-50 px-3 py-2 text-sm">
-                  <span>{applied.kind === "promo" ? `Промокод ${applied.code}` : `Ручная: ${applied.value}${applied.type === "PERCENT" ? "%" : " UZS"}`} · <b>−{money(Math.max(0, discount - pointsAmt))}</b></span>
+                  <span>{applied.kind === "promo" ? `Промокод ${applied.code}` : `Ручная: ${applied.value}${applied.type === "PERCENT" ? "%" : " UZS"}`} · <b>−{money(codeDiscount)}</b></span>
                   <button onClick={() => { setApplied(null); setQuoted(ZERO_QUOTE); }} className="text-neutral-500 hover:text-red-700" aria-label="Убрать скидку">×</button>
                 </div>
               ) : (
@@ -329,9 +332,11 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
           <div className="space-y-3 border-t border-neutral-200 p-4">
             <div className="space-y-1 text-sm">
               <div className="flex justify-between text-neutral-600"><span>Сумма</span><span>{money(subtotal)}</span></div>
-              {discount - pointsAmt > 0 && <div className="flex justify-between text-green-800"><span>Скидка</span><span>−{money(discount - pointsAmt)}</span></div>}
+              {promotions.map((a) => <div key={a.id} className="flex justify-between text-green-800"><span>Акция «{a.name}»</span><span>−{money(a.amount)}</span></div>)}
+              {codeDiscount > 0 && <div className="flex justify-between text-green-800"><span>Скидка</span><span>−{money(codeDiscount)}</span></div>}
               {pointsAmt > 0 && <div className="flex justify-between text-green-800"><span>Баллы ({redeemNum})</span><span>−{money(pointsAmt)}</span></div>}
               <div className="flex justify-between text-xl font-bold"><span>Итого</span><span>{money(total)}</span></div>
+              {hints.map((h) => <p key={h.id + h.text} className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">{h.text}</p>)}
             </div>
             <div className="grid grid-cols-3 gap-1">
               {METHODS.map(([m, l]) => (

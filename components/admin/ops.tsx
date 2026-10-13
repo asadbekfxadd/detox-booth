@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useTransition } from "react";
 
 export type OpState = { error?: string } | undefined;
 
@@ -10,8 +10,10 @@ export function FormShell({ action, submitLabel, cancelHref, children }: {
   action: (prev: OpState, fd: FormData) => Promise<OpState>; submitLabel: string; cancelHref: string; children: React.ReactNode;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
+  const [, start] = useTransition();
+  // Отправляем через onSubmit, а не через action формы: так React не сбрасывает поля после ошибки проверки, и ввод не пропадает.
   return (
-    <form action={formAction} className="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
+    <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); start(() => formAction(fd)); }} className="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
       {children}
       {state?.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
       <div className="flex gap-3">
