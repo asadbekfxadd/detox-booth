@@ -368,6 +368,7 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
             {receipt.method === "CASH" && receipt.change > 0 && <p className="rounded-xl bg-amber-100 py-2 text-xl font-bold text-amber-900">Сдача: {money(receipt.change)}</p>}
             {receipt.pointsSpent > 0 && <p className="text-sm text-neutral-600">Списано баллов: {receipt.pointsSpent}</p>}
             {receipt.pointsEarned > 0 && <p className="text-sm text-green-800">Клиенту начислено баллов: {receipt.pointsEarned}</p>}
+            <a href={`/print/order/${receipt.orderId}`} target="_blank" rel="noreferrer" className="block w-full rounded-xl border border-neutral-300 py-3 text-lg font-semibold hover:bg-neutral-50">Печать чека</a>
             <button onClick={() => setReceipt(null)} className="w-full rounded-xl bg-green-700 py-3 text-lg font-semibold text-white hover:bg-green-800">Новый заказ</button>
           </div>
         </Overlay>
@@ -463,7 +464,10 @@ function OrderRow({ o, onRefunded }: { o: RecentOrder; onRefunded: () => void })
       <p className="mt-1 text-neutral-600">{o.summary}</p>
       <div className="mt-1 flex items-center justify-between">
         <span>{money(o.total)}{o.method && ` · ${METHOD_LABEL[o.method]}`}</span>
-        {o.refundable && !open && <button onClick={() => setOpen(true)} className="text-red-700 underline">Возврат</button>}
+        <span className="flex items-center gap-3">
+          <a href={`/print/order/${o.id}`} target="_blank" rel="noreferrer" className="underline">Чек</a>
+          {o.refundable && !open && <button onClick={() => setOpen(true)} className="text-red-700 underline">Возврат</button>}
+        </span>
       </div>
       {open && (
         <div className="mt-2 space-y-2 rounded-lg bg-neutral-50 p-2">

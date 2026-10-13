@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
+import { resolveStationId } from "@/services/stations";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Укажите название категории").max(40, "Слишком длинное название"),
@@ -22,13 +23,14 @@ async function assertUniqueName(name: string, exceptId?: string) {
   if (dup) throw new ApiError(400, "Категория с таким названием уже есть");
 }
 
-export const listCategories = () => prisma.category.findMany({ orderBy: [{ sort: "asc" }, { name: "asc" }], include: { _count: { select: { products: true } } } });
+export const listCategories = () => prisma.category.findMany({ orderBy: [{ sort: "asc" }, { name: "asc" }], include: { _count: { select: { products: true } }, station: { select: { name: true } } } });
 export const getCategory = (id: string) => prisma.category.findUnique({ where: { id } });
 
 export async function createCategory(input: unknown, userId: string) {
   const d = schema.parse(input);
   await assertUniqueName(d.name);
-  const c = await prisma.category.create({ data: { name: d.name, sort: d.sort, slug: await uniqueSlug(d.name) } });
+  const stationId = await resolveStationId((input as { stationId?: unknown }).stationId);
+  const c = await prisma.category.create({ data: { name: d.name, sort: d.sort, stationId, slug: await uniqueSlug(d.name) } });
   await audit({ userId, action: "CATEGORY_CREATED", entity: "Category", entityId: c.id, newValue: { name: c.name, sort: c.sort } });
 }
 
@@ -38,8 +40,9 @@ export async function updateCategory(id: string, input: unknown, userId: string)
   if (!old) throw new ApiError(404, "Категория не найдена");
   await assertUniqueName(d.name, id);
   // slug не меняем при переименовании, чтобы не ломать ссылки на сайте
-  await prisma.category.update({ where: { id }, data: { name: d.name, sort: d.sort } });
-  await audit({ userId, action: "CATEGORY_UPDATED", entity: "Category", entityId: id, oldValue: { name: old.name, sort: old.sort }, newValue: { name: d.name, sort: d.sort } });
+  const stationId = await resolveStationId((input as { stationId?: unknown }).stationId);
+  await prisma.category.update({ where: { id }, data: { name: d.name, sort: d.sort, stationId } });
+  await audit({ userId, action: "CATEGORY_UPDATED", entity: "Category", entityId: id, oldValue: { name: old.name, sort: old.sort, stationId: old.stationId }, newValue: { name: d.name, sort: d.sort, stationId } });
 }
 
 export async function deleteCategory(id: string, userId: string) {

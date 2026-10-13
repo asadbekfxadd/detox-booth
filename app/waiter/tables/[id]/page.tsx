@@ -88,6 +88,7 @@ export default async function WaiterTablePage({ params, searchParams }: { params
             <p className="flex items-baseline justify-between gap-4 text-2xl font-black"><span>Итого</span><span>{sum(total)}</span></p>
             {blockers.length > 0 && <p className="text-xs text-neutral-500">Ещё в работе: {blockers.map((n) => `№${n}`).join(", ")}</p>}
             <div className="flex flex-wrap gap-2">
+              <a href={`/print/bill/${bill.id}`} target="_blank" rel="noreferrer" className={`${btn} border-2 border-neutral-300`}>Печать счёта</a>
               {!bill.requested && <form action={requestBillAction}><input type="hidden" name="tableId" value={table.id} /><button className={`${btn} border-2 border-orange-500 text-orange-700`}>Попросить счёт</button></form>}
               {can(user.role, "pos.use") && <Link href={`/pos/tables/${table.id}`} className={`${btn} bg-neutral-900 text-white`}>Закрыть счёт на кассе</Link>}
             </div>

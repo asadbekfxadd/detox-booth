@@ -30,7 +30,11 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
     <div className="max-w-4xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Заказ №{o.number}</h1>
-        <Link href="/admin/orders" className="text-sm text-green-800 underline">← К списку</Link>
+        <div className="flex items-center gap-4 text-sm">
+          <a href={`/print/order/${o.id}`} target="_blank" rel="noreferrer" className="text-green-800 underline">Печать чека</a>
+          <a href={`/print/kitchen/${o.id}`} target="_blank" rel="noreferrer" className="text-green-800 underline">Печать бегунка</a>
+          <Link href="/admin/orders" className="text-green-800 underline">← К списку</Link>
+        </div>
       </div>
       {sp.ok && OK[sp.ok] && <p className="rounded-lg bg-lime-100 px-4 py-2 text-sm text-green-900">{OK[sp.ok]}</p>}
 

@@ -12,10 +12,19 @@ const security = [
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" },
 ];
 
+// Страницы печати кухня открывает во встроенном (скрытом) окне своего же сайта для автопечати, поэтому им разрешено встраивание только с того же адреса.
+const printSecurity = security.map((h) =>
+  h.key === "X-Frame-Options" ? { ...h, value: "SAMEORIGIN" }
+  : h.key === "Content-Security-Policy" ? { ...h, value: h.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") }
+  : h);
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: security }];
+    return [
+      { source: "/((?!print/).*)", headers: security },
+      { source: "/print/:path*", headers: printSecurity },
+    ];
   },
   turbopack: {
     rules: {

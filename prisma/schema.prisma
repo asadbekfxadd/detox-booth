@@ -209,12 +209,23 @@ model PromoCode {
   isActive Boolean @default(true)
 }
 
+/// Станция кухни: бар, горячий цех, холодный цех. Категория относится к одной станции.
+model Station {
+  id String @id @default(cuid())
+  name String @unique
+  sort Int @default(0)
+  categories Category[]
+}
+
 model Category {
   id String @id @default(cuid())
   name String @unique
   slug String @unique
   sort Int @default(0)
+  stationId String?
+  station Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
   products Product[]
+  @@index([stationId])
 }
 
 model Product {
@@ -464,6 +475,8 @@ model OrderItem {
   quantity Int
   unitPrice Decimal @db.Decimal(12,2)
   modifiers Json @default("[]")
+  /// Станция отметила позицию готовой (заказ становится READY, когда готовы все позиции)
+  readyAt DateTime?
   @@index([orderId])
   @@index([productId])
 }

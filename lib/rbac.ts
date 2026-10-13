@@ -6,22 +6,22 @@ export type Permission =
   | "products.edit" | "products.cost" | "recipes.edit"
   | "inventory.view" | "inventory.edit" | "writeoffs.create" | "purchases.manage"
   | "customers.view" | "customers.manage" | "employees.manage" | "settings.edit" | "audit.view"
-  | "waiter.use";
+  | "waiter.use" | "print.use";
 
 const ALL: Permission[] = [
   "dashboard.view","finance.view","finance.edit","orders.view","orders.manage","orders.cancel","pos.use","pos.refund",
   "products.edit","products.cost","recipes.edit","inventory.view","inventory.edit","writeoffs.create",
-  "purchases.manage","customers.view","customers.manage","employees.manage","settings.edit","audit.view","waiter.use",
+  "purchases.manage","customers.view","customers.manage","employees.manage","settings.edit","audit.view","waiter.use","print.use",
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   OWNER: ALL,
   ADMIN: ALL.filter((p) => p !== "finance.edit"),
   MANAGER: ["dashboard.view","orders.view","orders.manage","orders.cancel","pos.use","pos.refund","products.edit","recipes.edit",
-            "inventory.view","inventory.edit","writeoffs.create","purchases.manage","customers.view","customers.manage","waiter.use"],
-  CASHIER: ["orders.view","orders.manage","pos.use","waiter.use"],
-  WAITER: ["waiter.use"],
-  BARISTA: ["orders.view","orders.manage","inventory.view","writeoffs.create"],
+            "inventory.view","inventory.edit","writeoffs.create","purchases.manage","customers.view","customers.manage","waiter.use","print.use"],
+  CASHIER: ["orders.view","orders.manage","pos.use","waiter.use","print.use"],
+  WAITER: ["waiter.use","print.use"],
+  BARISTA: ["orders.view","orders.manage","inventory.view","writeoffs.create","print.use"],
   WAREHOUSE: ["inventory.view","inventory.edit","writeoffs.create","purchases.manage"],
   ACCOUNTANT: ["dashboard.view","finance.view","finance.edit","orders.view","audit.view"],
 };
@@ -49,6 +49,7 @@ export const ROUTE_PERMISSIONS: [string, Permission][] = [
   ["/admin/tables", "settings.edit"],
   ["/admin/sales", "orders.view"],
   ["/admin/categories", "products.edit"],
+  ["/admin/stations", "products.edit"],
   ["/admin/suppliers", "purchases.manage"],
   ["/admin/loyalty", "customers.view"],
   ["/admin/analytics", "dashboard.view"],
@@ -56,6 +57,7 @@ export const ROUTE_PERMISSIONS: [string, Permission][] = [
   ["/pos", "pos.use"],
   ["/kitchen", "orders.manage"],
   ["/waiter", "waiter.use"],
+  ["/print", "print.use"],
 ];
 
 /** Куда отправлять после входа */

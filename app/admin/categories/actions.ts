@@ -10,12 +10,12 @@ const s = (fd: FormData, k: string) => String(fd.get(k) ?? "");
 const done = (ok: string) => { revalidatePath("/admin/categories"); revalidatePath("/admin/products"); revalidatePath("/menu"); redirect(`/admin/categories?ok=${ok}`); };
 
 export async function createCategoryAction(_p: OpState, fd: FormData): Promise<OpState> {
-  try { const u = await requireUser("products.edit"); await createCategory({ name: s(fd, "name"), sort: s(fd, "sort") }, u.id); }
+  try { const u = await requireUser("products.edit"); await createCategory({ name: s(fd, "name"), sort: s(fd, "sort"), stationId: s(fd, "stationId") }, u.id); }
   catch (e) { return { error: toMessage(e) }; }
   done("created");
 }
 export async function updateCategoryAction(_p: OpState, fd: FormData): Promise<OpState> {
-  try { const u = await requireUser("products.edit"); await updateCategory(s(fd, "id"), { name: s(fd, "name"), sort: s(fd, "sort") }, u.id); }
+  try { const u = await requireUser("products.edit"); await updateCategory(s(fd, "id"), { name: s(fd, "name"), sort: s(fd, "sort"), stationId: s(fd, "stationId") }, u.id); }
   catch (e) { return { error: toMessage(e) }; }
   done("updated");
 }
