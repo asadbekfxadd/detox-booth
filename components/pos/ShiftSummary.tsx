@@ -26,7 +26,17 @@ export function ShiftSummaryView({ s }: { s: S }) {
         <Row k="Карта" v={money(s.sales.card)} />
         <Row k="Онлайн / перевод" v={money(s.sales.online)} />
         <Row k="Скидки" v={money(s.sales.discount)} />
+        {s.sales.serviceFee > 0 && <Row k="Сервисный сбор (входит в выручку)" v={money(s.sales.serviceFee)} />}
       </div>
+      {s.tips.total > 0 && (
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <h3 className="mb-2 font-bold">Чаевые (не входят в выручку)</h3>
+          <Row k="Всего" v={money(s.tips.total)} bold />
+          <Row k="Наличными" v={money(s.tips.cash)} />
+          <Row k="Картой" v={money(s.tips.card)} />
+          <p className="pt-2 text-xs text-neutral-500">Выдайте чаевые официантам. Наличные чаевые учтены в кассе ниже, пока вы их не выдали.</p>
+        </div>
+      )}
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h3 className="mb-2 font-bold">Возвраты</h3>
         <Row k="Возвращённых заказов" v={String(s.refunds.count)} />
@@ -37,6 +47,7 @@ export function ShiftSummaryView({ s }: { s: S }) {
         <h3 className="mb-2 font-bold">Касса (наличные)</h3>
         <Row k="На начало смены" v={money(s.opening)} />
         <Row k="+ наличные продажи" v={money(s.sales.cash)} />
+        {s.tips.cash > 0 && <Row k="+ наличные чаевые" v={money(s.tips.cash)} />}
         <Row k="− наличные возвраты" v={money(s.refunds.cash)} />
         <Row k="Ожидается в кассе" v={money(s.expectedCash)} bold />
         {s.closing != null && <Row k="Фактически" v={money(s.closing)} bold />}

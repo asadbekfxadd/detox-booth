@@ -10,9 +10,9 @@ import { sum } from "@/lib/format";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Столы" };
 
-export default async function PosTablesPage({ searchParams }: { searchParams: Promise<{ paid?: string }> }) {
+export default async function PosTablesPage({ searchParams }: { searchParams: Promise<{ paid?: string; tip?: string }> }) {
   const user = await pageGuard("pos.use");
-  const { paid } = await searchParams;
+  const { paid, tip } = await searchParams;
   const [shift, scope] = await Promise.all([getOpenShift(user.id), getScope()]);
   const locationId = shift?.locationId ?? scope.locationId ?? scope.locations[0]?.id ?? null;
   const tables = locationId ? await listTablesWithBills(locationId) : [];
@@ -33,7 +33,7 @@ export default async function PosTablesPage({ searchParams }: { searchParams: Pr
         </div>
       </header>
       <div className="mx-auto max-w-5xl space-y-4">
-        {paid != null && <p role="status" className="rounded-xl bg-lime-100 px-4 py-3 font-semibold text-green-900">Счёт закрыт: {sum(Number(paid) || 0)}</p>}
+        {paid != null && <p role="status" className="rounded-xl bg-lime-100 px-4 py-3 font-semibold text-green-900">Счёт закрыт: {sum(Number(paid) || 0)}{Number(tip) > 0 && ` + чаевые ${sum(Number(tip))}`}</p>}
         {!shift && <p className="rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900">Смена не открыта: заказы видны, но принять оплату можно только после <Link href="/pos" className="font-bold underline">открытия смены</Link>.</p>}
         {tables.length === 0
           ? <p className="rounded-2xl bg-white p-8 text-center text-neutral-600">Столов пока нет. Добавьте их в админке: «Столы и QR».</p>
@@ -50,6 +50,7 @@ export default async function PosTablesPage({ searchParams }: { searchParams: Pr
                         <>
                           <p className="mt-1 text-lg font-bold">{sum(b.total)}</p>
                           <p className="text-xs text-neutral-600">заказов: {b.orders}{b.inWork > 0 && ` · готовится: ${b.inWork}`}</p>
+                          {b.partPaid && <p className="text-xs font-bold text-green-800">Частично оплачен</p>}
                           {b.requested && <p className="mt-1 text-sm font-bold text-orange-700">Просит счёт</p>}
                           {b.fresh > 0 && <p className="text-xs font-bold text-sky-700">Новых: {b.fresh}</p>}
                         </>

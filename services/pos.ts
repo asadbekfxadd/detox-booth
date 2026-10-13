@@ -69,13 +69,18 @@ export async function shiftSummary(shiftId: string) {
   const shift = await prisma.shift.findUnique({ where: { id: shiftId }, include: { user: { select: { name: true } }, location: { select: { name: true } } } });
   if (!shift) return null;
   const orders = await prisma.order.findMany({ where: { shiftId }, include: { payments: true } });
-  const sales = { count: 0, total: 0, discount: 0, cash: 0, card: 0, online: 0 };
+  const sales = { count: 0, total: 0, discount: 0, serviceFee: 0, cash: 0, card: 0, online: 0 };
+  const tips = { total: 0, cash: 0, card: 0 };
   const refunds = { count: 0, total: 0, cash: 0, card: 0, online: 0 };
   const key = (m: string) => m.toLowerCase() as "cash" | "card" | "online";
   for (const o of orders) {
     if (o.status === "COMPLETED") {
-      sales.count++; sales.total += Number(o.total); sales.discount += Number(o.discount);
-      for (const p of o.payments) if (p.status === "PAID") sales[key(p.method)] += Number(p.amount);
+      sales.count++; sales.total += Number(o.total); sales.discount += Number(o.discount); sales.serviceFee += Number(o.serviceFee);
+      for (const p of o.payments) if (p.status === "PAID") {
+        sales[key(p.method)] += Number(p.amount);
+        const tip = Number(p.tip);
+        if (tip > 0) { tips.total += tip; if (p.method === "CASH") tips.cash += tip; else if (p.method === "CARD") tips.card += tip; }
+      }
     } else {
       const ref = o.payments.filter((p) => p.status === "REFUNDED");
       if (ref.length) refunds.count++;
@@ -83,12 +88,13 @@ export async function shiftSummary(shiftId: string) {
     }
   }
   const opening = Number(shift.openingCash);
-  const expectedCash = opening + sales.cash - refunds.cash;
+  // наличные чаевые лежат в кассе до выдачи официанту, поэтому входят в ожидаемую сумму
+  const expectedCash = opening + sales.cash + tips.cash - refunds.cash;
   const closing = shift.closingCash == null ? null : Number(shift.closingCash);
   return {
     id: shift.id, status: shift.status, cashier: shift.user.name, location: shift.location.name, locationId: shift.locationId, userId: shift.userId,
     openedAt: shift.openedAt, closedAt: shift.closedAt, opening, closing, expectedCash,
-    difference: closing == null ? null : closing - expectedCash, sales, refunds,
+    difference: closing == null ? null : closing - expectedCash, sales, tips, refunds,
   };
 }
 
@@ -112,7 +118,7 @@ export async function closeShift(input: unknown, user: Actor) {
   const r = await prisma.shift.updateMany({ where: { id: shift.id, status: "OPEN" }, data: { status: "CLOSED", closedAt: new Date(), closingCash: d.closingCash } });
   if (r.count === 0) throw new ApiError(400, "Смена уже закрыта");
   await safeAudit({ userId: user.id, action: "SHIFT_CLOSED", entity: "Shift", entityId: shift.id,
-    newValue: { closingCash: d.closingCash, expectedCash: before?.expectedCash, difference: before ? d.closingCash - before.expectedCash : null, sales: before?.sales, refunds: before?.refunds } });
+    newValue: { closingCash: d.closingCash, expectedCash: before?.expectedCash, difference: before ? d.closingCash - before.expectedCash : null, sales: before?.sales, tips: before?.tips, refunds: before?.refunds } });
   return shift.id;
 }
 

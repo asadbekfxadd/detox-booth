@@ -15,6 +15,7 @@ export const SETTING_FIELDS: SettingField[] = [
   { group: "Заказы", key: "delivery.fee", label: "Стоимость доставки, UZS", hint: "Добавляется к заказам с доставкой на сайте", min: 0, max: 10000000, int: false, def: 0, step: "1" },
   { group: "Заказы", key: "orders.minLeadMinutes", label: "Минимум до выдачи «к времени», мин", hint: "Раньше этого срока клиент не сможет выбрать время получения на сайте", min: 5, max: 240, int: true, def: 15, step: "5" },
   { group: "Заказы", key: "orders.delayMinutes", label: "Заказ считается задержанным через, мин", hint: "Подсветка в списке заказов и на доске", min: 1, max: 600, int: true, def: 30, step: "1" },
+  { group: "Столы", key: "table.serviceFeePct", label: "Сервисный сбор за столом, %", hint: "Добавляется к сумме заказов при оплате счёта стола. 0 — без сбора. Гость видит его в счёте", min: 0, max: 30, int: false, def: 0, step: "1" },
   { group: "Касса и склад", key: "pos.cashierMaxDiscountPct", label: "Максимальная ручная скидка кассира, %", hint: "Больше этого кассир скидку дать не сможет", min: 0, max: 100, int: false, def: 10, step: "1" },
   { group: "Касса и склад", key: "writeoff.largeThreshold", label: "Порог «крупного» списания, UZS", hint: "Выше этой суммы списание создаёт уведомление", min: 0, max: 10000000000, int: false, def: 200000, step: "1000" },
 ];

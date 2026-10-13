@@ -6,11 +6,18 @@ import { audit } from "@/lib/audit";
 import { assertInStock } from "@/services/availability";
 import { priceItems, cartSchema } from "@/services/pos";
 import { deductInventoryTx } from "@/lib/services/order-fulfillment";
-import { billTotal, closeBlockers, tableNote } from "@/lib/table-bill";
+import { billTotal, closeBlockers, tableNote, allocate, feeOf, unpaidOrders, SERVICE_FEE_KEY } from "@/lib/table-bill";
 import { isTableToken, newTableToken, TABLE_COOKIE_HOURS } from "@/lib/tables";
 
 type Actor = { id: string; role: Role; locationId: string | null };
 const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Сервисный сбор, % (0 — выключен). Читается в момент оплаты и показа счёта. */
+export async function getServiceFeePct(db: Pick<typeof prisma, "setting"> = prisma) {
+  const v = (await db.setting.findUnique({ where: { key: SERVICE_FEE_KEY } }))?.value;
+  return typeof v === "number" && v > 0 && v <= 100 ? v : 0;
+}
+const isPaid = (payments: { status: string }[]) => payments.some((p) => p.status === "PAID");
 
 /* ---------- гость ---------- */
 
@@ -75,12 +82,15 @@ export type GuestBill = Awaited<ReturnType<typeof getGuestBill>>;
 
 /** Счёт стола глазами гостя: заказы, позиции, итог. Без персональных данных. */
 export async function getGuestBill(table: TableInfo) {
-  const bill = await prisma.tableBill.findFirst({
-    where: { tableId: table.id, status: "OPEN" },
-    include: { orders: { orderBy: { createdAt: "asc" }, include: { items: { include: { product: { select: { name: true } } } } } } },
-  });
+  const [bill, feePct] = await Promise.all([
+    prisma.tableBill.findFirst({
+      where: { tableId: table.id, status: "OPEN" },
+      include: { orders: { orderBy: { createdAt: "asc" }, include: { payments: { select: { status: true } }, items: { include: { product: { select: { name: true } } } } } } },
+    }),
+    getServiceFeePct(),
+  ]);
   const orders = (bill?.orders ?? []).map((o) => ({
-    id: o.id, number: o.number, status: o.status, onHold: o.onHold, createdAt: o.createdAt, note: o.note, total: Number(o.total),
+    id: o.id, number: o.number, status: o.status, onHold: o.onHold, paid: isPaid(o.payments), createdAt: o.createdAt, note: o.note, total: Number(o.total),
     items: o.items.map((i) => ({
       id: i.id, name: i.product.name, quantity: i.quantity, lineTotal: r2(Number(i.unitPrice) * i.quantity),
       options: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { name?: string }[]) : []).map((m) => m?.name).filter((x): x is string => !!x),
@@ -89,7 +99,13 @@ export async function getGuestBill(table: TableInfo) {
   // «Счёт закрыт» показываем только если стол закрыли недавно (в пределах жизни cookie), а не при каждом пустом столе
   const lastPaid = bill ? null : await prisma.tableBill.findFirst({ where: { tableId: table.id, status: "PAID" }, orderBy: { closedAt: "desc" }, select: { closedAt: true } });
   const justClosed = !!lastPaid?.closedAt && Date.now() - lastPaid.closedAt.getTime() < TABLE_COOKIE_HOURS * 3_600_000;
-  return { tableNumber: table.number, locationName: table.locationName, open: !!bill, justClosed, requested: !!bill?.billRequestedAt, total: billTotal(orders), orders };
+  const subtotal = billTotal(unpaidOrders(orders));
+  const fee = feeOf(subtotal, feePct);
+  return {
+    tableNumber: table.number, locationName: table.locationName, open: !!bill, justClosed, requested: !!bill?.billRequestedAt,
+    /** Заказы без сбора, ещё не оплаченные */
+    total: subtotal, feePct, fee, due: r2(subtotal + fee), orders,
+  };
 }
 
 /** Гость просит счёт: касса видит отметку у стола. Повторное нажатие ничего не ломает. */
@@ -105,16 +121,17 @@ export async function requestBill(table: TableInfo) {
 export async function listTablesWithBills(locationId: string) {
   const tables = await prisma.diningTable.findMany({
     where: { locationId, isActive: true }, orderBy: { number: "asc" },
-    include: { bills: { where: { status: "OPEN" }, include: { orders: { select: { id: true, number: true, status: true, total: true, onHold: true } } } } },
+    include: { bills: { where: { status: "OPEN" }, include: { orders: { select: { id: true, number: true, status: true, total: true, onHold: true, payments: { select: { status: true } } } } } } },
   });
   return tables.map((t) => {
     const bill = t.bills[0];
-    const orders = (bill?.orders ?? []).map((o) => ({ number: o.number, status: o.status as string, total: Number(o.total), onHold: o.onHold }));
+    const orders = (bill?.orders ?? []).map((o) => ({ number: o.number, status: o.status as string, total: Number(o.total), onHold: o.onHold, paid: isPaid(o.payments) }));
     const live = orders.filter((o) => o.status !== "CANCELLED");
+    const open = unpaidOrders(orders);
     return {
       id: t.id, number: t.number,
       bill: bill && live.length > 0
-        ? { id: bill.id, openedAt: bill.openedAt, total: billTotal(orders), orders: live.length, fresh: live.filter((o) => o.status === "NEW" && !o.onHold).length, held: live.filter((o) => o.status === "NEW" && o.onHold).length, ready: live.filter((o) => o.status === "READY").length, inWork: closeBlockers(orders).length, requested: !!bill.billRequestedAt }
+        ? { id: bill.id, openedAt: bill.openedAt, total: billTotal(open), partPaid: open.length < live.length, orders: live.length, fresh: live.filter((o) => o.status === "NEW" && !o.onHold).length, held: live.filter((o) => o.status === "NEW" && o.onHold).length, ready: live.filter((o) => o.status === "READY").length, inWork: closeBlockers(open).length, requested: !!bill.billRequestedAt }
         : null,
     };
   });
@@ -128,11 +145,12 @@ export async function getStaffTable(tableId: string, user: Actor) {
   if (user.locationId && user.locationId !== t.locationId) return null;
   const bill = await prisma.tableBill.findFirst({
     where: { tableId, status: "OPEN" },
-    include: { orders: { orderBy: { createdAt: "asc" }, include: { items: { include: { product: { select: { name: true } } } } } } },
+    include: { orders: { orderBy: { createdAt: "asc" }, include: { payments: { select: { status: true } }, items: { include: { product: { select: { name: true } } } } } } },
   });
+  const feePct = await getServiceFeePct();
   const orders = (bill?.orders ?? []).map((o) => ({
     id: o.id, number: o.number, status: o.status as string, createdAt: o.createdAt, note: o.note, total: Number(o.total),
-    course: o.course, onHold: o.onHold,
+    course: o.course, onHold: o.onHold, paid: isPaid(o.payments), serviceFee: Number(o.serviceFee),
     items: o.items.map((i) => ({
       id: i.id, name: i.product.name, quantity: i.quantity, lineTotal: r2(Number(i.unitPrice) * i.quantity),
       options: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { name?: string }[]) : []).map((m) => m?.name).filter((x): x is string => !!x),
@@ -141,15 +159,28 @@ export async function getStaffTable(tableId: string, user: Actor) {
   return {
     table: { id: t.id, number: t.number, locationId: t.locationId },
     bill: bill ? { id: bill.id, openedAt: bill.openedAt, requested: !!bill.billRequestedAt } : null,
-    orders, total: billTotal(orders), blockers: closeBlockers(orders),
+    orders, feePct,
+    /** все живые заказы (оплаченные — с уже начисленным сбором) */
+    total: billTotal(orders),
+    /** ещё не оплачено (без сбора) */
+    due: billTotal(unpaidOrders(orders)),
+    blockers: closeBlockers(unpaidOrders(orders)),
   };
 }
 
-export const closeBillSchema = z.object({ billId: z.string().min(1), method: z.enum(["CASH", "CARD"], { error: "Выберите способ оплаты" }) });
+export const closeBillSchema = z.object({
+  billId: z.string().min(1),
+  method: z.enum(["CASH", "CARD"], { error: "Выберите способ оплаты" }),
+  /** Какие заказы оплачивает гость (раздельный счёт). Не указано — все неоплаченные. */
+  orderIds: z.array(z.string().min(1)).max(100).optional(),
+  tip: z.preprocess((v) => (v === "" || v == null ? 0 : v), z.coerce.number({ error: "Чаевые — число" }).min(0, "Чаевые не могут быть отрицательными").max(1_000_000_000, "Слишком большая сумма чаевых")).default(0),
+});
 
 /**
- * Закрыть счёт стола: принять оплату по всем заказам разом, выдать готовое, списать склад, записать в смену кассира.
- * Всё в одной транзакции; пока заказ ещё готовится, счёт не закрывается.
+ * Принять оплату по счёту стола: за все заказы сразу или только за выбранные (раздельный счёт).
+ * К выбранным заказам добавляется сервисный сбор (он становится частью суммы заказа), чаевые идут отдельно.
+ * Заказ выдаётся, склад списывается, оплата записывается в смену кассира. Счёт закрывается, когда оплачен последний заказ.
+ * Всё в одной транзакции; пока заказ ещё готовится, его оплатить нельзя.
  */
 export async function closeBill(input: unknown, user: Actor) {
   const d = closeBillSchema.parse(input);
@@ -158,25 +189,49 @@ export async function closeBill(input: unknown, user: Actor) {
   const res = await prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "TableBill" WHERE "id" = ${d.billId} AND "status" = 'OPEN' FOR UPDATE`);
     if (locked.length === 0) throw new ApiError(400, "Счёт уже закрыт, обновите страницу");
-    const bill = await tx.tableBill.findUniqueOrThrow({ where: { id: d.billId }, include: { orders: true } });
+    const bill = await tx.tableBill.findUniqueOrThrow({ where: { id: d.billId }, include: { orders: { include: { payments: { select: { status: true } } } } } });
     if (user.locationId && user.locationId !== bill.locationId) throw new ApiError(403, "Это счёт другой точки");
     if (shift.locationId !== bill.locationId) throw new ApiError(400, "Ваша смена открыта на другой точке");
-    const orders = bill.orders.map((o) => ({ id: o.id, number: o.number, status: o.status as string, total: Number(o.total) }));
-    const wait = closeBlockers(orders);
-    if (wait.length) throw new ApiError(400, `Пока готовятся заказы: ${wait.map((n) => `№${n}`).join(", ")}. Дождитесь кухни или отмените их в админке.`);
-    const live = orders.filter((o) => o.status !== "CANCELLED");
+    const all = bill.orders.map((o) => ({ id: o.id, number: o.number, status: o.status as string, total: Number(o.total), paid: isPaid(o.payments) }));
+    const live = all.filter((o) => o.status !== "CANCELLED");
     const now = new Date();
-    for (const o of live) {
+
+    // счёт без живых заказов (всё отменено): просто закрываем
+    if (live.length === 0) {
+      await tx.tableBill.update({ where: { id: bill.id }, data: { status: "PAID", closedAt: now, closedById: user.id, shiftId: shift.id, method: null, total: 0 } });
+      return { total: 0, fee: 0, tip: 0, orders: 0, closed: true, tableId: bill.tableId };
+    }
+
+    const open = unpaidOrders(all);
+    if (open.length === 0) throw new ApiError(400, "Все заказы уже оплачены, обновите страницу");
+    const picked = d.orderIds ? open.filter((o) => d.orderIds!.includes(o.id)) : open;
+    if (d.orderIds && picked.length !== new Set(d.orderIds).size) throw new ApiError(400, "Состав счёта изменился, обновите страницу");
+    if (picked.length === 0) throw new ApiError(400, "Отметьте заказы, которые оплачивает гость");
+    const wait = closeBlockers(picked);
+    if (wait.length) throw new ApiError(400, `Пока готовятся заказы: ${wait.map((n) => `№${n}`).join(", ")}. Дождитесь кухни или отмените их в админке.`);
+
+    const feePct = await getServiceFeePct(tx);
+    const subtotal = billTotal(picked);
+    const fees = allocate(feeOf(subtotal, feePct), picked.map((o) => o.total));
+    const tips = allocate(Math.round(d.tip * 100) / 100, picked.map((o) => o.total));
+    let paidNow = 0;
+    for (const [i, o] of picked.entries()) {
       if (o.status === "READY") await tx.order.updateMany({ where: { id: o.id, status: "READY" }, data: { status: "COMPLETED", completedAt: now } });
       await deductInventoryTx(tx, o.id, user.id); // идемпотентно: если склад уже списан при принятии, ничего не меняется
+      const newTotal = r2(o.total + fees[i]);
+      paidNow += newTotal;
+      await tx.order.update({ where: { id: o.id }, data: { total: newTotal, serviceFee: fees[i], shiftId: shift.id, cashierId: user.id } });
+      const paid = await tx.payment.updateMany({ where: { orderId: o.id, status: "PENDING" }, data: { method: d.method, status: "PAID", amount: newTotal, tip: tips[i] } });
+      if (paid.count === 0) await tx.payment.create({ data: { orderId: o.id, method: d.method, status: "PAID", amount: newTotal, tip: tips[i] } });
     }
-    await tx.order.updateMany({ where: { billId: bill.id, status: { not: "CANCELLED" } }, data: { shiftId: shift.id, cashierId: user.id } });
-    await tx.payment.updateMany({ where: { order: { billId: bill.id, status: { not: "CANCELLED" } }, status: "PENDING" }, data: { method: d.method, status: "PAID" } });
-    const total = billTotal(orders);
-    await tx.tableBill.update({ where: { id: bill.id }, data: { status: "PAID", closedAt: now, closedById: user.id, shiftId: shift.id, method: live.length ? d.method : null, total } });
-    return { total, orders: live.length, tableId: bill.tableId };
+    const closed = picked.length === open.length;
+    if (closed) {
+      const billSum = r2(live.reduce((s, o) => { const p = picked.findIndex((x) => x.id === o.id); return s + (p >= 0 ? o.total + fees[p] : o.total); }, 0));
+      await tx.tableBill.update({ where: { id: bill.id }, data: { status: "PAID", closedAt: now, closedById: user.id, shiftId: shift.id, method: d.method, total: billSum } });
+    }
+    return { total: r2(paidNow), fee: r2(fees.reduce((s, x) => s + x, 0)), tip: r2(tips.reduce((s, x) => s + x, 0)), orders: picked.length, closed, tableId: bill.tableId };
   }, { timeout: 30000, maxWait: 10000 });
-  try { await audit({ userId: user.id, action: "TABLE_BILL_CLOSED", entity: "TableBill", entityId: d.billId, newValue: { method: d.method, total: res.total, orders: res.orders } }); } catch (e) { console.error("[AUDIT ERROR]", e); }
+  try { await audit({ userId: user.id, action: "TABLE_BILL_CLOSED", entity: "TableBill", entityId: d.billId, newValue: { method: d.method, total: res.total, fee: res.fee, tip: res.tip, orders: res.orders, closed: res.closed } }); } catch (e) { console.error("[AUDIT ERROR]", e); }
   return res;
 }
 
