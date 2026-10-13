@@ -12,6 +12,6 @@ export interface PaymentProvider {
   readonly id: string;
   readonly label: string;
   createCheckout(input: CheckoutInput): Promise<CheckoutResult>;
-  /** Проверяет подпись и разбирает тело. null — подпись неверна или тело не распознано. */
-  verifyWebhook(rawBody: string, headers: Headers): WebhookEvent | null;
+  /** Общий вебхук (тестовый провайдер). У Payme и Click свои адреса, им не нужен. null — подпись неверна или тело не распознано. */
+  verifyWebhook?(rawBody: string, headers: Headers): WebhookEvent | null;
 }

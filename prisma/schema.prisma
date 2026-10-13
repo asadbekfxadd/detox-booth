@@ -222,6 +222,35 @@ model PromoCode {
   isActive Boolean @default(true)
 }
 
+/// Транзакция Payme (Merchant API): Payme присылает свой id, время и состояние; суммы в тийинах (1/100 сума).
+/// Состояния: 1 — создана, 2 — оплачена, -1 — отменена до оплаты, -2 — возврат после оплаты.
+model PaymeTransaction {
+  id String @id
+  orderId String
+  paymentId String?
+  amount BigInt
+  state Int
+  reason Int?
+  time BigInt
+  createTime BigInt
+  performTime BigInt?
+  cancelTime BigInt?
+  @@index([orderId])
+  @@index([createTime])
+}
+
+/// Транзакция Click (Shop API): prepare создаёт запись, complete подтверждает оплату.
+model ClickTransaction {
+  id Int @id @default(autoincrement())
+  clickTransId String @unique
+  orderId String
+  amount Decimal @db.Decimal(14,2)
+  /// PREPARED, COMPLETED, CANCELLED
+  status String
+  createdAt DateTime @default(now())
+  @@index([orderId])
+}
+
 /// Счастливые часы: скидка на цену позиций по дням недели и времени (Ташкент). Действует на всех точках сети.
 model HappyHour {
   id String @id @default(cuid())

@@ -22,7 +22,7 @@ const slotLabel = (iso: string, nowIso: string) => {
   return day(iso) === day(nowIso) ? t : `завтра, ${t}`;
 };
 
-export function CheckoutForm({ locationName, locationId, leadMin = 15, online = false, zones = [] }: { locationName: string; locationId: string; leadMin?: number; online?: boolean; zones?: ZoneLike[] }) {
+export function CheckoutForm({ locationName, locationId, leadMin = 15, providers = [], zones = [] }: { locationName: string; locationId: string; leadMin?: number; providers?: { id: string; label: string }[]; zones?: ZoneLike[] }) {
   const router = useRouter();
   const { lines, clear } = useCart();
   const mounted = useMounted();
@@ -33,7 +33,9 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
   const [address, setAddress] = useState("");
   const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const zone = fulfillment === "DELIVERY" && zones.length > 0 ? zoneId : undefined;
+  const online = providers.length > 0;
   const [method, setMethod] = useState<"CASH" | "CARD" | "ONLINE">("CASH");
+  const [providerId, setProviderId] = useState(providers[0]?.id ?? "");
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState<string | null>(null);
   const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -84,7 +86,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
     try {
-      const r = await placeOrderAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, name, phone, address, method, referrerPhone: referrer || undefined, scheduledFor: when === "asap" ? null : when, note: note || undefined });
+      const r = await placeOrderAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, name, phone, address, method, provider: method === "ONLINE" ? providerId || undefined : undefined, referrerPhone: referrer || undefined, scheduledFor: when === "asap" ? null : when, note: note || undefined });
       if ("error" in r) { setError(r.error); return; }
       try { localStorage.setItem(LS, JSON.stringify({ name, phone })); } catch { /* необязательно */ }
       rememberOrder(r.orderId);
@@ -148,7 +150,12 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
             <label className={radio(method === "CARD")}><input type="radio" name="m" checked={method === "CARD"} onChange={() => setMethod("CARD")} />Картой при получении</label>
             {online && <label className={radio(method === "ONLINE")}><input type="radio" name="m" checked={method === "ONLINE"} onChange={() => setMethod("ONLINE")} />Онлайн сейчас</label>}
           </div>
-          <p className="text-xs text-forest/60">{method === "ONLINE" ? "После оформления вы перейдёте на страницу оплаты." : "Оплата происходит при получении заказа."}</p>
+          {online && method === "ONLINE" && providers.length > 1 && (
+            <div role="group" aria-label="Платёжный сервис" className="flex flex-wrap gap-2">
+              {providers.map((p) => <button type="button" key={p.id} aria-pressed={providerId === p.id} onClick={() => setProviderId(p.id)} className={`rounded-full border px-5 py-2 text-sm font-bold ${providerId === p.id ? "border-forest bg-forest text-white" : "border-forest/25 bg-white hover:border-forest"}`}>{p.label}</button>)}
+            </div>
+          )}
+          <p className="text-xs text-forest/60">{method === "ONLINE" ? `После оформления вы перейдёте на страницу оплаты${providers.find((p) => p.id === providerId) ? ` ${providers.find((p) => p.id === providerId)!.label}` : ""}.` : "Оплата происходит при получении заказа."}</p>
         </section>
       </div>
 
