@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum Role {
+  COURIER
   OWNER
   ADMIN
   MANAGER
@@ -132,6 +133,7 @@ model Location {
   address String?
   phone String?
   tables DiningTable[]
+  deliveryZones DeliveryZone[]
   lat Float?
   lng Float?
   isActive Boolean @default(true)
@@ -163,6 +165,7 @@ model User {
   audit AuditLog[]
   orders Order[] @relation("OrderCashier")
   waiterOrders Order[] @relation("OrderWaiter")
+  courierOrders Order[] @relation("OrderCourier")
   @@index([role])
 }
 
@@ -207,6 +210,22 @@ model PromoCode {
   usedCount Int @default(0)
   expiresAt DateTime?
   isActive Boolean @default(true)
+}
+
+/// Зона доставки точки: цена, минимальный заказ, порог бесплатной доставки.
+model DeliveryZone {
+  id String @id @default(cuid())
+  locationId String
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  name String
+  fee Decimal @default(0) @db.Decimal(14,2)
+  minOrder Decimal @default(0) @db.Decimal(14,2)
+  /// С этой суммы заказа доставка бесплатна; пусто — всегда платная
+  freeFrom Decimal? @db.Decimal(14,2)
+  isActive Boolean @default(true)
+  sort Int @default(0)
+  orders Order[]
+  @@index([locationId, isActive])
 }
 
 /// Станция кухни: бар, горячий цех, холодный цех. Категория относится к одной станции.
@@ -449,6 +468,15 @@ model Order {
   course Int @default(1)
   /// Заказ принят, но ещё не отправлен на кухню (ждёт команды официанта)
   onHold Boolean @default(false)
+  /// Зона доставки, по которой посчитана цена
+  deliveryZoneId String?
+  deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  /// Курьер, назначенный на доставку
+  courierId String?
+  courier User? @relation("OrderCourier", fields: [courierId], references: [id], onDelete: SetNull)
+  courierAssignedAt DateTime?
+  /// Курьер забрал заказ и выехал (заказ остаётся READY до отметки «Доставлено»)
+  pickedUpAt DateTime?
   /// Стол и счёт стола (заказы по QR). Заказы одного гостя за визит копятся в одном счёте.
   tableId String?
   table DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
@@ -465,6 +493,7 @@ model Order {
   @@index([customerId, createdAt])
   @@index([shiftId])
   @@index([waiterId])
+  @@index([courierId, status])
 }
 model OrderItem {
   id String @id @default(cuid())

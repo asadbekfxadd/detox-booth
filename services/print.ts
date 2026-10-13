@@ -23,7 +23,7 @@ const itemInclude = { orderBy: { id: "asc" as const }, include: { product: { sel
 export async function getKitchenTicket(id: string, user: Actor, station: string | null) {
   const o = await prisma.order.findUnique({
     where: { id },
-    include: { location: { select: { name: true } }, table: { select: { number: true } }, waiter: { select: { name: true } }, customer: { select: { name: true } }, items: itemInclude },
+    include: { location: { select: { name: true } }, table: { select: { number: true } }, waiter: { select: { name: true } }, customer: { select: { name: true, phone: true } }, items: itemInclude },
   });
   if (!o) throw new ApiError(404, "Заказ не найден");
   assertScope(user, o.locationId);
@@ -32,7 +32,7 @@ export async function getKitchenTicket(id: string, user: Actor, station: string 
   if (lines.length === 0) throw new ApiError(404, "В заказе нет позиций этой станции");
   return {
     number: o.number, createdAt: o.createdAt, scheduledFor: o.scheduledFor, source: o.source, fulfillment: o.fulfillment, tableNumber: o.table?.number ?? null,
-    waiter: o.waiter?.name ?? null, customer: o.customer?.name.split(" ")[0] ?? null, note: o.note, course: o.course, courseLabel: o.course > 1 ? courseLabel(o.course) : null,
+    waiter: o.waiter?.name ?? null, customer: o.customer?.name.split(" ")[0] ?? null, address: o.fulfillment === "DELIVERY" ? o.address : null, phone: o.fulfillment === "DELIVERY" ? o.customer?.phone ?? null : null, note: o.note, course: o.course, courseLabel: o.course > 1 ? courseLabel(o.course) : null,
     location: o.location.name, stationName: station == null ? null : station === "none" ? "Без станции" : lines[0].stationName, lines,
   };
 }

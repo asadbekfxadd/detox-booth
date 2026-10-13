@@ -10,6 +10,7 @@ import { rememberOrder } from "@/lib/order-history";
 import { sum } from "@/lib/format";
 import { checkoutQuoteAction, placeOrderAction, quoteCartAction } from "@/app/(site)/actions";
 import type { WebQuote } from "@/services/web-orders";
+import type { ZoneLike } from "@/lib/delivery";
 import type { QuotedLine } from "@/services/catalog";
 
 const field = "w-full rounded-xl border border-forest/20 bg-white px-4 py-3 text-sm font-medium text-forest outline-none placeholder:text-forest/45 focus:border-orange";
@@ -21,7 +22,7 @@ const slotLabel = (iso: string, nowIso: string) => {
   return day(iso) === day(nowIso) ? t : `завтра, ${t}`;
 };
 
-export function CheckoutForm({ locationName, locationId, leadMin = 15, online = false }: { locationName: string; locationId: string; leadMin?: number; online?: boolean }) {
+export function CheckoutForm({ locationName, locationId, leadMin = 15, online = false, zones = [] }: { locationName: string; locationId: string; leadMin?: number; online?: boolean; zones?: ZoneLike[] }) {
   const router = useRouter();
   const { lines, clear } = useCart();
   const mounted = useMounted();
@@ -30,6 +31,8 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
   const [referrer, setReferrer] = useState("");
   const [fulfillment, setFulfillment] = useState<"PICKUP" | "DELIVERY">("PICKUP");
   const [address, setAddress] = useState("");
+  const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
+  const zone = fulfillment === "DELIVERY" && zones.length > 0 ? zoneId : undefined;
   const [method, setMethod] = useState<"CASH" | "CARD" | "ONLINE">("CASH");
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState<string | null>(null);
@@ -54,12 +57,12 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
     return () => { alive = false; };
   }, []);
 
-  const sig = JSON.stringify([lines, promo, fulfillment]);
+  const sig = JSON.stringify([lines, promo, fulfillment, zone]);
   useEffect(() => {
     if (!mounted || lines.length === 0) return;
     let alive = true;
     (async () => {
-      const [c, q] = await Promise.all([quoteCartAction(lines), checkoutQuoteAction({ items: lines, promoCode: promo, fulfillment })]);
+      const [c, q] = await Promise.all([quoteCartAction(lines), checkoutQuoteAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone })]);
       if (!alive) return;
       if ("quote" in c) setView(c.quote.lines);
       if ("error" in q) { setProblem(q.error); setQuote(null); } else { setProblem(null); setQuote(q.quote); }
@@ -71,7 +74,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
   async function applyPromo() {
     const code = promoInput.trim();
     if (!code) { setPromo(null); setPromoMsg(null); return; }
-    const r = await checkoutQuoteAction({ items: lines, promoCode: code, fulfillment });
+    const r = await checkoutQuoteAction({ items: lines, promoCode: code, fulfillment, zoneId: zone });
     if ("error" in r) { setPromoMsg({ ok: false, text: r.error }); return; }
     setPromo(code); setPromoMsg({ ok: true, text: `Промокод применён: −${sum(r.quote.discount)}` });
   }
@@ -81,7 +84,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
     try {
-      const r = await placeOrderAction({ items: lines, promoCode: promo, fulfillment, name, phone, address, method, referrerPhone: referrer || undefined, scheduledFor: when === "asap" ? null : when, note: note || undefined });
+      const r = await placeOrderAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, name, phone, address, method, referrerPhone: referrer || undefined, scheduledFor: when === "asap" ? null : when, note: note || undefined });
       if ("error" in r) { setError(r.error); return; }
       try { localStorage.setItem(LS, JSON.stringify({ name, phone })); } catch { /* необязательно */ }
       rememberOrder(r.orderId);
@@ -121,6 +124,11 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
             <label className={radio(fulfillment === "DELIVERY")}><input type="radio" name="f" checked={fulfillment === "DELIVERY"} onChange={() => setFulfillment("DELIVERY")} />Доставка</label>
           </div>
           <p className="text-sm text-forest/60">Точка: <b>{locationName}</b>{fulfillment === "PICKUP" ? " — заберёте заказ здесь." : " — заказ отправим отсюда."} Сменить точку можно в шапке сайта.</p>
+          {fulfillment === "DELIVERY" && zones.length > 0 && (
+            <select className={field} aria-label="Зона доставки" value={zoneId} onChange={(e) => setZoneId(e.target.value)}>
+              {zones.map((z) => <option key={z.id} value={z.id}>{z.name} · {z.fee > 0 ? sum(z.fee) : "бесплатно"}{z.minOrder > 0 ? ` · от ${sum(z.minOrder)}` : ""}{z.freeFrom ? ` · бесплатно от ${sum(z.freeFrom)}` : ""}</option>)}
+            </select>
+          )}
           {fulfillment === "DELIVERY" && <textarea className={field} aria-label="Адрес доставки" rows={2} placeholder="Адрес доставки: улица, дом, ориентир" value={address} onChange={(e) => setAddress(e.target.value)} required minLength={6} maxLength={200} />}
         </section>
 
@@ -163,7 +171,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, online = 
           <div className="space-y-1 border-t pt-3 text-sm">
             <p className="flex justify-between"><span>Сумма</span><span>{sum(quote.subtotal)}</span></p>
             {quote.discount > 0 && <p className="flex justify-between font-semibold text-forest"><span>Скидка</span><span>−{sum(quote.discount)}</span></p>}
-            {fulfillment === "DELIVERY" && <p className="flex justify-between"><span>Доставка</span><span>{sum(quote.deliveryFee)}</span></p>}
+            {fulfillment === "DELIVERY" && <p className="flex justify-between"><span>Доставка</span><span>{quote.freeDelivery || quote.deliveryFee === 0 ? "бесплатно" : sum(quote.deliveryFee)}</span></p>}
             <p className="flex justify-between border-t pt-2 text-lg font-bold"><span>Итого</span><span>{sum(quote.total)}</span></p>
             {quote.points > 0 && <p className="text-xs text-forest/60">+{quote.points} баллов после получения заказа</p>}
           </div>

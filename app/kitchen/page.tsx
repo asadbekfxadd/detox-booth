@@ -4,6 +4,7 @@ import { can } from "@/lib/rbac";
 import { getScope } from "@/lib/location";
 import { kitchenOrders } from "@/services/orders";
 import { stationOptions } from "@/services/stations";
+import { hasCouriers } from "@/services/delivery";
 import { linesFor, isDone, parseStationFilter, NO_STATION } from "@/lib/station";
 import { dateTimeStr } from "@/lib/format";
 import { AutoRefresh } from "@/components/site/AutoRefresh";
@@ -29,7 +30,7 @@ const NEXT_BTN: Record<string, { to: string; label: string; tone: "primary" | "r
 export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ station?: string }> }) {
   const user = await pageGuard("orders.manage");
   const [{ station: rawStation }, { locationId, locations }, stations] = await Promise.all([searchParams, getScope(), stationOptions()]);
-  const all = await kitchenOrders(locationId);
+  const [all, courierMode] = await Promise.all([kitchenOrders(locationId), hasCouriers(locationId)]);
   const filter = parseStationFilter(rawStation, stations.map((s) => s.id));
   const nameOf = new Map(stations.map((s) => [s.id, s.name]));
   const hasUnassigned = all.some((o) => o.lines.some((l) => l.stationId == null));
@@ -77,7 +78,8 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
                 const stationMode = filter != null && o.status === "PREPARING";
                 const mineDone = isDone(lines);
                 const base = NEXT_BTN[o.status];
-                const btn = base && o.source === "TABLE" && o.status === "READY" ? { ...base, label: "Подано к столу" } : base; // оплата за столом идёт отдельно, на кассе
+                const toCourier = courierMode && o.fulfillment === "DELIVERY" && o.status === "READY"; // доставку завершает курьер, а не кухня
+                const btn = toCourier ? undefined : base && o.source === "TABLE" && o.status === "READY" ? { ...base, label: "Подано к столу" } : base; // оплата за столом идёт отдельно, на кассе
                 const late = o.ageMin >= 15 && !o.scheduled;
                 return (
                   <article key={o.id} className={`space-y-3 rounded-xl border-l-8 bg-neutral-800 p-4 ${col.accent} ${late ? "ring-2 ring-red-500" : ""}`}>
@@ -100,6 +102,8 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
                         </li>
                       ))}
                     </ul>
+                    {o.fulfillment === "DELIVERY" && o.address && <p className="text-base font-semibold text-sky-200">Адрес: {o.address}</p>}
+                    {toCourier && <p className="rounded-xl bg-sky-950 px-4 py-3 text-center font-bold text-sky-200">{o.pickedUp ? `Курьер ${o.courierName ?? ""} забрал заказ` : o.courierName ? `Ждёт курьера: ${o.courierName}` : "Курьер ещё не назначен"}</p>}
                     {o.note && <p className="rounded-lg bg-amber-900/60 px-3 py-2 text-base font-semibold text-amber-100">Комментарий: {o.note}</p>}
                     {o.unpaidOnline && <p className="rounded-lg bg-red-950 px-3 py-2 text-sm text-red-200">Онлайн-оплата не подтверждена</p>}
                     {stationMode

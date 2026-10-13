@@ -41,13 +41,13 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <div className={`rounded-2xl p-5 pop ${cancelled ? "bg-red-50" : "bg-white"}`}>
-        <p className="font-bold" role="status" aria-live="polite">{HINT[o.status]?.(delivery)}</p>
+        <p className="font-bold" role="status" aria-live="polite">{delivery && o.status === "READY" ? (o.pickedUp ? `${o.courierName ? `Курьер ${o.courierName}` : "Курьер"} уже везёт ваш заказ.` : o.courierName ? `Заказ готов. Курьер ${o.courierName} скоро его заберёт.` : "Заказ готов, ищем курьера.") : delivery && o.status === "COMPLETED" ? "Заказ доставлен. Приятного аппетита!" : HINT[o.status]?.(delivery)}</p>
         {!cancelled && (
           <ol className="mt-4 grid grid-cols-5 gap-1 text-center text-xs">
             {STEPS.map(([s, l], i) => (
               <li key={s} aria-current={i === idx ? "step" : undefined}>
                 <div className={`mx-auto grid h-8 w-8 place-items-center rounded-full font-bold border ${i <= idx ? "border-forest bg-forest text-white" : "border-forest/25 bg-white text-forest/60"}`}>{i < idx || o.status === "COMPLETED" ? "✓" : i + 1}</div>
-                <p className={`mt-1 ${i === idx ? "font-semibold" : "text-forest/60"}`}>{l}</p>
+                <p className={`mt-1 ${i === idx ? "font-semibold" : "text-forest/60"}`}>{delivery && s === "COMPLETED" ? "Доставлен" : delivery && s === "READY" && o.pickedUp ? "В пути" : l}</p>
               </li>
             ))}
           </ol>
