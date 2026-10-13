@@ -24,7 +24,7 @@ export default async function CheckoutPage() {
       {table
         ? <TableCheckoutForm tableNumber={table.number} />
         : current
-        ? <CheckoutForm locationName={current.name} locationId={current.id} leadMin={typeof lead === "number" ? lead : 15} online={enabledProviders().length > 0} zones={zones} />
+        ? <CheckoutForm locationName={current.name} locationId={current.id} leadMin={typeof lead === "number" ? lead : 15} providers={enabledProviders().map((p) => ({ id: p.id, label: p.label }))} zones={zones} />
         : <p className="rounded-2xl bg-white p-6 pop">Сейчас нет доступных точек для заказа.</p>}
     </Page>
   );

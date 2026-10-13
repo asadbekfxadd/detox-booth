@@ -6,7 +6,7 @@ import { audit } from "@/lib/audit";
 import { assertInStock } from "@/services/availability";
 import { createCustomerTx } from "@/lib/services/loyalty";
 import { checkScheduled } from "@/lib/slots";
-import { enabledProviders } from "@/services/payments";
+import { enabledProviders, repayUrl } from "@/services/payments";
 import { siteUrl } from "@/lib/site-url";
 import { priceItems, computeDiscount, normalizePhone, cartSchema } from "@/services/pos";
 import { quoteDelivery } from "@/lib/delivery";
@@ -64,6 +64,8 @@ export const checkoutSchema = quoteSchema.extend({
   phone: z.string().trim().min(1, "Укажите телефон"),
   address: z.string().trim().max(200, "Слишком длинный адрес").optional(),
   method: z.enum(["CASH", "CARD", "ONLINE"], { error: "Выберите способ оплаты" }),
+  /** Платёжный сервис для онлайн-оплаты (payme, click); не указан — первый из подключённых */
+  provider: z.string().max(20).optional(),
   referrerPhone: z.string().trim().max(30).optional(),
   /** ISO-время получения; нет — «как можно скорее» */
   scheduledFor: z.string().max(40).nullable().optional(),
@@ -76,7 +78,8 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
   const phone = normalizePhone(d.phone);
   if (!phone) throw new ApiError(400, "Введите телефон в формате +998 90 123 45 67");
   if (d.fulfillment === "DELIVERY" && (d.address?.length ?? 0) < 6) throw new ApiError(400, "Укажите адрес доставки");
-  const provider = d.method === "ONLINE" ? enabledProviders()[0] ?? null : null;
+  const online = d.method === "ONLINE" ? enabledProviders() : [];
+  const provider = online.find((p) => p.id === d.provider) ?? online[0] ?? null;
   if (d.method === "ONLINE" && !provider) throw new ApiError(400, "Онлайн-оплата сейчас недоступна. Выберите оплату при получении.");
   let scheduledFor: Date | null = null;
   if (d.scheduledFor) {
@@ -157,6 +160,7 @@ export async function getPublicOrder(id: string) {
     courierName: o.courier?.name.split(" ")[0] ?? null, pickedUp: !!o.pickedUpAt,
     subtotal: Number(o.subtotal), discount: Number(o.discount), deliveryFee: Number(o.deliveryFee), total: Number(o.total), promoCode: o.promoCode, pointsEarned: o.pointsEarned,
     payment: pay ? { method: pay.method, status: pay.status } : null,
+    payUrl: pay && pay.method === "ONLINE" && pay.status === "PENDING" && o.status === "NEW" ? repayUrl(pay.provider, { orderId: o.id, amount: Number(pay.amount), returnUrl: `${siteUrl()}/order/${o.id}` }) : null,
     items: o.items.map((i) => ({
       id: i.id, productId: i.productId, name: i.product.name, quantity: i.quantity, unitPrice: Number(i.unitPrice),
       optionIds: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { optionId?: string }[]) : []).map((m) => m?.optionId).filter((x): x is string => typeof x === "string"),

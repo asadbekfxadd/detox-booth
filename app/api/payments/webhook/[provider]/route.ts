@@ -5,7 +5,7 @@ import { applyPaymentResult, getProvider } from "@/services/payments";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   const p = getProvider(provider);
-  if (!p) return NextResponse.json({ error: "Провайдер не подключён" }, { status: 404 });
+  if (!p || !p.verifyWebhook) return NextResponse.json({ error: "Провайдер не подключён" }, { status: 404 });
   const raw = await req.text();
   if (raw.length > 10_000) return NextResponse.json({ error: "Слишком большой запрос" }, { status: 413 });
   const event = p.verifyWebhook(raw, req.headers);

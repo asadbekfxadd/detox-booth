@@ -68,6 +68,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           {o.deliveryFee > 0 && <p className="flex justify-between"><span>Доставка</span><span>{sum(o.deliveryFee)}</span></p>}
           <p className="flex justify-between text-lg font-bold"><span>Итого</span><span>{sum(o.total)}</span></p>
         </div>
+        {o.payUrl && (
+          <a href={o.payUrl} className="btn btn-primary pop block w-full text-center">Оплатить онлайн · {sum(o.total)}</a>
+        )}
         {o.payment && <p className="text-sm text-forest/60">Оплата: {o.payment.method === "ONLINE" ? "онлайн" : `${METHOD_LABEL[o.payment.method]} при получении`} · {PAY_LABEL[o.payment.status]}</p>}
         {delivery && o.address && <p className="text-sm text-forest/60">Адрес доставки: {o.address}</p>}
         {!delivery && o.location.address && <p className="text-sm text-forest/60">Забрать: {o.location.name}, {o.location.address}</p>}

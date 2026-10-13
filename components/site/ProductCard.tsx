@@ -25,7 +25,11 @@ export function ProductCard({ p, priority = false }: { p: PublicProduct; priorit
         </div>
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div>
-            <p className="display whitespace-nowrap text-[15px] font-extrabold leading-none text-forest sm:text-lg">{sum(p.defaultPrice)}</p>
+            <p className="display whitespace-nowrap text-[15px] font-extrabold leading-none text-forest sm:text-lg">
+              {sum(p.defaultPrice)}
+              {p.oldDefaultPrice != null && <s className="ml-1.5 text-xs font-semibold text-forest/50">{sum(p.oldDefaultPrice)}</s>}
+            </p>
+            {p.happyPct > 0 && <p className="mt-1 text-[11px] font-bold text-orange-deep">Счастливые часы −{p.happyPct}%</p>}
             {customizable && p.available && <Link href={`/menu/${p.slug}`} className="mt-1.5 inline-block text-xs font-semibold text-forest/60 underline hover:text-orange-deep">Настроить</Link>}
           </div>
           <QuickAdd productId={p.id} optionIds={p.defaultOptionIds} available={p.available} name={p.name} />

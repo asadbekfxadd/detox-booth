@@ -4,6 +4,9 @@ import { can } from "@/lib/rbac";
 import { getScope } from "@/lib/location";
 import { getBrand } from "@/services/brand";
 import { listTablesWithBills } from "@/services/tables";
+import { upcomingReservations } from "@/services/reservations";
+import { hhmm } from "@/lib/happy-hour";
+import { TZ_OFFSET_MS } from "@/lib/time";
 import { AutoRefresh } from "@/components/site/AutoRefresh";
 import { NewOrderSound } from "@/components/kitchen/NewOrderSound";
 import { WaiterHeader } from "@/components/waiter/WaiterHeader";
@@ -15,7 +18,7 @@ export default async function WaiterHome() {
   const user = await pageGuard("waiter.use");
   const [scope, brand] = await Promise.all([getScope(), getBrand()]);
   const locationId = scope.locationId ?? user.locationId ?? scope.locations[0]?.id ?? null;
-  const tables = locationId ? await listTablesWithBills(locationId) : [];
+  const [tables, bookings] = locationId ? await Promise.all([listTablesWithBills(locationId), upcomingReservations(locationId)]) : [[], []];
   const ready = tables.reduce((n, t) => n + (t.bill?.ready ?? 0), 0);
   const requests = tables.filter((t) => t.bill?.requested).length;
 
@@ -30,6 +33,19 @@ export default async function WaiterHome() {
           {ready > 0 && <b className="rounded-full bg-green-700 px-3 py-0.5 text-sm text-white">готово к подаче: {ready}</b>}
           {requests > 0 && <b className="rounded-full bg-orange-500 px-3 py-0.5 text-sm text-white">просят счёт: {requests}</b>}
         </div>
+        {bookings.length > 0 && (
+          <section aria-label="Брони" className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            <h2 className="mb-2 font-bold text-sky-900">Брони на сегодня</h2>
+            <ul className="space-y-1.5 text-sm">
+              {bookings.map((b) => (
+                <li key={b.id} className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span><b>{hhmm(Math.round((b.startsAt.getTime() + TZ_OFFSET_MS) / 60000) % 1440)}</b> · {b.name} · {b.guests} гост.</span>
+                  <span className="font-semibold">{b.tableNumber ? `стол ${b.tableNumber}` : "стол не назначен"}{b.deposit > 0 ? (b.depositPaid ? " · депозит внесён" : " · депозит не внесён") : ""}{b.status === "PENDING" ? " · не подтверждена" : ""}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {tables.length === 0
           ? <p className="rounded-2xl bg-white p-8 text-center text-neutral-600">Столов пока нет. Владелец добавляет их в админке: «Столы и QR».</p>
           : (

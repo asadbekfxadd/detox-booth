@@ -242,7 +242,7 @@ export async function listTablesAdmin(locationId: string | null) {
     where: locationId ? { locationId } : {}, orderBy: [{ locationId: "asc" }, { number: "asc" }],
     include: { location: { select: { name: true } }, bills: { where: { status: "OPEN" }, select: { id: true } } },
   });
-  return tables.map((t) => ({ id: t.id, number: t.number, token: t.token, isActive: t.isActive, location: t.location.name, locationId: t.locationId, hasOpenBill: t.bills.length > 0 }));
+  return tables.map((t) => ({ id: t.id, number: t.number, seats: t.seats, token: t.token, isActive: t.isActive, location: t.location.name, locationId: t.locationId, hasOpenBill: t.bills.length > 0 }));
 }
 
 export async function addTable(locationId: string, user: Actor) {
@@ -261,6 +261,14 @@ export async function setTableActive(id: string, isActive: boolean, user: Actor)
   if (!isActive && t.bills.length > 0) throw new ApiError(400, "За этим столом открыт счёт. Сначала закройте его на кассе.");
   await prisma.diningTable.update({ where: { id }, data: { isActive } });
   try { await audit({ userId: user.id, action: "TABLE_UPDATED", entity: "DiningTable", entityId: id, newValue: { number: t.number, isActive } }); } catch (e) { console.error("[AUDIT ERROR]", e); }
+}
+
+export async function setTableSeats(id: string, seats: number, user: Actor) {
+  if (!Number.isInteger(seats) || seats < 1 || seats > 50) throw new ApiError(400, "Число мест — от 1 до 50");
+  const t = await prisma.diningTable.findUnique({ where: { id } });
+  if (!t) throw new ApiError(404, "Стол не найден");
+  await prisma.diningTable.update({ where: { id }, data: { seats } });
+  try { await audit({ userId: user.id, action: "TABLE_UPDATED", entity: "DiningTable", entityId: id, oldValue: { seats: t.seats }, newValue: { number: t.number, seats } }); } catch (e) { console.error("[AUDIT ERROR]", e); }
 }
 
 /** Новый токен: старый QR перестаёт работать. Нужно, если фото QR утекло или наклейку надо сменить. */

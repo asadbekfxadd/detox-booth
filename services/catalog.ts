@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { loadRules } from "@/services/happy-hour";
+import { priceAt, type HappyRule } from "@/lib/happy-hour";
 import { usableStock } from "@/services/availability";
 
 export type PublicOption = { id: string; name: string; priceDelta: number };
@@ -8,6 +10,8 @@ export type PublicModifier = { id: string; name: string; multiple: boolean; requ
 export type PublicProduct = {
   id: string; slug: string; name: string; description: string | null; image: string | null;
   price: number; defaultPrice: number; defaultOptionIds: string[];
+  /** Счастливые часы: скидка в %, и цена без скидки (для зачёркивания). 0 и null — акции сейчас нет. */
+  happyPct: number; oldDefaultPrice: number | null;
   category: { id: string; name: string; slug: string };
   calories: number | null; protein: number | null; carbs: number | null; fat: number | null;
   volumeMl: number | null; prepMinutes: number; allergens: string[]; ingredients: string[];
@@ -22,7 +26,7 @@ const productInclude = {
 } satisfies Prisma.ProductInclude;
 type Row = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
 
-function toPublic(p: Row, stock: Map<string, Prisma.Decimal>): PublicProduct {
+function toPublic(p: Row, stock: Map<string, Prisma.Decimal>, rules: HappyRule[] = []): PublicProduct {
   const items = p.recipe?.items ?? [];
   const portions = items.length
     ? Math.max(0, Math.min(...items.map((i) => Math.floor(Number(stock.get(i.ingredientId) ?? 0) / Number(i.quantity)))))
@@ -32,10 +36,14 @@ function toPublic(p: Row, stock: Map<string, Prisma.Decimal>): PublicProduct {
     options: m.options.map((o) => ({ id: o.id, name: o.name, priceDelta: Number(o.priceDelta) })),
   }));
   const defaults = modifiers.filter((m) => m.required && !m.multiple && m.options.length).map((m) => m.options[0]);
-  const price = Number(p.price);
+  const base = Number(p.price);
+  const hp = priceAt(rules, p.categoryId, base, Date.now());
+  const price = hp.price;
+  const optSum = defaults.reduce((a, o) => a + o.priceDelta, 0);
   return {
     id: p.id, slug: p.slug, name: p.name, description: p.description, image: p.image,
-    price, defaultPrice: price + defaults.reduce((a, o) => a + o.priceDelta, 0), defaultOptionIds: defaults.map((o) => o.id),
+    price, defaultPrice: price + optSum, defaultOptionIds: defaults.map((o) => o.id),
+    happyPct: hp.percent, oldDefaultPrice: hp.percent > 0 ? base + optSum : null,
     category: { id: p.category.id, name: p.category.name, slug: p.category.slug },
     calories: p.calories, protein: p.protein == null ? null : Number(p.protein), carbs: p.carbs == null ? null : Number(p.carbs), fat: p.fat == null ? null : Number(p.fat),
     volumeMl: p.volumeMl, prepMinutes: p.prepMinutes, allergens: p.allergens,
@@ -58,11 +66,12 @@ export async function listMenu(locationId: string | null, f: MenuFilters = {}) {
   if (q) where.OR = [{ name: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }];
   const orderBy: Prisma.ProductOrderByWithRelationInput =
     f.sort === "price_asc" ? { price: "asc" } : f.sort === "price_desc" ? { price: "desc" } : f.sort === "calories" ? { calories: "asc" } : { name: "asc" };
-  const [rows, stock] = await Promise.all([
+  const [rows, stock, rules] = await Promise.all([
     prisma.product.findMany({ where, include: productInclude, orderBy }),
     locationId ? usableStock(prisma, locationId) : Promise.resolve(new Map<string, Prisma.Decimal>()),
+    loadRules(),
   ]);
-  return rows.map((r) => toPublic(r, stock));
+  return rows.map((r) => toPublic(r, stock, rules));
 }
 
 export const listCategories = () => prisma.category.findMany({ where: { products: { some: { isArchived: false } } }, orderBy: { sort: "asc" }, select: { id: true, name: true, slug: true } });
@@ -70,7 +79,7 @@ export const listCategories = () => prisma.category.findMany({ where: { products
 export async function getProductBySlug(slug: string, locationId: string | null) {
   const row = await prisma.product.findUnique({ where: { slug }, include: productInclude });
   if (!row || row.isArchived) return null;
-  return toPublic(row, locationId ? await usableStock(prisma, locationId) : new Map());
+  return toPublic(row, locationId ? await usableStock(prisma, locationId) : new Map(), await loadRules());
 }
 
 /** Хиты за 30 дней по реальным продажам; если продаж нет — null (на сайте не выдаём это за «хиты»). */

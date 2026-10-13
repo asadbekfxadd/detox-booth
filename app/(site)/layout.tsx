@@ -8,6 +8,7 @@ import { ContactMap } from "@/components/site/ContactMap";
 import { Icon } from "@/components/site/Icon";
 import { getBrand } from "@/services/brand";
 import { listCategories } from "@/services/catalog";
+import { bookingConfig } from "@/services/reservations";
 import { getCurrentTable } from "@/lib/site-table";
 import { leaveTableAction } from "./actions";
 import { MandarinLoader } from "@/components/site/mandarin/MandarinLoader";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 const navLink = "rounded-full px-3.5 py-1.5 text-[15px] font-bold text-forest/80 transition-colors hover:bg-sand hover:text-forest";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [{ locations, current }, table, brand, cats] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories()]);
+  const [{ locations, current }, table, brand, cats, booking] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories(), bookingConfig()]);
   return (
     <div className="site flex min-h-screen flex-col">
       <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream">
@@ -26,6 +27,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <Link href="/" className="group" aria-label={`${brand.name} — на главную`}><Logo brand={brand} /></Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Основная навигация">
             <Link href="/menu" className={navLink}>Меню</Link>
+            {booking.enabled && <Link href="/book" className={navLink}>Бронь стола</Link>}
             <Link href="/locations" className={navLink}>Точки</Link>
             <Link href="/orders" className={navLink}>Мои заказы</Link>
           </nav>
@@ -36,6 +38,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3 pb-2 md:hidden" aria-label="Разделы">
           <Link href="/menu" className={`${navLink} whitespace-nowrap`}>Меню</Link>
+          {booking.enabled && <Link href="/book" className={`${navLink} whitespace-nowrap`}>Бронь стола</Link>}
           <Link href="/locations" className={`${navLink} whitespace-nowrap`}>Точки</Link>
           <Link href="/orders" className={`${navLink} whitespace-nowrap`}>Мои заказы</Link>
         </nav>
