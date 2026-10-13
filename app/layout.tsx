@@ -3,21 +3,36 @@ import "@fontsource-variable/caveat";
 import "@fontsource-variable/onest";
 import "./globals.css";
 import { siteUrl } from "@/lib/site-url";
+import { getBrand } from "@/services/brand";
+import { brandPalette, paletteCss, pageTitle } from "@/lib/brand-config";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl()),
-  applicationName: "Vitamin B",
-  openGraph: { type: "website", siteName: "Vitamin B", locale: "ru_RU", title: "Vitamin B — fresh juice bar", description: "Натуральные фрукты, настоящий вкус: свежие соки, смузи, боулы и салаты. Закажите онлайн и заберите готовым.", images: [{ url: "/brand/family.jpg", alt: "Vitamin B — juice & fresh" }] },
-  twitter: { card: "summary_large_image" },
-  title: { default: "Vitamin B — fresh juice bar: соки, смузи и фреши", template: "%s · Vitamin B" },
-  description: "Vitamin B — juice & fresh. Натуральные фрукты, настоящий вкус: свежие соки, смузи, боулы и салаты для взрослых и детей. Выберите точку, закажите онлайн и заберите готовым.",
-};
+// Название, цвета и тексты берутся из настроек, поэтому страницы строим на запросе.
+export const dynamic = "force-dynamic";
 
-export const viewport: Viewport = { themeColor: "#fffdf8" };
+export async function generateMetadata(): Promise<Metadata> {
+  const b = await getBrand();
+  const title = pageTitle(b);
+  return {
+    metadataBase: new URL(siteUrl()),
+    applicationName: b.name,
+    openGraph: { type: "website", siteName: b.name, locale: "ru_RU", title, description: b.description, images: (b.heroImage || (b.homeStyle === "vitaminb" ? "/brand/family.jpg" : b.logoUrl)) ? [{ url: b.heroImage || (b.homeStyle === "vitaminb" ? "/brand/family.jpg" : b.logoUrl), alt: b.name }] : undefined },
+    twitter: { card: "summary_large_image" },
+    title: { default: title, template: `%s · ${b.name}` },
+    description: b.description,
+    icons: { icon: b.logoUrl || "/brand/mark.png" },
+  };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export async function generateViewport(): Promise<Viewport> {
+  const b = await getBrand();
+  return { themeColor: brandPalette(b)?.["--color-cream"] ?? "#fffdf8" };
+}
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const css = paletteCss(brandPalette(await getBrand()));
   return (
     <html lang="ru" className="h-full antialiased">
+      <head>{css ? <style dangerouslySetInnerHTML={{ __html: css }} /> : null}</head>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

@@ -24,8 +24,8 @@ const unitPrice = (p: CatalogProduct, ids: string[]) => p.price + optionsOf(p, i
 const lineKey = (p: CatalogProduct, ids: string[]) => `${p.id}|${[...ids].sort().join(",")}`;
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("ru-RU", { timeZone: "Asia/Tashkent", hour: "2-digit", minute: "2-digit" });
 
-export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHref }: {
-  catalog: PosCatalog; locationName: string; cashier: string; canRefund: boolean; adminHref: string | null;
+export function PosTerminal({ catalog, brandName, locationName, cashier, canRefund, adminHref }: {
+  catalog: PosCatalog; brandName: string; locationName: string; cashier: string; canRefund: boolean; adminHref: string | null;
 }) {
   const router = useRouter();
   const [cat, setCat] = useState("all");
@@ -183,7 +183,7 @@ export function PosTerminal({ catalog, locationName, cashier, canRefund, adminHr
   return (
     <div className="flex h-screen flex-col bg-[#f7f3ea] text-neutral-900">
       <header className="flex flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2">
-        <span className="text-lg font-bold text-green-800">Vitamin B</span>
+        <span className="text-lg font-bold text-green-800">{brandName}</span>
         <span className="text-sm text-neutral-600">{locationName} · {cashier}</span>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-sm">
           <button onClick={() => { setOrdersOpen(true); loadOrders(); }} className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Заказы смены</button>

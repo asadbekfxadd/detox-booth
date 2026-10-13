@@ -1,3 +1,4 @@
+import { getBrand } from "@/services/brand";
 import { pageGuard, formLocations } from "@/lib/guard";
 import { can } from "@/lib/rbac";
 import { getOpenShift, getCatalog } from "@/services/pos";
@@ -19,7 +20,7 @@ export default async function PosPage() {
   const catalog = await getCatalog(shift.locationId);
   return (
     <PosTerminal
-      catalog={catalog} locationName={shift.location.name} cashier={user.name ?? ""}
+      catalog={catalog} brandName={(await getBrand()).name} locationName={shift.location.name} cashier={user.name ?? ""}
       canRefund={can(user.role, "pos.refund")} adminHref={can(user.role, "dashboard.view") ? "/admin/dashboard" : null}
     />
   );

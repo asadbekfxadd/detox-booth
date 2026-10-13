@@ -1,10 +1,11 @@
 import { Icon } from "@/components/site/Icon";
-import { INSTAGRAM_HANDLE, INSTAGRAM_URL, hasMap, mapEmbedUrl, googleRouteUrl, yandexMapUrl } from "@/lib/brand";
+import type { Brand } from "@/lib/brand-config";
+import { hasMap, mapEmbedUrl, googleRouteUrl, yandexMapUrl } from "@/lib/brand";
 
 type Loc = { name: string; address: string | null; phone: string | null; lat: number | null; lng: number | null };
 
 /** Блок «Где нас найти» над подвалом: адрес, телефон, Instagram и карта выбранной точки. */
-export function ContactMap({ location }: { location: Loc | null }) {
+export function ContactMap({ location, brand }: { location: Loc | null; brand: Brand }) {
   const address = location?.address ?? null;
   const exact = !!location && hasMap(location);
   const link = "btn !px-5 !py-2.5 text-sm";
@@ -26,12 +27,12 @@ export function ContactMap({ location }: { location: Loc | null }) {
           <div className="flex flex-wrap gap-2">
             {exact && location && <a href={googleRouteUrl(location)} target="_blank" rel="noopener noreferrer" className={`${link} btn-forest`}>Построить маршрут</a>}
             {exact && location && <a href={yandexMapUrl(location)} target="_blank" rel="noopener noreferrer" className={`${link} btn-ghost`}>Яндекс Карты</a>}
-            <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={`${link} btn-primary`}><Icon name="instagram" size={18} />@{INSTAGRAM_HANDLE}</a>
+            {brand.instagram && <a href={`https://www.instagram.com/${brand.instagram}/`} target="_blank" rel="noopener noreferrer" className={`${link} btn-primary`}><Icon name="instagram" size={18} />@{brand.instagram}</a>}
           </div>
         </div>
         {exact && location && (
           <iframe
-            title={`Карта: ${location?.name ?? "Vitamin B"}`}
+            title={`Карта: ${location?.name ?? brand.name}`}
             src={mapEmbedUrl(location)}
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"

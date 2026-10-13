@@ -3,6 +3,7 @@ import { getSiteLocation } from "@/lib/site";
 import { listMenu, listCategories } from "@/services/catalog";
 import { ProductCard } from "@/components/site/ProductCard";
 import { FilterForm } from "@/components/admin/FilterForm";
+import { getBrand } from "@/services/brand";
 import { PromoBanners } from "@/components/site/PromoBanners";
 import { Icon } from "@/components/site/Icon";
 import { Page } from "@/components/site/Page";
@@ -24,7 +25,7 @@ const diet = (on: boolean) => `whitespace-nowrap rounded-full border px-3.5 py-1
 
 export default async function MenuPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
-  const { current } = await getSiteLocation();
+  const [{ current }, brand] = await Promise.all([getSiteLocation(), getBrand()]);
   const [items, cats] = await Promise.all([
     listMenu(current?.id ?? null, { q: sp.q, category: sp.category, diet: sp.diet, sort: sp.sort }),
     listCategories(),
@@ -32,7 +33,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const filtered = !!(sp.q || sp.category || sp.diet);
   const activeCat = cats.find((c) => c.slug === sp.category);
 
-  const showBanners = !filtered && cats.some((c) => c.slug === "sets");
+  const showBanners = brand.homeStyle === "vitaminb" && !filtered && cats.some((c) => c.slug === "sets");
 
   return (
     <Page className="space-y-6">

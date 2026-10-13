@@ -1,5 +1,6 @@
 import { listMenu } from "@/services/catalog";
 import { rulesReply, detectLang, whyText, parseWishes, followChips, STARTER_CHIPS, type Lang, type MenuItem, type Pick } from "@/lib/mandarin/rules";
+import { getBrand } from "@/services/brand";
 import { buildSystemPrompt, parseModelReply, toClaudeMessages, type Turn } from "@/lib/mandarin/ai";
 
 export type MandarinPick = { id: string; slug: string; name: string; price: number; image: string | null; category: string; optionIds: string[]; calories: number | null; why: string };
@@ -50,7 +51,7 @@ export async function askClaude(p: { menu: MenuItem[]; lang: Lang; history: Turn
       body: JSON.stringify({
         model: process.env.MANDARIN_MODEL ?? "claude-haiku-4-5-20251001",
         max_tokens: 500,
-        system: [{ type: "text", text: buildSystemPrompt(p.menu, p.lang), cache_control: { type: "ephemeral" } }],
+        system: [{ type: "text", text: buildSystemPrompt(p.menu, p.lang, (await getBrand()).name), cache_control: { type: "ephemeral" } }],
         messages: toClaudeMessages(p.history, p.text),
       }),
     });

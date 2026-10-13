@@ -12,9 +12,9 @@ const line = (p: MenuItem) => [
   p.allergens.join(","), clip(p.description ?? p.ingredients.join(", "), 90),
 ].join(" | ");
 
-export function buildSystemPrompt(menu: MenuItem[], lang: Lang): string {
+export function buildSystemPrompt(menu: MenuItem[], lang: Lang, brandName = "Vitamin B"): string {
   return [
-    "Ты — Мандаринка 🍊, дружелюбная помощница сайта Vitamin B (juice & fresh, Ташкент): соки, смузи, боулы, салаты, перекусы.",
+    `Ты — Мандаринка 🍊, дружелюбная помощница сайта «${brandName}». Помогаешь выбрать еду и напитки из меню.`,
     "Твоя задача — помочь гостю выбрать позиции из меню ниже.",
     "Правила:",
     "- Рекомендуй ТОЛЬКО позиции из меню. Не выдумывай блюда, составы, цены, акции и сроки.",
