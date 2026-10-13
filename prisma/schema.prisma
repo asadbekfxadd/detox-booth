@@ -418,6 +418,8 @@ model Order {
   subtotal Decimal @db.Decimal(14,2)
   discount Decimal @default(0) @db.Decimal(14,2)
   deliveryFee Decimal @default(0) @db.Decimal(14,2)
+  /// Сервисный сбор за столом (уже включён в total)
+  serviceFee Decimal @default(0) @db.Decimal(14,2)
   total Decimal @db.Decimal(14,2)
   cogs Decimal @default(0) @db.Decimal(14,2)
   promoCode String?
@@ -472,6 +474,8 @@ model Payment {
   method PaymentMethod
   status PaymentStatus @default(PENDING)
   amount Decimal @db.Decimal(14,2)
+  /// Чаевые, принятые вместе с оплатой (в amount не входят)
+  tip Decimal @default(0) @db.Decimal(14,2)
   /// Платёжный провайдер для онлайн-оплаты (null — оплата при получении)
   provider String?
   /// Идентификатор транзакции у провайдера: защита от повторной обработки вебхука

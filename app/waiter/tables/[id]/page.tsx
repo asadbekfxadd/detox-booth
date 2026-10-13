@@ -58,7 +58,7 @@ export default async function WaiterTablePage({ params, searchParams }: { params
                     <p className="font-bold">№{o.number} <span className="text-sm font-normal text-neutral-500">{dateTimeStr(o.createdAt)}</span></p>
                     {o.onHold && o.status === "NEW"
                       ? <span className="rounded bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800">Ждёт отправки</span>
-                      : <span className={`rounded px-2 py-0.5 text-xs ${STATUS_CLS[o.status] ?? ""}`}>{STATUS_LABEL[o.status] ?? o.status}</span>}
+                      : o.paid ? <span className="rounded bg-lime-100 px-2 py-0.5 text-xs font-semibold text-green-900">Оплачен</span> : <span className={`rounded px-2 py-0.5 text-xs ${STATUS_CLS[o.status] ?? ""}`}>{STATUS_LABEL[o.status] ?? o.status}</span>}
                   </div>
                   <ul className="space-y-0.5 text-sm">
                     {o.items.map((i) => (

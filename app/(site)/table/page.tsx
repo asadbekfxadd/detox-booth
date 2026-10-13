@@ -50,7 +50,7 @@ export default async function TablePage() {
               <li key={o.id} className={`space-y-2 rounded-2xl bg-white p-5 pop ${o.status === "CANCELLED" ? "opacity-60" : ""}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-extrabold">Заказ №{o.number} <span className="font-medium text-forest/55">· {dateTimeStr(o.createdAt)}</span></p>
-                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${CLS[o.status] ?? ""}`}>{o.onHold && o.status === "NEW" ? "Скоро отправим на кухню" : (GUEST_STATUS[o.status] ?? o.status)}</span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${CLS[o.status] ?? ""}`}>{o.paid ? "Оплачен" : o.onHold && o.status === "NEW" ? "Скоро отправим на кухню" : (GUEST_STATUS[o.status] ?? o.status)}</span>
                 </div>
                 <ul className="space-y-1 text-sm">
                   {o.items.map((i) => (
@@ -66,7 +66,9 @@ export default async function TablePage() {
           </ul>
 
           <div className="space-y-3 rounded-2xl bg-forest-deep p-5 text-white">
-            <p className="flex items-baseline justify-between gap-4 text-2xl font-black"><span>Итого по счёту</span><span>{sum(bill.total)}</span></p>
+            {bill.fee > 0 && <p className="flex items-baseline justify-between gap-4 text-sm text-white/80"><span>Заказы</span><span>{sum(bill.total)}</span></p>}
+            {bill.fee > 0 && <p className="flex items-baseline justify-between gap-4 text-sm text-white/80"><span>Сервисный сбор {bill.feePct}%</span><span>{sum(bill.fee)}</span></p>}
+            <p className="flex items-baseline justify-between gap-4 text-2xl font-black"><span>{bill.orders.some((o) => o.paid) ? "Осталось оплатить" : "Итого по счёту"}</span><span>{sum(bill.due)}</span></p>
             {bill.requested
               ? <p role="status" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold">Мы поняли: сейчас подойдём со счётом.{waiting && " Заказы, которые ещё готовятся, принесём до оплаты."}</p>
               : (
@@ -74,7 +76,7 @@ export default async function TablePage() {
                   <button className="btn btn-primary w-full">Попросить счёт</button>
                 </form>
               )}
-            <p className="text-xs text-white/60">Оплата наличными или картой у официанта. Счёт один на весь стол.</p>
+            <p className="text-xs text-white/60">Оплата наличными или картой у официанта. Можно оплатить весь стол сразу или каждому свои заказы.</p>
           </div>
           <Link href="/menu" className="btn btn-ghost w-full">Заказать ещё</Link>
         </>

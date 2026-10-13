@@ -8,16 +8,22 @@ import { advanceOrder } from "@/services/orders";
 
 const back = (tableId: string, error?: string) => redirect(`/pos/tables/${tableId}${error ? `?error=${encodeURIComponent(error)}` : ""}`);
 
-/** Закрыть счёт стола: оплата наличными или картой, всё одним действием. */
+/** Принять оплату: за весь стол или только за отмеченные заказы; с чаевыми. */
 export async function closeBillAction(fd: FormData): Promise<void> {
   const tableId = String(fd.get("tableId") ?? "");
-  let done: { total: number; orders: number } | null = null;
+  let done: Awaited<ReturnType<typeof closeBill>>;
   try {
     const u = await requireUser("pos.use");
-    done = await closeBill({ billId: String(fd.get("billId") ?? ""), method: String(fd.get("method") ?? "") }, u);
+    const ids = fd.getAll("orderId").map(String);
+    done = await closeBill({
+      billId: String(fd.get("billId") ?? ""), method: String(fd.get("method") ?? ""),
+      orderIds: fd.get("split") === "1" ? ids : undefined, tip: String(fd.get("tip") ?? "").replace(",", ".").replace(/\s/g, ""),
+    }, u);
   } catch (e) { return back(tableId, toMessage(e)); }
   revalidatePath("/pos/tables");
-  redirect(`/pos/tables?paid=${done.total}`);
+  const tip = done.tip > 0 ? `&tip=${done.tip}` : "";
+  if (done.closed) redirect(`/pos/tables?paid=${done.total}${tip}`);
+  redirect(`/pos/tables/${tableId}?paid=${done.total}${tip}`);
 }
 
 /** Отметить заказ поданным (готово → подано), не дожидаясь оплаты. */
