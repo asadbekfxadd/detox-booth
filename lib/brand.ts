@@ -1,7 +1,4 @@
-/** Контакты бренда, общие для всего сайта. */
-export const INSTAGRAM_HANDLE = "vitaminb.uz";
-export const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_HANDLE}/`;
-
+/** Карты и координаты точек. Название, цвета и контакты бренда: см. lib/brand-config.ts. */
 export type Place = { address?: string | null; lat?: number | null; lng?: number | null };
 
 const strip = (s: string) => s.replace(/ташкент|tashkent|toshkent/gi, "").replace(/[\s,.\-]/g, "");

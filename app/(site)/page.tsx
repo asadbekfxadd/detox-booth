@@ -5,6 +5,8 @@ import { listMenu, listCategories, popularIds } from "@/services/catalog";
 import { sum } from "@/lib/format";
 import { categoryEmoji } from "@/lib/emoji";
 import { toneClass } from "@/lib/tone";
+import { getBrand } from "@/services/brand";
+import { ClassicHome } from "@/components/site/ClassicHome";
 import { ProductCard } from "@/components/site/ProductCard";
 import { ProductImage } from "@/components/site/ProductImage";
 import { SpinBadge } from "@/components/site/SpinBadge";
@@ -33,8 +35,9 @@ const ENERGY: [IconName, string][] = [["bolt", "Больше энергии"], [
 const PERKS: [IconName, string][] = [["apple", "Свежие фрукты"], ["leaf", "Натуральный вкус"], ["pulse", "Поддержка иммунитета"], ["users", "Для всей семьи"]];
 
 export default async function HomePage() {
-  const { locations, current } = await getSiteLocation();
+  const [{ locations, current }, brand] = await Promise.all([getSiteLocation(), getBrand()]);
   const [menu, cats, pop] = await Promise.all([listMenu(current?.id ?? null), listCategories(), popularIds()]);
+  if (brand.homeStyle === "classic") return <ClassicHome brand={brand} menu={menu} cats={cats} popular={pop} />;
   const sellable = menu.filter((p) => p.available);
   const popular = pop ? pop.map((id) => sellable.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p) : [];
   const featured = (popular.length >= 4 ? popular : sellable).slice(0, 8);

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getBrand } from "@/services/brand";
 import { signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -7,17 +8,20 @@ import { NAV } from "@/components/admin/nav";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { LocationSwitcher } from "@/components/admin/LocationSwitcher";
 
-export const metadata: Metadata = { title: { default: "Админка", template: "%s · Админка Vitamin B" }, robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const b = await getBrand();
+  return { title: { default: "Админка", template: `%s · Админка ${b.name}` }, robots: { index: false, follow: false } };
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, locations, locationId, canSwitch } = await getScope();
+  const [{ user, locations, locationId, canSwitch }, brand] = await Promise.all([getScope(), getBrand()]);
   const items = NAV.filter((i) => can(user.role, i.perm));
   const unread = await prisma.notification.count({
     where: { isRead: false, ...(locationId ? { OR: [{ locationId }, { locationId: null }] } : {}) },
   });
   return (
     <div className="min-h-screen bg-[#f7f3ea] md:flex">
-      <Sidebar items={items} />
+      <Sidebar items={items} brandName={brand.name} />
       <div className="min-w-0 flex-1">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 bg-white px-6 py-3 print:hidden">
           {canSwitch

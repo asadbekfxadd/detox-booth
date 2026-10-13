@@ -1,7 +1,11 @@
+import { getBrand } from "@/services/brand";
 import { getSiteLocation } from "@/lib/site";
 import { Page } from "@/components/site/Page";
 
-export const metadata = { title: "Точки", description: "Адреса и телефоны точек Vitamin B. Закажите онлайн и заберите готовым." };
+export async function generateMetadata() {
+  const b = await getBrand();
+  return { title: "Точки", description: `Адреса и телефоны точек ${b.name}. Закажите онлайн и заберите готовым.` };
+}
 export const dynamic = "force-dynamic";
 
 export default async function LocationsPage() {

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function Sidebar({ items }: { items: { label: string; href: string; group: string }[] }) {
+export function Sidebar({ items, brandName }: { items: { label: string; href: string; group: string }[]; brandName: string }) {
   const path = usePathname();
   const groups = [...new Set(items.map((i) => i.group))];
   return (
@@ -15,7 +15,7 @@ export function Sidebar({ items }: { items: { label: string; href: string; group
     </nav>
     <aside className="hidden md:flex print:!hidden w-60 shrink-0 flex-col gap-5 border-r border-neutral-200 bg-white p-4">
       <div className="px-2">
-        <p className="text-lg font-extrabold tracking-wide text-green-800">Vitamin B</p>
+        <p className="text-lg font-extrabold tracking-wide text-green-800">{brandName}</p>
         <p className="text-xs text-neutral-500">Панель управления</p>
       </div>
       {groups.map((g) => (
