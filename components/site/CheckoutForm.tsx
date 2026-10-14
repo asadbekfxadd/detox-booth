@@ -12,6 +12,8 @@ import { checkoutQuoteAction, placeOrderAction, quoteCartAction } from "@/app/(s
 import type { WebQuote } from "@/services/web-orders";
 import type { ZoneLike } from "@/lib/delivery";
 import type { QuotedLine } from "@/services/catalog";
+import { bridgePicks, deliveryGap, type UpsellPick } from "@/lib/upsell";
+import { GoalBar, PickRow } from "./CartAdvice";
 
 const field = "w-full rounded-xl border border-forest/20 bg-white px-4 py-3 text-sm font-medium text-forest outline-none placeholder:text-forest/45 focus:border-orange";
 const LS = "detox-customer";
@@ -41,6 +43,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
   const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [quote, setQuote] = useState<WebQuote | null>(null);
   const [view, setView] = useState<QuotedLine[]>([]);
+  const [companions, setCompanions] = useState<UpsellPick[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -67,7 +70,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
     (async () => {
       const [c, q] = await Promise.all([quoteCartAction(lines), checkoutQuoteAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, phone: phoneKey })]);
       if (!alive) return;
-      if ("quote" in c) setView(c.quote.lines);
+      if ("quote" in c) { setView(c.quote.lines); setCompanions(c.quote.companions); }
       if ("error" in q) { setProblem(q.error); setQuote(null); } else { setProblem(null); setQuote(q.quote); }
     })();
     return () => { alive = false; };
@@ -108,6 +111,9 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
     );
 
   const bad = view.find((l) => l.problem);
+  // до бесплатной доставки: считаем от суммы после скидок, как и сервер
+  const zoneNow = fulfillment === "DELIVERY" ? zones.find((z) => z.id === zoneId) : undefined;
+  const gap = quote && zoneNow ? deliveryGap(zoneNow, quote.subtotal - quote.discount) : null;
   const radio = (on: boolean) => `flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ${on ? "border-forest bg-forest font-bold text-white" : "border-forest/20 bg-white"}`;
   return (
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -183,6 +189,13 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
             {fulfillment === "DELIVERY" && <p className="flex justify-between"><span>Доставка</span><span>{quote.freeDelivery || quote.deliveryFee === 0 ? "бесплатно" : sum(quote.deliveryFee)}</span></p>}
             <p className="flex justify-between border-t pt-2 text-lg font-bold"><span>Итого</span><span>{sum(quote.total)}</span></p>
             {quote.points > 0 && <p className="text-xs text-forest/60">+{quote.points} баллов после получения заказа</p>}
+            {gap && (
+              <div className="space-y-2 rounded-xl bg-sun/30 p-3">
+                <p className="font-bold text-forest-deep">Добавьте ещё {sum(gap.left)} — доставка бесплатно (сэкономите {sum(gap.save)})</p>
+                <GoalBar current={gap.target - gap.left} target={gap.target} label="Сколько набрано до бесплатной доставки" />
+                <ul className="space-y-2">{bridgePicks(companions, gap.left, 2, true).map((p) => <PickRow key={p.id} pick={p} />)}</ul>
+              </div>
+            )}
             {quote.hints.length > 0 && (
               <ul aria-label="Подсказки по акциям" className="space-y-2 pt-2">
                 {quote.hints.map((h) => <li key={h.id + h.text} className="rounded-xl bg-sun/30 px-3 py-2 font-semibold text-forest-deep">{h.text}</li>)}

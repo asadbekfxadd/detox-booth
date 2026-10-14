@@ -5,6 +5,8 @@ import { loadRules } from "@/services/happy-hour";
 import { priceAt, type HappyRule } from "@/lib/happy-hour";
 import { usableStock } from "@/services/availability";
 import { promotionsForCart, type Applied, type Hint } from "@/services/promotions";
+import { pairStats } from "@/services/upsell";
+import { buildAdvice, type Advice, type MenuLite, type UpsellPick } from "@/lib/upsell";
 
 export type PublicOption = { id: string; name: string; priceDelta: number };
 export type PublicModifier = { id: string; name: string; multiple: boolean; required: boolean; options: PublicOption[] };
@@ -83,14 +85,18 @@ export async function getProductBySlug(slug: string, locationId: string | null) 
   return toPublic(row, locationId ? await usableStock(prisma, locationId) : new Map(), await loadRules());
 }
 
-/** Хиты за 30 дней по реальным продажам; если продаж нет — null (на сайте не выдаём это за «хиты»). */
+/** Хиты за 30 дней по реальным продажам; если продаж нет — null (на сайте не выдаём это за «хиты»). Кэш на минуту: корзина пересчитывается на каждое нажатие. */
+let popularCache: { at: number; ids: string[] | null } | null = null;
 export async function popularIds(): Promise<string[] | null> {
+  if (popularCache && Date.now() - popularCache.at < 60_000) return popularCache.ids;
   const rows = await prisma.orderItem.groupBy({
     by: ["productId"],
     where: { order: { status: { not: "CANCELLED" }, createdAt: { gte: new Date(Date.now() - 30 * 86400000) } } },
     _sum: { quantity: true }, orderBy: { _sum: { quantity: "desc" } }, take: 8,
   });
-  return rows.length ? rows.map((r) => r.productId) : null;
+  const ids = rows.length ? rows.map((r) => r.productId) : null;
+  popularCache = { at: Date.now(), ids };
+  return ids;
 }
 
 /** «Вам может понравиться»: доступное, чего нет в корзине; сначала из категорий, которых в корзине ещё нет. */
@@ -116,7 +122,19 @@ export type QuotedLine = {
   slug: string; name: string; categorySlug: string; image: string | null; optionNames: string[];
   unitPrice: number; lineTotal: number; problem: string | null;
 };
-export type CartQuote = { lines: QuotedLine[]; subtotal: number; ok: boolean; suggestions: PublicProduct[]; /** Акции, сработавшие на корзину, и подсказки «добавьте ещё…» */ promotions: Applied[]; hints: Hint[]; discount: number };
+export type CartQuote = {
+  lines: QuotedLine[]; subtotal: number; ok: boolean; suggestions: PublicProduct[];
+  /** Акции, сработавшие на корзину, и подсказки «добавьте ещё…» */
+  promotions: Applied[]; hints: Hint[]; discount: number;
+  /** Совет Мандаринки (что добавить) и общий рейтинг «что докинуть» для других мест (оформление) */
+  advice: Advice | null; companions: UpsellPick[];
+};
+
+const needsChoice = (p: PublicProduct) => p.modifiers.some((m) => m.required && (m.options.length > 1 || m.multiple));
+const toLite = (p: PublicProduct): MenuLite => ({
+  id: p.id, slug: p.slug, name: p.name, image: p.image, categoryId: p.category.id, categorySlug: p.category.slug, categoryName: p.category.name,
+  price: p.defaultPrice, optionIds: p.defaultOptionIds, needsChoice: needsChoice(p), available: p.available,
+});
 
 export async function quoteCart(input: unknown, locationId: string | null): Promise<CartQuote> {
   const items = cartInputSchema.parse(input);
@@ -146,5 +164,14 @@ export async function quoteCart(input: unknown, locationId: string | null): Prom
   const promo = good.length
     ? await promotionsForCart(prisma, good.map((l) => ({ productId: l.productId, categoryId: byId.get(l.productId)!.category.id, quantity: l.quantity, unitPrice: l.unitPrice, happy: byId.get(l.productId)!.happyPct > 0 })), { channel: "SITE" })
     : { discount: 0, applied: [], hints: [] };
-  return { lines, subtotal, ok: lines.length > 0 && lines.every((l) => !l.problem), suggestions: await suggestions(items.map((i) => i.productId), locationId), promotions: promo.applied, hints: promo.hints, discount: promo.discount };
+  const cart = good.map((l) => ({ productId: l.productId, quantity: l.quantity }));
+  const [pairs, pop] = await Promise.all([pairStats(cart.map((c) => c.productId)).catch(() => new Map()), popularIds().catch(() => null)]);
+  const built = buildAdvice({ cart, menu: menu.map(toLite), pairs, popular: pop, hints: promo.hints, subtotal: Math.max(0, subtotal - promo.discount), exclude: items.map((i) => i.productId) });
+  // пока в корзине есть позиция с проблемой, совет только отвлекает: сначала нужно её исправить
+  const advice = lines.some((l) => l.problem) ? null : built.advice;
+  const companions = built.companions;
+  // «Вам может понравиться» — то же ранжирование, но без позиций, которые уже предложила Мандаринка
+  const shown = new Set([...items.map((i) => i.productId), ...(advice?.picks.map((p) => p.id) ?? [])]);
+  const more = companions.filter((p) => !shown.has(p.id)).slice(0, 4).map((p) => byId.get(p.id)!);
+  return { lines, subtotal, ok: lines.length > 0 && lines.every((l) => !l.problem), suggestions: more, promotions: promo.applied, hints: promo.hints, discount: promo.discount, advice, companions: companions.slice(0, 8) };
 }

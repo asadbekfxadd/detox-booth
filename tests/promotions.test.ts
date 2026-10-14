@@ -151,3 +151,24 @@ describe("весь день", () => {
     expect(inSchedule(s, Date.parse("2026-10-13T18:59:30Z"))).toBe(true); // 23:59:30 по Ташкенту
   });
 });
+
+describe("структурные подсказки (fill)", () => {
+  it("купи N: сколько штук и какие позиции", () => {
+    const h = evaluate([bogo()], [line("a", 2, 10000)], { firstOrder: false }).hints[0];
+    expect(h.fill).toEqual({ type: "items", need: 1, productIds: [], categoryId: "c1" });
+  });
+  it("набор: недостающая позиция", () => {
+    const combo = rule({ kind: "COMBO", name: "Обед", config: { items: [{ productId: "a", qty: 1 }, { productId: "b", qty: 2 }], price: 40000 }, labels: { items: { a: "Боул", b: "Фреш" } } });
+    const h = evaluate([combo], [line("a", 1, 30000), line("b", 1, 10000)], { firstOrder: false }).hints[0];
+    expect(h.fill).toEqual({ type: "items", need: 1, productIds: ["b"], categoryId: null });
+  });
+  it("ступени: сколько осталось до порога", () => {
+    const tiers = rule({ kind: "THRESHOLD", config: { tiers: [{ from: 100000, percent: 10 }] } });
+    const h = evaluate([tiers], [line("a", 1, 80000)], { firstOrder: false }).hints[0];
+    expect(h.fill).toEqual({ type: "amount", left: 20000, target: 100000, base: 80000 });
+  });
+  it("подсказка про первый заказ без fill", () => {
+    const first = rule({ kind: "FIRST_ORDER", config: { percent: 10, maxOff: null } });
+    expect(evaluate([first], [line("a", 1, 10000)], { firstOrder: null }).hints[0].fill).toBeUndefined();
+  });
+});

@@ -23,7 +23,11 @@ export type PromoRule = {
 
 export type CartLine = { productId: string; categoryId: string; quantity: number; unitPrice: number; happy: boolean };
 export type Applied = { id: string; name: string; amount: number; allowCode: boolean };
-export type Hint = { id: string; name: string; text: string };
+/** Что именно нужно добавить, чтобы акция сработала: штуки нужных позиций или сумма до порога. Нужно витрине, чтобы предложить конкретную кнопку «+». */
+export type HintFill =
+  | { type: "items"; need: number; productIds: string[]; categoryId: string | null }
+  | { type: "amount"; left: number; target: number; base: number };
+export type Hint = { id: string; name: string; text: string; fill?: HintFill };
 export type EvalResult = { discount: number; applied: Applied[]; hints: Hint[] };
 
 type Unit = { productId: string; categoryId: string; price: number; happy: boolean; used: boolean };
@@ -39,7 +43,9 @@ function expand(lines: CartLine[]): Unit[] {
 
 const free = (rule: PromoRule, u: Unit) => !u.used && (rule.withHappyHour || !u.happy);
 
-function buyGet(rule: PromoRule, c: BuyGetConfig, units: Unit[]): { amount: number; hint: string | null } {
+type Step = { amount: number; hint: string | null; fill?: HintFill };
+
+function buyGet(rule: PromoRule, c: BuyGetConfig, units: Unit[]): Step {
   const match = units.filter((u) => free(rule, u) && (c.productIds.includes(u.productId) || (c.categoryId != null && u.categoryId === c.categoryId)));
   match.sort((a, b) => b.price - a.price);
   const g = c.buy + c.free;
@@ -52,16 +58,18 @@ function buyGet(rule: PromoRule, c: BuyGetConfig, units: Unit[]): { amount: numb
   }
   const rest = match.length - groups * g;
   let hint: string | null = null;
+  let fill: HintFill | undefined;
   if (rest > 0) {
     const need = g - rest;
+    fill = { type: "items", need, productIds: c.productIds, categoryId: c.categoryId };
     const what = rule.labels?.target ? ` «${rule.labels.target}»` : "";
     const prize = c.percent >= 100 ? (c.free === 1 ? "одна бесплатно" : `${c.free} бесплатно`) : `${c.free === 1 ? "одна" : c.free} со скидкой ${c.percent}%`;
     hint = `Добавьте ещё ${need} шт.${what} — ${prize}`;
   }
-  return { amount: r(amount), hint };
+  return { amount: r(amount), hint, fill };
 }
 
-function combo(rule: PromoRule, c: ComboConfig, units: Unit[]): { amount: number; hint: string | null } {
+function combo(rule: PromoRule, c: ComboConfig, units: Unit[]): Step {
   const avail = c.items.map((it) => units.filter((u) => free(rule, u) && u.productId === it.productId).sort((a, b) => b.price - a.price));
   const sets = Math.min(...c.items.map((it, i) => Math.floor(avail[i].length / it.qty)));
   let amount = 0;
@@ -78,11 +86,14 @@ function combo(rule: PromoRule, c: ComboConfig, units: Unit[]): { amount: number
   const missing = c.items.filter((it, i) => avail[i].length < it.qty);
   const present = c.items.length - missing.length;
   let hint: string | null = null;
+  let fill: HintFill | undefined;
   if (missing.length === 1 && present >= 1) {
     const name = rule.labels?.items?.[missing[0].productId] ?? "ещё одну позицию";
     hint = `Добавьте «${name}» — набор «${rule.name}» за ${money(c.price)}`;
+    const idx = c.items.indexOf(missing[0]);
+    fill = { type: "items", need: Math.max(1, missing[0].qty - (avail[idx]?.length ?? 0)), productIds: [missing[0].productId], categoryId: null };
   }
-  return { amount: 0, hint };
+  return { amount: 0, hint, fill };
 }
 
 const tierAmount = (t: Tier, base: number) => (t.percent != null ? r((base * t.percent) / 100) : Math.min(t.off ?? 0, r(base)));
@@ -103,7 +114,7 @@ export function evaluate(rules: PromoRule[], lines: CartLine[], ctx: { firstOrde
     if (rule.kind !== "BUY_GET" && rule.kind !== "COMBO") continue;
     const res = rule.kind === "BUY_GET" ? buyGet(rule, rule.config as BuyGetConfig, units) : combo(rule, rule.config as ComboConfig, units);
     if (res.amount > 0) { applied.push({ id: rule.id, name: rule.name, amount: res.amount, allowCode: rule.allowCode }); itemDiscount += res.amount; }
-    if (res.hint) hints.push({ id: rule.id, name: rule.name, text: res.hint });
+    if (res.hint) hints.push({ id: rule.id, name: rule.name, text: res.hint, ...(res.fill ? { fill: res.fill } : {}) });
   }
 
   const base = Math.max(0, subtotal - itemDiscount);
@@ -115,7 +126,7 @@ export function evaluate(rules: PromoRule[], lines: CartLine[], ctx: { firstOrde
       const cur = tiers.filter((t) => base >= t.from).map((t) => tierAmount(t, base)).reduce((a, b) => Math.max(a, b), 0);
       amount = cur;
       const next = tiers.filter((t) => t.from > base).sort((a, b) => a.from - b.from)[0];
-      if (next && base > 0) hints.push({ id: rule.id, name: rule.name, text: `Добавьте ещё ${money(next.from - base)} — ${tierText(next)}` });
+      if (next && base > 0) hints.push({ id: rule.id, name: rule.name, text: `Добавьте ещё ${money(next.from - base)} — ${tierText(next)}`, fill: { type: "amount", left: next.from - base, target: next.from, base } });
     } else if (rule.kind === "FIRST_ORDER") {
       const c = rule.config as FirstOrderConfig;
       if (ctx.firstOrder === true) { amount = r((base * c.percent) / 100); if (c.maxOff != null) amount = Math.min(amount, c.maxOff); }
