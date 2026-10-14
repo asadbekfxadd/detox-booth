@@ -9,7 +9,7 @@ import {
   type PromoRule, type CartLine, type EvalResult, type BuyGetConfig, type ComboConfig, type ThresholdConfig, type FirstOrderConfig, type PromoKind, type Applied,
 } from "@/lib/promotions";
 
-export type { Applied, Hint, CartLine } from "@/lib/promotions";
+export type { Applied, Hint, HintFill, CartLine } from "@/lib/promotions";
 type Actor = { id: string; role: Role; locationId: string | null };
 type Db = Prisma.TransactionClient | typeof prisma;
 export type Channel = "SITE" | "POS";

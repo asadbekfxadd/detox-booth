@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMounted } from "@/lib/use-mounted";
 import { lineKey, useCart } from "@/lib/cart-store";
 import { sum } from "@/lib/format";
@@ -8,12 +8,16 @@ import { quoteCartAction } from "@/app/(site)/actions";
 import type { CartQuote } from "@/services/catalog";
 import { ProductImage } from "./ProductImage";
 import { QuickAdd } from "./QuickAdd";
+import { CartAdvice } from "./CartAdvice";
 
-export function CartView({ locationId }: { locationId: string | null }) {
+export function CartView({ locationId, mascot = true }: { locationId: string | null; mascot?: boolean }) {
   const { lines, setQty, remove, clear } = useCart();
   const mounted = useMounted();
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cheer, setCheer] = useState<string | null>(null);
+  const seen = useRef<{ ids: Set<string>; discount: number } | null>(null); // какие акции уже работали, чтобы порадоваться новой
+  const cheerTimer = useRef(0);
 
   const sig = JSON.stringify(lines);
   useEffect(() => {
@@ -24,10 +28,20 @@ export function CartView({ locationId }: { locationId: string | null }) {
       if (!alive) return;
       if ("error" in r) { setError(r.error); return; }
       setError(null); setQuote(r.quote);
+      // радуемся, только когда новая акция реально прибавила скидку (а не заменила другую при удалении позиции)
+      const prev = seen.current;
+      const fresh = prev && r.quote.discount > prev.discount ? r.quote.promotions.find((a) => !prev.ids.has(a.id)) : undefined;
+      seen.current = { ids: new Set(r.quote.promotions.map((a) => a.id)), discount: r.quote.discount };
+      if (fresh) {
+        setCheer(`Ура! Акция «${fresh.name}» сработала — вы экономите ${sum(fresh.amount)}`);
+        window.clearTimeout(cheerTimer.current);
+        cheerTimer.current = window.setTimeout(() => setCheer(null), 7000);
+      }
     })();
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, sig, locationId]);
+  useEffect(() => () => window.clearTimeout(cheerTimer.current), []);
 
   if (!mounted) return <p className="py-16 text-center text-forest/60">Загружаем корзину…</p>;
   if (lines.length === 0)
@@ -76,6 +90,7 @@ export function CartView({ locationId }: { locationId: string | null }) {
               </div>
             );
           })}
+          <CartAdvice advice={quote.advice} cheer={cheer} mascot={mascot} />
           <button className="min-h-11 text-sm text-forest/70 underline" onClick={() => { if (confirm("Очистить корзину?")) clear(); }}>Очистить корзину</button>
         </div>
         <aside className="h-fit space-y-3 rounded-2xl bg-white p-5 pop lg:sticky lg:top-24">
@@ -84,9 +99,9 @@ export function CartView({ locationId }: { locationId: string | null }) {
           {quote.promotions.map((a) => <p key={a.id} className="flex justify-between text-sm font-semibold text-forest"><span>Акция «{a.name}»</span><span>−{sum(a.amount)}</span></p>)}
           <p className="text-xs text-forest/60">Доставка и промокод считаются при оформлении.</p>
           <p className="flex justify-between border-t pt-3 text-lg font-bold"><span>Итого</span><span>{sum(Math.max(0, quote.subtotal - quote.discount))}</span></p>
-          {quote.hints.length > 0 && (
+          {quote.hints.some((h) => h.id !== quote.advice?.hintId) && (
             <ul aria-label="Подсказки по акциям" className="space-y-2">
-              {quote.hints.map((h) => <li key={h.id + h.text} className="rounded-xl bg-sun/30 px-3 py-2 text-sm font-semibold text-forest-deep">{h.text}</li>)}
+              {quote.hints.filter((h) => h.id !== quote.advice?.hintId).map((h) => <li key={h.id + h.text} className="rounded-xl bg-sun/30 px-3 py-2 text-sm font-semibold text-forest-deep">{h.text}</li>)}
             </ul>
           )}
           {quote.ok
@@ -97,7 +112,7 @@ export function CartView({ locationId }: { locationId: string | null }) {
 
       {quote.suggestions.length > 0 && (
         <section>
-          <h2 className="mb-3 text-xl font-bold">Вам может понравиться</h2>
+          <h2 className="mb-3 text-xl font-bold">Ещё из меню</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {quote.suggestions.map((s) => (
               <div key={s.id} className="flex flex-col gap-2 rounded-2xl bg-white p-4 pop">

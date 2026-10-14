@@ -3,10 +3,12 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { mandarinAction } from "@/app/(site)/mandarin-actions";
+import { quoteCartAction } from "@/app/(site)/actions";
 import type { MandarinPick } from "@/services/mandarin";
 import { useCart } from "@/lib/cart-store";
 import { sum } from "@/lib/format";
 import { GREETING_TEXT, STARTER_CHIPS, type Lang } from "@/lib/mandarin/rules";
+import { NUDGE, QUIET_PATHS, canNudge, isReturning, nudgeCopy, tabTitle, type NudgeReason } from "@/lib/cart-nudge";
 import { ProductImage } from "@/components/site/ProductImage";
 import { MandarinCharacter, type MandarinState } from "./MandarinCharacter";
 
@@ -18,11 +20,13 @@ const UI = {
     name: "Мандаринка", sub: "Помогу выбрать", open: "Открыть помощницу Мандаринку", close: "Закрыть", placeholder: "Что хочется? Например, «смузи без банана»",
     send: "Отправить", show: "Показать", add: "В корзину", added: (n: string) => `Добавила «${n}» в корзину. Что-нибудь ещё?`, cart: "Открыть корзину",
     hello: "Привет! Помочь выбрать? 🍊", here: "Вот она!", other: "Другое", back: "Спасибо!", thinking: "Думаю", err: "Не получилось ответить. Попробуйте ещё раз.", lang: "Язык",
+    checkout: "Оформить заказ", later: "Позже",
   },
   uz: {
     name: "Mandarinka", sub: "Tanlashga yordam beraman", open: "Mandarinka yordamchisini ochish", close: "Yopish", placeholder: "Nima xohlaysiz? Masalan, «bananasiz smuzi»",
     send: "Yuborish", show: "Ko'rsatish", add: "Savatga", added: (n: string) => `«${n}» savatga qo'shildi. Yana nimadir kerakmi?`, cart: "Savatni ochish",
     hello: "Salom! Tanlashga yordam beraymi? 🍊", here: "Mana u!", other: "Boshqa", back: "Rahmat!", thinking: "O'ylayapman", err: "Javob bera olmadim. Yana urinib ko'ring.", lang: "Til",
+    checkout: "Buyurtma berish", later: "Keyinroq",
   },
 } as const;
 
@@ -30,6 +34,10 @@ const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 const noop = () => () => {};
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const safe = <T,>(fn: () => T, fallback: T): T => { try { return fn(); } catch { return fallback; } };
+
+// Напоминания о корзине: счётчики живут в браузере гостя, на сервер ничего не уходит.
+const SS_SHOWN = "mandarin-cart-shown", SS_LAST = "mandarin-cart-last", LS_SNOOZE = "mandarin-cart-snooze", LS_SEEN = "mandarin-seen";
+const readNum = (store: Storage, key: string): number | null => { const n = Number(safe(() => store.getItem(key), null)); return Number.isFinite(n) && n > 0 ? n : null; };
 
 /** Ждёт, пока плавная прокрутка закончится (положение элемента перестало меняться). */
 async function settle(el: HTMLElement, max = 1400) {
@@ -58,7 +66,7 @@ export function MandarinAssistant() {
   const [pos, setPos] = useState<Pos>({ x: -300, y: -300 });
   const [dur, setDur] = useState(0);
   const [away, setAway] = useState(false);
-  const [bubble, setBubble] = useState<{ kind: "hello" } | { kind: "arrive"; pick: MandarinPick } | null>(null);
+  const [bubble, setBubble] = useState<{ kind: "hello" } | { kind: "arrive"; pick: MandarinPick } | { kind: "cart"; title: string; text: string } | null>(null);
   const [size, setSize] = useState(84);
 
   const posRef = useRef<Pos>(pos);
@@ -71,6 +79,9 @@ export function MandarinAssistant() {
   const inputRef = useRef<HTMLInputElement>(null);
   const arriveScroll = useRef(0);
   const openRef = useRef(false);
+  const bubbleRef = useRef<typeof bubble>(null);
+  const fireRef = useRef<(reason: NudgeReason) => void>(() => {});
+  const cartCount = useCart((s) => s.lines.length);
   const t = UI[lang];
 
   const home = useCallback((s = size): Pos => ({ x: window.innerWidth - s - 12, y: window.innerHeight - s * 1.25 - 14 }), [size]);
@@ -206,6 +217,92 @@ export function MandarinAssistant() {
     setMsgs((m) => (m.length <= 1 ? [{ id: nextId.current++, role: "bot", text: GREETING_TEXT[l] }] : m));
   };
 
+  /** Напоминание о корзине. Все ограничения проверяет canNudge; счётчик увеличиваем сразу, чтобы два события подряд не дали два пузыря. */
+  const fire = async (reason: NudgeReason) => {
+    const lines = useCart.getState().lines;
+    const now = Date.now();
+    const ok = canNudge({
+      now, shown: Number(safe(() => sessionStorage.getItem(SS_SHOWN), "0")) || 0, lastShownAt: readNum(sessionStorage, SS_LAST), snoozedUntil: readNum(localStorage, LS_SNOOZE),
+      cartCount: lines.length, quiet: QUIET_PATHS.test(window.location.pathname), visible: document.visibilityState === "visible",
+      busy: openRef.current || awayRef.current || bubbleRef.current !== null,
+    });
+    if (!ok) return;
+    safe(() => { sessionStorage.setItem(SS_SHOWN, String((Number(sessionStorage.getItem(SS_SHOWN)) || 0) + 1)); sessionStorage.setItem(SS_LAST, String(now)); }, null);
+    let names: string[] = [], total: number | null = null, hint: string | null = null;
+    try {
+      const r = await quoteCartAction(lines);
+      if ("quote" in r) {
+        names = r.quote.lines.filter((l) => !l.problem).map((l) => l.name);
+        total = Math.max(0, r.quote.subtotal - r.quote.discount);
+        hint = r.quote.advice && (r.quote.advice.kind === "promo" || r.quote.advice.kind === "threshold") ? r.quote.advice.text : null;
+      }
+    } catch { /* без названий и суммы напомним общими словами */ }
+    // пока считали, корзина могла опустеть, гость мог открыть чат или уйти в корзину
+    if (useCart.getState().lines.length === 0 || openRef.current || awayRef.current || bubbleRef.current !== null || QUIET_PATHS.test(window.location.pathname)) return;
+    const count = lines.reduce((a, l) => a + l.quantity, 0);
+    setBubble({ kind: "cart", ...nudgeCopy(reason, lang, { count, names, total, hint }) }); setState("point");
+    window.setTimeout(() => {
+      setBubble((b) => (b?.kind === "cart" ? null : b));
+      setState((st) => (st === "point" && !awayRef.current ? "idle" : st));
+    }, NUDGE.showMs);
+  };
+  useEffect(() => { fireRef.current = fire; bubbleRef.current = bubble; });
+
+  const snoozeCart = () => {
+    safe(() => localStorage.setItem(LS_SNOOZE, String(Date.now() + NUDGE.snoozeMs)), null);
+    setBubble(null); setState((st) => (st === "point" && !awayRef.current ? "idle" : st));
+  };
+
+  // простой: гость ничего не делает дольше минуты с корзиной на руках
+  useEffect(() => {
+    if (!mounted || cartCount === 0 || QUIET_PATHS.test(pathname)) return;
+    let timer = 0;
+    const arm = () => { window.clearTimeout(timer); timer = window.setTimeout(() => fireRef.current("idle"), NUDGE.idleMs); };
+    const events = ["pointerdown", "keydown", "scroll", "touchstart", "wheel"] as const;
+    for (const e of events) window.addEventListener(e, arm, { passive: true });
+    arm();
+    return () => { window.clearTimeout(timer); for (const e of events) window.removeEventListener(e, arm); };
+  }, [mounted, pathname, cartCount]);
+
+  // собрался уходить (курсор вышел за верхний край окна, только на устройствах с мышью)
+  useEffect(() => {
+    if (!mounted || cartCount === 0 || QUIET_PATHS.test(pathname)) return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const el = document.documentElement;
+    const onLeave = (e: MouseEvent) => { if (e.clientY <= 0 && !e.relatedTarget) fireRef.current("exit"); };
+    el.addEventListener("mouseleave", onLeave);
+    return () => el.removeEventListener("mouseleave", onLeave);
+  }, [mounted, pathname, cartCount]);
+
+  // вернулся после долгого перерыва, а корзина не пуста; заодно помним, когда гость был здесь последний раз
+  useEffect(() => {
+    if (!mounted) return;
+    const now = Date.now();
+    const back = isReturning(readNum(localStorage, LS_SEEN), now) && useCart.getState().lines.length > 0 ? window.setTimeout(() => fireRef.current("back"), 3500) : 0;
+    const touch = () => safe(() => localStorage.setItem(LS_SEEN, String(Date.now())), null);
+    touch();
+    const iv = window.setInterval(touch, 30_000);
+    window.addEventListener("pagehide", touch);
+    return () => { window.clearTimeout(back); window.clearInterval(iv); window.removeEventListener("pagehide", touch); };
+  }, [mounted]);
+
+  // пока гость на другой вкладке, в заголовке напоминаем про заказ
+  useEffect(() => {
+    if (!mounted) return;
+    let orig: string | null = null;
+    const mine = tabTitle(lang);
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        if (useCart.getState().lines.length > 0 && !/^\/order/.test(window.location.pathname)) { orig = document.title; document.title = mine; }
+      } else if (orig !== null) {
+        if (document.title === mine) document.title = orig;
+        orig = null;
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { document.removeEventListener("visibilitychange", onVis); if (orig !== null && document.title === mine) document.title = orig; };
+  }, [mounted, lang]);
+
   if (!mounted || /^\/(checkout|order)(\/|$)/.test(pathname)) return null;
 
   const above = pos.y > 190;
@@ -274,6 +371,15 @@ export function MandarinAssistant() {
           <div role="status" className={`pointer-events-auto absolute w-60 rounded-2xl bg-white p-3 text-sm shadow-xl ring-1 ring-forest/15 ${above ? "bottom-full mb-1" : "top-full mt-1"} ${alignLeft ? "left-0" : "right-0"}`}>
             {bubble.kind === "hello" ? (
               <button type="button" className="text-left font-bold text-forest-deep" onClick={() => { setBubble(null); setState("idle"); setOpen(true); }}>{t.hello}</button>
+            ) : bubble.kind === "cart" ? (
+              <>
+                <p className="font-extrabold text-forest-deep">{bubble.title}</p>
+                <p className="mt-0.5 whitespace-pre-line text-sm leading-snug text-forest-deep">{bubble.text}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Link href="/cart" onClick={() => { setBubble(null); setState("idle"); }} className="rounded-full bg-linear-to-br from-sun to-orange px-3 py-1 text-xs font-extrabold text-forest-deep">{t.checkout}</Link>
+                  <button type="button" onClick={snoozeCart} className="rounded-full px-2 py-1 text-xs font-bold text-forest/60 hover:text-forest">{t.later}</button>
+                </div>
+              </>
             ) : (
               <>
                 <p className="font-extrabold text-forest-deep">{t.here}</p>
