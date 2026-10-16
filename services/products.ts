@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
+import { parseVideo } from "@/lib/video";
 
 const optNum = (max: number, int = false) =>
   z.preprocess((v) => (v === "" || v == null ? null : v), (int ? z.coerce.number().int() : z.coerce.number()).min(0).max(max).nullable());
@@ -15,6 +16,7 @@ export const productSchema = z.object({
   categoryId: z.string().min(1, "Выберите категорию"),
   price: z.coerce.number({ error: "Укажите цену" }).int("Цена — целое число").min(1, "Цена должна быть больше 0").max(10_000_000, "Слишком большая цена"),
   image: z.preprocess(emptyToNull, z.string().trim().url("Некорректная ссылка на фото").nullable().optional()),
+  videoUrl: z.preprocess(emptyToNull, z.string().trim().max(500, "Ссылка на видео слишком длинная").url("Некорректная ссылка на видео").refine((u) => parseVideo(u) !== null, "Ссылка на видео должна начинаться с https://").nullable().optional()),
   calories: optNum(5000, true), protein: optNum(500), carbs: optNum(500), fat: optNum(500), volumeMl: optNum(5000, true),
   prepMinutes: z.coerce.number().int().min(0).max(120).default(3),
   allergens: z.preprocess((v) => (typeof v === "string" ? v.split(",").map((x) => x.trim()).filter(Boolean) : v), z.array(z.string().max(30)).max(15).default([])),

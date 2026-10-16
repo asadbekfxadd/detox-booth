@@ -12,8 +12,13 @@ export function ProductCard({ p, priority = false }: { p: PublicProduct; priorit
   const customizable = p.modifiers.length > 0;
   return (
     <article data-product={p.slug} className={`${toneClass(p.category.slug)} pop-card flex flex-col rounded-3xl p-2.5 sm:p-3 ${p.available ? "" : "opacity-70"}`}>
-      <Link href={`/menu/${p.slug}`} className="block" aria-label={p.name}>
+      <Link href={`/menu/${p.slug}`} className="relative block" aria-label={p.videoUrl ? `${p.name}, есть видео, как готовим` : p.name}>
         <ProductImage image={p.image} name={p.name} categorySlug={p.category.slug} priority={priority} />
+        {p.videoUrl && (
+          <span aria-hidden className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-forest-deep/85 py-1 pl-1 pr-2.5 text-[11px] font-extrabold text-white backdrop-blur">
+            <span className="grid size-5 place-items-center rounded-full bg-orange text-forest-deep"><svg viewBox="0 0 24 24" className="size-3 translate-x-px" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></span>Видео
+          </span>
+        )}
       </Link>
       <div className="flex flex-1 flex-col gap-2 px-1 pb-1 pt-3">
         <Link href={`/menu/${p.slug}`} className="display text-[15px] font-bold leading-snug hover:text-orange-deep sm:text-base">{p.name}</Link>

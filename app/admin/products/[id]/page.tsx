@@ -15,7 +15,7 @@ export default async function EditProduct({ params }: { params: Promise<{ id: st
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">{p.name}</h1>
       <ProductForm categories={categories} submitLabel="Сохранить" action={updateProductAction.bind(null, id)}
-        initial={{ name: p.name, description: p.description, categoryId: p.categoryId, price: Number(p.price), image: p.image,
+        initial={{ name: p.name, description: p.description, categoryId: p.categoryId, price: Number(p.price), image: p.image, videoUrl: p.videoUrl,
           calories: p.calories, protein: p.protein ? Number(p.protein) : null, carbs: p.carbs ? Number(p.carbs) : null,
           fat: p.fat ? Number(p.fat) : null, volumeMl: p.volumeMl, prepMinutes: p.prepMinutes, allergens: p.allergens,
           isVegan: p.isVegan, isHighProtein: p.isHighProtein, isSugarFree: p.isSugarFree, isAvailable: p.isAvailable }} />
