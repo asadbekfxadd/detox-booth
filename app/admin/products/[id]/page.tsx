@@ -3,11 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { money } from "@/lib/format";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { updateProductAction } from "../actions";
+import { VideoPromptHelper } from "@/components/admin/VideoPromptHelper";
+import { buildVideoPrompt } from "@/lib/video-prompt";
+import { isDrink } from "@/lib/upsell";
 
 export default async function EditProduct({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [p, categories] = await Promise.all([
-    prisma.product.findUnique({ where: { id }, include: { modifiers: { include: { options: true } }, recipe: { include: { items: true } } } }),
+    prisma.product.findUnique({ where: { id }, include: { category: true, modifiers: { include: { options: true } }, recipe: { include: { items: { include: { ingredient: { select: { name: true, category: true } } } } } } } }),
     prisma.category.findMany({ orderBy: { sort: "asc" }, select: { id: true, name: true } }),
   ]);
   if (!p) notFound();
@@ -19,6 +22,13 @@ export default async function EditProduct({ params }: { params: Promise<{ id: st
           calories: p.calories, protein: p.protein ? Number(p.protein) : null, carbs: p.carbs ? Number(p.carbs) : null,
           fat: p.fat ? Number(p.fat) : null, volumeMl: p.volumeMl, prepMinutes: p.prepMinutes, allergens: p.allergens,
           isVegan: p.isVegan, isHighProtein: p.isHighProtein, isSugarFree: p.isSugarFree, isAvailable: p.isAvailable }} />
+      <VideoPromptHelper prompt={buildVideoPrompt({
+        name: p.name, categoryName: p.category.name, drink: isDrink({ categorySlug: p.category.slug, categoryName: p.category.name }), volumeMl: p.volumeMl,
+        ingredients: (() => {
+          const fromRecipe = (p.recipe?.items ?? []).filter((i) => i.ingredient.category.toLowerCase() !== "packaging").map((i) => i.ingredient.name);
+          return fromRecipe.length ? fromRecipe : [p.name, p.description ?? ""]; // рецепта нет — ищем ингредиенты в названии и описании
+        })(),
+      })} />
       <section className="rounded-2xl bg-white p-6 shadow-sm">
         <h2 className="mb-2 font-semibold">Модификаторы и рецепт</h2>
         <p className="mb-3 text-sm text-neutral-500">Рецепт: {p.recipe ? `${p.recipe.items.length} ингредиентов` : "не задан"}. Редактор рецептов и модификаторов — на шаге 8.</p>
