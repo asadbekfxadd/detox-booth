@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import type { FormState } from "@/app/admin/products/actions";
 
 type Initial = Partial<{
-  name: string; description: string | null; categoryId: string; price: number; image: string | null;
+  name: string; description: string | null; categoryId: string; price: number; image: string | null; videoUrl: string | null;
   calories: number | null; protein: number | null; carbs: number | null; fat: number | null; volumeMl: number | null;
   prepMinutes: number; allergens: string[]; isVegan: boolean; isHighProtein: boolean; isSugarFree: boolean; isAvailable: boolean;
 }>;
@@ -32,6 +32,12 @@ export function ProductForm({ categories, initial = {}, action, submitLabel }: {
         </Field>
         <Field label="Цена, UZS *"><input name="price" type="number" min={0} step={1} required defaultValue={initial.price} className={input} /></Field>
         <Field label="Ссылка на фото"><input name="image" type="url" placeholder="https://…" defaultValue={initial.image ?? ""} className={input} /></Field>
+        <div className="md:col-span-2">
+          <Field label="Видео «Как готовим» (необязательно)">
+            <input name="videoUrl" type="url" placeholder="Ссылка на YouTube или на файл https://…/video.mp4" defaultValue={initial.videoUrl ?? ""} className={input} />
+          </Field>
+          <p className="mt-1 text-xs text-neutral-500">На карточке и странице позиции появится кнопка «Как готовим». Подходят YouTube (в том числе Shorts), прямая ссылка на .mp4/.webm или любая другая страница с видео (откроется в новой вкладке). Короткий ролик до 30 секунд работает лучше всего.</p>
+        </div>
         <div className="md:col-span-2"><Field label="Описание"><textarea name="description" rows={2} defaultValue={initial.description ?? ""} className={input} /></Field></div>
       </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-6">

@@ -368,6 +368,8 @@ model Product {
   category Category @relation(fields: [categoryId], references: [id])
   price Decimal @db.Decimal(12,2)
   image String?
+  /// Видео «Как готовим»: ссылка на YouTube, файл .mp4/.webm или любую страницу с видео
+  videoUrl String?
   calories Int?
   protein Decimal? @db.Decimal(6,1)
   carbs Decimal? @db.Decimal(6,1)

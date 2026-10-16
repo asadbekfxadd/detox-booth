@@ -12,6 +12,8 @@ export type PublicOption = { id: string; name: string; priceDelta: number };
 export type PublicModifier = { id: string; name: string; multiple: boolean; required: boolean; options: PublicOption[] };
 export type PublicProduct = {
   id: string; slug: string; name: string; description: string | null; image: string | null;
+  /** Видео «Как готовим» (ссылка), если задано */
+  videoUrl: string | null;
   price: number; defaultPrice: number; defaultOptionIds: string[];
   /** Счастливые часы: скидка в %, и цена без скидки (для зачёркивания). 0 и null — акции сейчас нет. */
   happyPct: number; oldDefaultPrice: number | null;
@@ -44,7 +46,7 @@ function toPublic(p: Row, stock: Map<string, Prisma.Decimal>, rules: HappyRule[]
   const price = hp.price;
   const optSum = defaults.reduce((a, o) => a + o.priceDelta, 0);
   return {
-    id: p.id, slug: p.slug, name: p.name, description: p.description, image: p.image,
+    id: p.id, slug: p.slug, name: p.name, description: p.description, image: p.image, videoUrl: p.videoUrl,
     price, defaultPrice: price + optSum, defaultOptionIds: defaults.map((o) => o.id),
     happyPct: hp.percent, oldDefaultPrice: hp.percent > 0 ? base + optSum : null,
     category: { id: p.category.id, name: p.category.name, slug: p.category.slug },

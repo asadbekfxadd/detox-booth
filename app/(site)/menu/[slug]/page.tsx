@@ -7,6 +7,7 @@ import { toneClass } from "@/lib/tone";
 import { ProductImage } from "@/components/site/ProductImage";
 import { ProductCard } from "@/components/site/ProductCard";
 import { Configurator } from "@/components/site/Configurator";
+import { HowItsMade } from "@/components/site/HowItsMade";
 import { Page } from "@/components/site/Page";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <div className="grid items-center gap-8 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:gap-12">
           <div className="relative mx-auto w-full max-w-md">
             <ProductImage image={p.image} name={p.name} categorySlug={p.category.slug} priority className="rounded-3xl! shadow-[0_30px_80px_-30px_var(--tone)] ring-1 ring-forest/20" />
+            {p.videoUrl && <HowItsMade url={p.videoUrl} name={p.name} poster={p.image} className="absolute bottom-3 left-3 z-10" />}
             {p.calories != null && <span className="display absolute -bottom-4 -right-2 z-10 grid h-24 w-24 place-items-center rounded-2xl bg-(--tone) text-center text-[11px] font-bold leading-tight text-forest-deep shadow-xl sm:-right-5"><span><span className="block text-3xl font-black">{p.calories}</span>ккал</span></span>}
           </div>
           <div className="space-y-6">
