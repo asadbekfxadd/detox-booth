@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findIngredient, knownIngredients } from "@/lib/ingredients";
+import { findIngredient, isChoppable, knownIngredients } from "@/lib/ingredients";
 import { buildVideoPrompt } from "@/lib/video-prompt";
 
 describe("ingredients", () => {
@@ -43,5 +43,14 @@ describe("ингредиенты из обычного текста", () => {
   });
   it("название и описание вместе, без повторов", () => {
     expect(knownIngredients(["Манго-кокос", "Манго, кокосовое молоко и лёд"], 5).map((k) => k.en)).toEqual(["mango", "coconut", "milk", "ice cubes"]);
+  });
+});
+
+describe("что рубят ножом", () => {
+  it("фрукты и зелень рубят, лёд и молоко нет", () => {
+    expect(isChoppable("🍊")).toBe(true);
+    expect(isChoppable("🌿")).toBe(true);
+    expect(isChoppable("🧊")).toBe(false);
+    expect(isChoppable("🥛")).toBe(false);
   });
 });

@@ -43,3 +43,7 @@ export function knownIngredients(texts: string[], max = 4): Known[] {
   }
   return out;
 }
+
+/** Можно ли рубить: лёд, молоко, мёд, злаки, напитки и порошок в блендер кладут целиком, ножом по ним не бьют. */
+const NOT_CUT = new Set(["🧊", "🥛", "🍯", "🌾", "☕", "🍵", "💪", "🥜"]);
+export const isChoppable = (emoji: string) => !NOT_CUT.has(emoji);
