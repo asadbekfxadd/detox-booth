@@ -10,6 +10,7 @@ import { ClassicHome } from "@/components/site/ClassicHome";
 import { ProductCard } from "@/components/site/ProductCard";
 import { ProductImage } from "@/components/site/ProductImage";
 import { SpinBadge } from "@/components/site/SpinBadge";
+import { HeroFruits } from "@/components/site/HeroFruits";
 import { Lucky } from "@/components/site/Lucky";
 import { Icon, IconBadge, type IconName } from "@/components/site/Icon";
 
@@ -55,7 +56,7 @@ export default async function HomePage() {
             <h1 className="mt-2 text-[clamp(2.3rem,5.6vw,4.6rem)] font-black text-forest">Натуральные фрукты. <span className="text-orange-deep">Настоящий вкус.</span></h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-forest/75">Свежие соки, фруктовые миксы и смузи — для взрослых и детей. Готовим сразу после заказа.</p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/menu" className="btn btn-primary text-lg">Смотреть меню</Link>
+              <Link href="/menu" className="btn btn-primary hero-cta text-lg">Смотреть меню</Link>
               {cats.some((c) => c.slug === "sets") && <Link href="/menu?category=sets" className="btn btn-ghost">Сеты со скидкой</Link>}
             </div>
             <ul className="mt-10 grid max-w-xl grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
@@ -69,12 +70,13 @@ export default async function HomePage() {
           </div>
 
           <div className="relative">
-            <div aria-hidden className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)] shadow-[0_40px_90px_-30px_#ff8a00]" />
+            <div aria-hidden className="hf-sun absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)] shadow-[0_40px_90px_-30px_#ff8a00]" />
             <SpinBadge className="absolute -top-4 right-0 z-10 h-28 w-28 rounded-full bg-forest text-white shadow-xl sm:-top-8 sm:h-36 sm:w-36 lg:-right-2" />
+            <HeroFruits />
             {heroItems.length === 3 ? (
               <div className="grid grid-cols-[1.15fr_1fr] gap-3 pt-8 sm:gap-4">
                 {heroItems.map((p, i) => (
-                  <Link key={p.id} href={`/menu/${p.slug}`} className={`${toneClass(p.category.slug)} arch-rise group relative block ${i === 0 ? "row-span-2 self-start" : ""} ${i === 2 ? "sm:translate-x-3" : ""}`}>
+                  <Link key={p.id} href={`/menu/${p.slug}`} className={`${toneClass(p.category.slug)} hero-bob group relative block ${i === 0 ? "row-span-2 self-start" : ""} ${i === 2 ? "sm:left-3" : ""}`}>
                     <ProductImage image={p.image} name={p.name} categorySlug={p.category.slug} priority className={`${i === 0 ? "aspect-[3/4]!" : "aspect-square!"} rounded-[1.75rem]! border-4 border-white shadow-[0_24px_50px_-24px_rgba(7,45,23,0.55)] transition-transform duration-300 group-hover:scale-[1.02]`} />
                     <span className="display absolute bottom-3 left-3 right-3 truncate rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold leading-tight text-forest shadow sm:text-xs">
                       {p.name} <span className="text-orange-deep">{sum(p.defaultPrice)}</span>
