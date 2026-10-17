@@ -10,7 +10,7 @@ import { ClassicHome } from "@/components/site/ClassicHome";
 import { ProductCard } from "@/components/site/ProductCard";
 import { ProductImage } from "@/components/site/ProductImage";
 import { SpinBadge } from "@/components/site/SpinBadge";
-import { HeroFruits } from "@/components/site/HeroFruits";
+import { HeroCard, type HeroSlide } from "@/components/site/HeroCard";
 import { Lucky } from "@/components/site/Lucky";
 import { Icon, IconBadge, type IconName } from "@/components/site/Icon";
 
@@ -42,7 +42,12 @@ export default async function HomePage() {
   const sellable = menu.filter((p) => p.available);
   const popular = pop ? pop.map((id) => sellable.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p) : [];
   const featured = (popular.length >= 4 ? popular : sellable).slice(0, 8);
-  const heroItems = cats.map((c) => sellable.find((p) => p.category.id === c.id && p.image)).filter((p): p is NonNullable<typeof p> => !!p).slice(0, 3);
+  // Три карточки первого экрана листают до трёх позиций каждая: по кругу берём лучшие позиции с фото из разных категорий.
+  const rankOf = new Map((pop ?? []).map((id, i) => [id, i]));
+  const byCat = cats.map((c) => sellable.filter((p) => p.category.id === c.id && p.image).sort((a, b) => (rankOf.get(a.id) ?? 99) - (rankOf.get(b.id) ?? 99)));
+  const heroPool: typeof sellable = [];
+  for (let round = 0; round < 3; round++) for (const list of byCat) if (list[round] && heroPool.length < 9) heroPool.push(list[round]);
+  const heroSlots: HeroSlide[][] = [0, 1, 2].map((slot) => heroPool.filter((_, i) => i % 3 === slot).map((p) => ({ id: p.id, slug: p.slug, name: p.name, image: p.image, categorySlug: p.category.slug, price: p.defaultPrice })));
   const cover = (catId: string) => sellable.find((p) => p.category.id === catId && p.image) ?? null;
   const setItems = sellable.filter((p) => p.category.slug === "sets").slice(0, 3);
 
@@ -72,17 +77,9 @@ export default async function HomePage() {
           <div className="relative">
             <div aria-hidden className="hf-sun absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)] shadow-[0_40px_90px_-30px_#ff8a00]" />
             <SpinBadge className="absolute -top-4 right-0 z-10 h-28 w-28 rounded-full bg-forest text-white shadow-xl sm:-top-8 sm:h-36 sm:w-36 lg:-right-2" />
-            <HeroFruits />
-            {heroItems.length === 3 ? (
+            {heroSlots.every((l) => l.length > 0) ? (
               <div className="grid grid-cols-[1.15fr_1fr] gap-3 pt-8 sm:gap-4">
-                {heroItems.map((p, i) => (
-                  <Link key={p.id} href={`/menu/${p.slug}`} className={`${toneClass(p.category.slug)} hero-bob group relative block ${i === 0 ? "row-span-2 self-start" : ""} ${i === 2 ? "sm:left-3" : ""}`}>
-                    <ProductImage image={p.image} name={p.name} categorySlug={p.category.slug} priority className={`${i === 0 ? "aspect-[3/4]!" : "aspect-square!"} rounded-[1.75rem]! border-4 border-white shadow-[0_24px_50px_-24px_rgba(7,45,23,0.55)] transition-transform duration-300 group-hover:scale-[1.02]`} />
-                    <span className="display absolute bottom-3 left-3 right-3 truncate rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold leading-tight text-forest shadow sm:text-xs">
-                      {p.name} <span className="text-orange-deep">{sum(p.defaultPrice)}</span>
-                    </span>
-                  </Link>
-                ))}
+                {heroSlots.map((slides, i) => <HeroCard key={i} slides={slides} index={i} tall={i === 0} className={i === 2 ? "sm:left-3" : ""} />)}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3 pt-8">
