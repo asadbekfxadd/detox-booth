@@ -13,6 +13,7 @@ export const NAV: NavItem[] = [
   { group: "Меню", label: "Продукты", href: "/admin/products", perm: "products.edit" },
   { group: "Меню", label: "Категории", href: "/admin/categories", perm: "products.edit" },
   { group: "Меню", label: "Рецепты", href: "/admin/recipes", perm: "recipes.edit" },
+  { group: "Меню", label: "Калькуляция", href: "/admin/costing", perm: "finance.view" },
   { group: "Склад", label: "Склад", href: "/admin/inventory", perm: "inventory.view" },
   { group: "Склад", label: "Ингредиенты", href: "/admin/ingredients", perm: "inventory.edit" },
   { group: "Склад", label: "Закупки", href: "/admin/purchases", perm: "purchases.manage" },

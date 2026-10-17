@@ -43,7 +43,7 @@ export async function listEmployees() {
     select: { id: true, name: true, email: true, role: true, isActive: true, location: { select: { name: true } } },
   });
 }
-export const getEmployee = (id: string) => prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, isActive: true, locationId: true } });
+export const getEmployee = (id: string) => prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, isActive: true, locationId: true, monthlySalary: true } });
 
 export async function createEmployee(actor: Actor, input: unknown) {
   const d = createSchema.parse(input);
@@ -93,4 +93,17 @@ export async function resetPassword(actor: Actor, id: string, input: unknown) {
   if (!canManage(actor.role, old.role) && id !== actor.id) throw new ApiError(403, "Недостаточно прав для изменения этого сотрудника");
   await prisma.user.update({ where: { id }, data: { passwordHash: await hash(pw, 10) } });
   await audit({ userId: actor.id, action: "EMPLOYEE_PASSWORD_RESET", entity: "User", entityId: id });
+}
+
+/** Оклад в месяц для калькуляции. Пусто — сотрудник не входит в фонд оплаты труда. Права те же, что на изменение сотрудника. */
+export async function setSalary(actor: Actor, id: string, input: unknown) {
+  const raw = String(input ?? "").replace(/\s/g, "").replace(",", ".");
+  const n = raw === "" ? null : Number(raw);
+  if (n !== null && !Number.isFinite(n)) throw new ApiError(400, "Оклад: введите число");
+  if (n !== null && (n < 0 || n > 1_000_000_000)) throw new ApiError(400, "Оклад: допустимо от 0 до 1 000 000 000");
+  const old = await prisma.user.findUnique({ where: { id }, select: { role: true, monthlySalary: true } });
+  if (!old) throw new ApiError(404, "Сотрудник не найден");
+  if (!canManage(actor.role, old.role)) throw new ApiError(403, "Недостаточно прав для изменения этого сотрудника");
+  await prisma.user.update({ where: { id }, data: { monthlySalary: n } });
+  await audit({ userId: actor.id, action: "EMPLOYEE_SALARY_CHANGED", entity: "User", entityId: id, oldValue: { monthlySalary: old.monthlySalary == null ? null : Number(old.monthlySalary) }, newValue: { monthlySalary: n } });
 }

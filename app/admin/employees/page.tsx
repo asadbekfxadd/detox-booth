@@ -6,7 +6,7 @@ import { toggleActiveAction } from "./actions";
 
 const OK: Record<string, string> = {
   created: "Сотрудник добавлен", updated: "Изменения сохранены", activated: "Сотрудник снова активен",
-  deactivated: "Сотрудник отключён — доступ закрыт сразу", password: "Пароль изменён",
+  deactivated: "Сотрудник отключён — доступ закрыт сразу", password: "Пароль изменён", salary: "Оклад сохранён",
 };
 
 export default async function EmployeesPage({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {

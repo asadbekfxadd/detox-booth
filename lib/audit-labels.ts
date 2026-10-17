@@ -27,6 +27,7 @@ export const ACTION_LABEL: Record<string, string> = {
   TABLE_ORDER_CREATED: "Заказ гостя за столом", TABLE_BILL_CLOSED: "Закрыт счёт стола", TABLE_CREATED: "Стол добавлен", TABLE_UPDATED: "Стол включён или выключен", TABLE_TOKEN_RESET: "Перевыпущен QR стола",
   EXPENSE_CREATED: "Расход добавлен", EXPENSE_DELETED: "Расход удалён",
   EMPLOYEE_CREATED: "Сотрудник добавлен", EMPLOYEE_UPDATED: "Сотрудник изменён", EMPLOYEE_ACTIVATED: "Сотрудник включён",
-  EMPLOYEE_DEACTIVATED: "Сотрудник отключён", EMPLOYEE_PASSWORD_RESET: "Смена пароля сотрудника",
+  EMPLOYEE_DEACTIVATED: "Сотрудник отключён", EMPLOYEE_PASSWORD_RESET: "Смена пароля сотрудника", EMPLOYEE_SALARY_CHANGED: "Изменён оклад сотрудника",
+  EQUIPMENT_CREATED: "Оборудование добавлено", EQUIPMENT_UPDATED: "Оборудование изменено", EQUIPMENT_TOGGLED: "Оборудование вкл/выкл в калькуляции", EQUIPMENT_DELETED: "Оборудование удалено",
 };
 export const actionLabel = (a: string) => ACTION_LABEL[a] ?? a;

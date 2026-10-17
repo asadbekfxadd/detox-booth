@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { FormShell, Field, fieldClass } from "@/components/admin/ops";
 import { EmployeeFields } from "@/components/admin/EmployeeFields";
 import { assignableRoles, getEmployee, ROLE_LABEL } from "@/services/employees";
-import { updateEmployeeAction, resetPasswordAction } from "../actions";
+import { updateEmployeeAction, resetPasswordAction, setSalaryAction } from "../actions";
 
 export default async function EditEmployeePage({ params }: { params: Promise<{ id: string }> }) {
   const me = await pageGuard("employees.manage");
@@ -21,6 +21,14 @@ export default async function EditEmployeePage({ params }: { params: Promise<{ i
       <FormShell action={updateEmployeeAction} submitLabel="Сохранить" cancelHref="/admin/employees">
         <input type="hidden" name="id" value={u.id} />
         <EmployeeFields roles={selfLocked ? [{ value: u.role, label: ROLE_LABEL[u.role] }] : roles} locations={locations} v={u} />
+      </FormShell>
+      <FormShell action={setSalaryAction} submitLabel="Сохранить оклад" cancelHref="/admin/employees">
+        <input type="hidden" name="id" value={u.id} />
+        <h2 className="font-semibold">Оклад в калькуляции</h2>
+        <Field label="Оклад в месяц, UZS">
+          <input name="monthlySalary" type="number" min={0} step="1000" inputMode="numeric" defaultValue={u.monthlySalary == null ? "" : Number(u.monthlySalary)} placeholder="Например 4000000" className={fieldClass} />
+          <span className="mt-1 block text-xs text-neutral-500">Входит в фонд оплаты труда и делится на число напитков в месяц. Пусто — сотрудник не учитывается в себестоимости (например, владелец).</span>
+        </Field>
       </FormShell>
       <FormShell action={resetPasswordAction} submitLabel="Сменить пароль" cancelHref="/admin/employees">
         <input type="hidden" name="id" value={u.id} />
