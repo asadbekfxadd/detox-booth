@@ -68,6 +68,17 @@ export async function createIngredient(input: unknown, userId: string) {
   }
 }
 
+/**
+ * Быстрое создание продукта прямо из прихода: название, категория и единица. Цена, минимум, срок и поставщик задаются позже
+ * в карточке продукта; цена появится из самого прихода (средняя считается по закупке).
+ */
+export const quickIngredientSchema = ingredientSchema.pick({ name: true, category: true, unit: true });
+export async function createIngredientQuick(input: unknown, userId: string) {
+  const d = quickIngredientSchema.parse(input);
+  const ing = await createIngredient({ ...d, price: 0, minStock: 0, shelfLifeDays: null, supplierId: null }, userId);
+  return { id: ing.id, name: ing.name, unit: ing.unit as string, category: ing.category, avgCost: 0 };
+}
+
 /** Ингредиент уже участвует в учёте: менять единицу и удалять нельзя. */
 async function usage(id: string) {
   const [recipes, purchases, txs, writeOffs, batches] = await Promise.all([

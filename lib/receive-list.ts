@@ -7,7 +7,9 @@
 export type ListIngredient = { id: string; name: string; unit: string; avgCost: number };
 export type ListRow = { ingredientId: string; quantity: string; unitCost: string; big: boolean; expiresAt: string };
 /** failed — исходные строки с ошибками: их оставляем в поле, чтобы поправить и вставить снова */
-export type ParseResult = { rows: ListRow[]; errors: string[]; failed: string[] };
+/** missing — названия, которых нет на складе, но единица понятна из количества («5 кг» — граммы): их можно создать одним нажатием */
+export type MissingItem = { name: string; unit: "G" | "ML" | "PC" };
+export type ParseResult = { rows: ListRow[]; errors: string[]; failed: string[]; missing: MissingItem[] };
 
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
 const num = (s: string) => {
@@ -30,7 +32,7 @@ function parseDate(s: string): string | null {
   return Number.isNaN(dt.getTime()) || dt.toISOString().slice(0, 10) !== `${m[1]}-${m[2]}-${m[3]}` ? null : `${m[1]}-${m[2]}-${m[3]}`;
 }
 
-export function findByName(name: string, list: ListIngredient[]): { ing?: ListIngredient; error?: string } {
+export function findByName(name: string, list: ListIngredient[]): { ing?: ListIngredient; error?: string; notFound?: boolean } {
   const n = norm(name);
   const exact = list.filter((i) => norm(i.name) === n);
   if (exact.length === 1) return { ing: exact[0] };
@@ -40,11 +42,18 @@ export function findByName(name: string, list: ListIngredient[]): { ing?: ListIn
     if (hit.length === 1) return { ing: hit[0] };
     if (hit.length > 1) return { error: `«${name}»: подходит несколько (${hit.slice(0, 3).map((h) => h.name).join(", ")}), уточните название` };
   }
-  return { error: `«${name}»: такого ингредиента нет` };
+  return { error: `«${name}»: такого ингредиента нет`, notFound: true };
+}
+
+/** Какую учётную единицу создавать новому продукту по записи количества: «5 кг» и «500 г» — граммы, «2 л» — миллилитры, «300 шт» — штуки. Без единицы — неизвестно. */
+function unitFromQty(qtyRaw: string): "G" | "ML" | "PC" | null {
+  const m = /^[\d\s.,]+?\s*([а-яa-z]+)\.?$/i.exec(qtyRaw);
+  const u = m ? UNITS[m[1].toLowerCase()] : undefined;
+  return u === "KG" || u === "G" ? "G" : u === "L" || u === "ML" ? "ML" : u === "PC" ? "PC" : null;
 }
 
 export function parseReceiveList(text: string, list: ListIngredient[]): ParseResult {
-  const rows: ListRow[] = [], errors: string[] = [], failed: string[] = [];
+  const rows: ListRow[] = [], errors: string[] = [], failed: string[] = [], missing: MissingItem[] = [];
   text.split(/\r?\n/).forEach((line, idx) => {
     if (!line.trim()) return;
     const n0 = errors.length;
@@ -57,7 +66,12 @@ export function parseReceiveList(text: string, list: ListIngredient[]): ParseRes
     const [name = "", qtyRaw = "", costRaw = "", dateRaw = ""] = parts;
     if (!name || !qtyRaw) { errors.push(`${at}: нужны название и количество`); return; }
     const found = findByName(name, list);
-    if (!found.ing) { errors.push(`${at}: ${found.error}`); return; }
+    if (!found.ing) {
+      errors.push(`${at}: ${found.error}`);
+      const u = found.notFound ? unitFromQty(qtyRaw) : null;
+      if (u && !missing.some((m) => norm(m.name) === norm(name))) missing.push({ name, unit: u });
+      return;
+    }
     const ing = found.ing;
     const qm = /^([\d\s.,]+?)\s*([а-яa-z]+)?\.?$/i.exec(qtyRaw);
     const q = qm ? num(qm[1]) : NaN;
@@ -86,5 +100,5 @@ export function parseReceiveList(text: string, list: ListIngredient[]): ParseRes
     }
     rows.push({ ingredientId: ing.id, quantity: r6(q), unitCost, big, expiresAt });
   }
-  return { rows, errors, failed };
+  return { rows, errors, failed, missing };
 }

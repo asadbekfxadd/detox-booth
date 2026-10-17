@@ -60,4 +60,10 @@ describe("приход списком: разбор вставленного т�
   it("пустые строки пропускаются", () => {
     expect(parseReceiveList("\n\nКлубника; 1 кг\n\n", L).rows).toHaveLength(1);
   });
+
+  it("неизвестный продукт с понятной единицей предлагается к созданию, без единицы или неоднозначный — нет", () => {
+    const r = parseReceiveList("Манго; 3 кг\nманго; 2 кг\nСироп; 2 л\nСтаканчик; 500 шт\nПеченье; 5\nапель; 1 кг", L);
+    expect(r.missing).toEqual([{ name: "Манго", unit: "G" }, { name: "Сироп", unit: "ML" }, { name: "Стаканчик", unit: "PC" }]);
+    expect(r.rows).toHaveLength(0);
+  });
 });
