@@ -11,6 +11,7 @@ import { siteUrl } from "@/lib/site-url";
 import { priceItems, discountWithPromotions, normalizePhone, cartSchema } from "@/services/pos";
 import { recordUses, type Applied } from "@/services/promotions";
 import { quoteDelivery } from "@/lib/delivery";
+import { mixFromModifiers } from "@/lib/mix";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const WEB_ACTOR = { id: "web", role: "BARISTA" as Role, locationId: null }; // ручных скидок на сайте нет
@@ -168,7 +169,7 @@ export async function getPublicOrder(id: string) {
     payment: pay ? { method: pay.method, status: pay.status } : null,
     payUrl: pay && pay.method === "ONLINE" && pay.status === "PENDING" && o.status === "NEW" ? repayUrl(pay.provider, { orderId: o.id, amount: Number(pay.amount), returnUrl: `${siteUrl()}/order/${o.id}` }) : null,
     items: o.items.map((i) => ({
-      id: i.id, productId: i.productId, name: i.product.name, quantity: i.quantity, unitPrice: Number(i.unitPrice),
+      id: i.id, productId: i.productId, name: i.product.name, quantity: i.quantity, unitPrice: Number(i.unitPrice), mix: mixFromModifiers(i.modifiers) ?? undefined,
       optionIds: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { optionId?: string }[]) : []).map((m) => m?.optionId).filter((x): x is string => typeof x === "string"),
       options: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { name?: string }[]) : []).map((m) => m?.name).filter((x): x is string => !!x),
     })),
@@ -190,7 +191,7 @@ export async function getOrdersBrief(ids: unknown) {
       id: o.id, number: o.number, status: o.status, createdAt: o.createdAt, total: Number(o.total), location: o.location.name,
       summary: o.items.map((i) => `${i.quantity}× ${i.product.name}`).join(", "),
       repeat: o.items.map((i) => ({
-        productId: i.productId, quantity: i.quantity,
+        productId: i.productId, quantity: i.quantity, mix: mixFromModifiers(i.modifiers) ?? undefined,
         optionIds: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { optionId?: string }[]) : []).map((m) => m?.optionId).filter((x): x is string => typeof x === "string"),
       })),
     }));

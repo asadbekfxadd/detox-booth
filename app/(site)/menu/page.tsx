@@ -7,6 +7,8 @@ import { getBrand } from "@/services/brand";
 import { PromoBanners } from "@/components/site/PromoBanners";
 import { Icon } from "@/components/site/Icon";
 import { Page } from "@/components/site/Page";
+import { getMixSizes } from "@/services/mix";
+import { sum } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Меню" };
@@ -26,10 +28,12 @@ const diet = (on: boolean) => `whitespace-nowrap rounded-full border px-3.5 py-1
 export default async function MenuPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const [{ current }, brand] = await Promise.all([getSiteLocation(), getBrand()]);
-  const [items, cats] = await Promise.all([
+  const [items, cats, mixSizes] = await Promise.all([
     listMenu(current?.id ?? null, { q: sp.q, category: sp.category, diet: sp.diet, sort: sp.sort }),
     listCategories(),
+    getMixSizes(),
   ]);
+  const mixFrom = mixSizes.length ? Math.min(...mixSizes.map((s) => s.price)) : null;
   const filtered = !!(sp.q || sp.category || sp.diet);
   const activeCat = cats.find((c) => c.slug === sp.category);
 
@@ -50,6 +54,16 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
             <p className="text-sm font-semibold text-forest/60" role="status">Найдено: {items.length}</p>
           </div>
         )}
+
+      {mixFrom != null && !filtered && (
+        <Link href="/mix" className="pop-card flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-3xl bg-sand px-6 py-5 hover:bg-white">
+          <span>
+            <span className="display block text-xl font-extrabold">Соберите свой микс</span>
+            <span className="block text-sm text-forest/70">Любые фрукты и овощи на ваш вкус, цена считается сразу</span>
+          </span>
+          <span className="whitespace-nowrap text-lg font-black text-orange-deep">от {sum(mixFrom)}</span>
+        </Link>
+      )}
 
       <div className="space-y-4">
         <nav aria-label="Категории" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">

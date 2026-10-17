@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { mixInputSchema } from "@/lib/mix";
 
 /** Подачи: официант заказывает всё сразу, но горячее и десерт можно придержать до нужного момента. */
 export const COURSES = [
@@ -18,6 +19,7 @@ export const waiterOrderSchema = z.object({
     productId: z.string().min(1),
     quantity: z.number().int("Некорректное количество").min(1, "Некорректное количество").max(50, "Слишком большое количество"),
     optionIds: z.array(z.string().min(1)).max(30),
+    mix: mixInputSchema.optional(),
   })).min(1, "Добавьте хотя бы одну позицию").max(40, "Слишком много позиций"),
   note: z.string().trim().max(250, "Комментарий слишком длинный").optional(),
   course: z.number().int().min(1).max(3).default(1),

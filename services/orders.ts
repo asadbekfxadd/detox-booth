@@ -8,6 +8,7 @@ import { assertInStock } from "@/services/availability";
 import { deductInventoryTx, awardPointsTx, restockOrderTx } from "@/lib/services/order-fulfillment";
 import { ACTIVE, NEXT } from "@/lib/order-status";
 import { lockStock } from "@/lib/stock-lock";
+import { mixNeedsFromModifiers } from "@/lib/mix";
 
 export type Actor = { id: string; role: Role; locationId: string | null };
 const PAGE = 25;
@@ -138,7 +139,7 @@ export async function advanceOrder(input: unknown, user: Actor) {
       const pay = o.payments[0];
       if (pay && pay.status === "PENDING" && pay.method === "ONLINE") throw new ApiError(400, "Сначала подтвердите оплату заказа");
       if (!o.inventoryDeducted) {
-        const items = o.items.map((i) => ({ productId: i.productId, quantity: i.quantity, optionIds: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { optionId?: string }[]) : []).map((m) => m?.optionId).filter((x): x is string => typeof x === "string" && x.length > 0) }));
+        const items = o.items.map((i) => ({ productId: i.productId, quantity: i.quantity, optionIds: (Array.isArray(i.modifiers) ? (i.modifiers as unknown as { optionId?: string }[]) : []).map((m) => m?.optionId).filter((x): x is string => typeof x === "string" && x.length > 0), mixNeeds: mixNeedsFromModifiers(i.modifiers) }));
         await assertInStock(tx, o.locationId, items);
       }
     }

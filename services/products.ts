@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
 import { parseVideo } from "@/lib/video";
+import { MIX_PRODUCT_SLUG } from "@/lib/mix";
 
 const optNum = (max: number, int = false) =>
   z.preprocess((v) => (v === "" || v == null ? null : v), (int ? z.coerce.number().int() : z.coerce.number()).min(0).max(max).nullable());
@@ -79,6 +80,7 @@ export async function updateProduct(id: string, input: unknown, userId: string) 
 async function flag(id: string, patch: { isArchived?: boolean; isAvailable?: boolean }, action: string, userId: string) {
   const old = await prisma.product.findUnique({ where: { id } });
   if (!old) throw new ApiError(404, "Продукт не найден");
+  if (old.slug === MIX_PRODUCT_SLUG) throw new ApiError(400, "«Свой микс» — системная позиция, в меню она не показывается. Размеры и цены задаются в разделе «Свой микс».");
   await prisma.product.update({ where: { id }, data: patch });
   await audit({ userId, action, entity: "Product", entityId: id, oldValue: { isArchived: old.isArchived, isAvailable: old.isAvailable }, newValue: patch });
 }

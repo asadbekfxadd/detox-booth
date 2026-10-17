@@ -12,6 +12,8 @@ import { fulfillOrderTx } from "@/lib/services/order-fulfillment";
 import { getLoyaltySettings } from "@/lib/loyalty-settings";
 import { createCustomerTx } from "@/lib/services/loyalty";
 import { lockStock } from "@/lib/stock-lock";
+import { ensureMixProduct, resolveMix, getMixCatalog, type MixCatalog } from "@/services/mix";
+import { MIX_PRODUCT_NAME, mixInputSchema } from "@/lib/mix";
 import { promotionsForCart, codeBlockedBy, recordUses, type Applied, type CartLine } from "@/services/promotions";
 
 type Tx = Prisma.TransactionClient;
@@ -43,7 +45,7 @@ export type CatalogProduct = {
   id: string; name: string; price: number; categoryId: string; image: string | null;
   isAvailable: boolean; portions: number | null; modifiers: CatalogModifier[];
 };
-export type PosCatalog = { categories: { id: string; name: string }[]; products: CatalogProduct[] };
+export type PosCatalog = { categories: { id: string; name: string }[]; products: CatalogProduct[]; mix: MixCatalog | null };
 export type CustomerLite = { id: string; name: string; phone: string; points: number };
 export type RecentOrder = { id: string; number: number; total: number; status: string; method: string | null; createdAt: string; summary: string; refundable: boolean };
 export type OrderResult = { ok: true; orderId: string; number: number; total: number; discount: number; change: number; pointsEarned: number; pointsSpent: number; method: string } | { ok: false; error: string };
@@ -148,7 +150,7 @@ export async function getCatalog(locationId: string): Promise<PosCatalog> {
     };
   });
   const used = new Set(list.map((p) => p.categoryId));
-  return { categories: cats.filter((c) => used.has(c.id)).map((c) => ({ id: c.id, name: c.name })), products: list };
+  return { categories: cats.filter((c) => used.has(c.id)).map((c) => ({ id: c.id, name: c.name })), products: list, mix: await getMixCatalog(prisma, stock) };
 }
 
 // ───────────── Клиенты ─────────────
@@ -193,6 +195,8 @@ export const cartSchema = z.object({
     productId: z.string().min(1),
     quantity: z.number().int("Некорректное количество").min(1, "Некорректное количество").max(50, "Слишком большое количество"),
     optionIds: z.array(z.string().min(1)).max(30),
+    /** «Свой микс»: размер и ингредиенты на выбор гостя. Тогда productId не важен: товар подставляет сервер. */
+    mix: mixInputSchema.optional(),
   })).min(1, "Корзина пуста").max(40, "Слишком много позиций"),
   customerId: z.string().nullable().optional(),
   redeemPoints: z.number().int("Баллы — целое число").min(0, "Некорректное число баллов").max(100_000_000).optional(),
@@ -215,7 +219,19 @@ export async function priceItems(db: Tx, items: CartItem[]) {
   const pm = new Map(products.map((p) => [p.id, p]));
   const rules = await loadRules(db);
   const at = Date.now();
-  const lines = items.map((it) => {
+  // «Свой микс»: состав и цену считаем по базе до основного прохода
+  const mixAt = new Map<number, Awaited<ReturnType<typeof resolveMix>>>();
+  let mixProduct: { id: string; categoryId: string } | null = null;
+  for (const [idx, it] of items.entries()) {
+    if (!it.mix) continue;
+    mixAt.set(idx, await resolveMix(db, it.mix));
+    mixProduct ??= await ensureMixProduct(db);
+  }
+  const lines = items.map((it, idx) => {
+    const mx = mixAt.get(idx);
+    if (mx && mixProduct) {
+      return { productId: mixProduct.id, name: MIX_PRODUCT_NAME, quantity: it.quantity, unitPrice: mx.price, categoryId: mixProduct.categoryId, happy: false, modifiers: mx.modifiers as unknown as Prisma.InputJsonObject[] };
+    }
     const p = pm.get(it.productId);
     if (!p || p.isArchived || !p.isAvailable) throw new ApiError(400, `«${p?.name ?? "Продукт"}» сейчас недоступен`);
     const ids = [...new Set(it.optionIds)];

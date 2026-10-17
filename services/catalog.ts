@@ -3,7 +3,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { loadRules } from "@/services/happy-hour";
 import { priceAt, type HappyRule } from "@/lib/happy-hour";
-import { usableStock } from "@/services/availability";
+import { usableStock, assertInStock } from "@/services/availability";
+import { ensureMixProduct, resolveMix } from "@/services/mix";
+import { MIX_PRODUCT_NAME, mixInputSchema, type MixInput } from "@/lib/mix";
+import { toMessage } from "@/lib/errors";
 import { promotionsForCart, type Applied, type Hint } from "@/services/promotions";
 import { pairStats } from "@/services/upsell";
 import { buildAdvice, type Advice, type MenuLite, type UpsellPick } from "@/lib/upsell";
@@ -117,10 +120,11 @@ export const cartInputSchema = z.array(z.object({
   productId: z.string().min(1).max(40),
   quantity: z.number().int().min(1).max(50),
   optionIds: z.array(z.string().min(1).max(40)).max(20),
+  mix: mixInputSchema.optional(),
 })).max(50);
 
 export type QuotedLine = {
-  productId: string; quantity: number; optionIds: string[];
+  productId: string; quantity: number; optionIds: string[]; mix?: MixInput;
   slug: string; name: string; categorySlug: string; image: string | null; optionNames: string[];
   unitPrice: number; lineTotal: number; problem: string | null;
 };
@@ -142,7 +146,23 @@ export async function quoteCart(input: unknown, locationId: string | null): Prom
   const items = cartInputSchema.parse(input);
   const menu = await listMenu(locationId);
   const byId = new Map(menu.map((p) => [p.id, p]));
-  const lines: QuotedLine[] = items.map((it) => {
+  const mixProduct = items.some((i) => i.mix) ? await ensureMixProduct() : null;
+  const mixLines = new Map<number, QuotedLine>();
+  for (const [idx, it] of items.entries()) {
+    if (!it.mix || !mixProduct) continue;
+    const base = { ...it, productId: mixProduct.id, optionIds: [] as string[], slug: "", name: MIX_PRODUCT_NAME, categorySlug: "mix", image: null };
+    try {
+      const m = await resolveMix(prisma, it.mix);
+      let problem: string | null = null;
+      if (locationId) { try { await assertInStock(prisma, locationId, [{ productId: mixProduct.id, quantity: it.quantity, optionIds: [], mix: it.mix }]); } catch (e) { problem = toMessage(e); } }
+      mixLines.set(idx, { ...base, optionNames: [m.size.name, ...m.chosen.map((c) => c.name)], unitPrice: m.price, lineTotal: m.price * it.quantity, problem });
+    } catch (e) {
+      mixLines.set(idx, { ...base, optionNames: [], unitPrice: 0, lineTotal: 0, problem: toMessage(e) });
+    }
+  }
+  const lines: QuotedLine[] = items.map((it, idx) => {
+    const ml = mixLines.get(idx);
+    if (ml) return ml;
     const p = byId.get(it.productId);
     if (!p) return { ...it, slug: "", name: "Позиция недоступна", categorySlug: "", image: null, optionNames: [], unitPrice: 0, lineTotal: 0, problem: "Эта позиция больше не продаётся — удалите её из корзины" };
     const ids = [...new Set(it.optionIds)];
@@ -164,9 +184,12 @@ export async function quoteCart(input: unknown, locationId: string | null): Prom
   const good = lines.filter((l) => !l.problem);
   const subtotal = good.reduce((a, l) => a + l.lineTotal, 0);
   const promo = good.length
-    ? await promotionsForCart(prisma, good.map((l) => ({ productId: l.productId, categoryId: byId.get(l.productId)!.category.id, quantity: l.quantity, unitPrice: l.unitPrice, happy: byId.get(l.productId)!.happyPct > 0 })), { channel: "SITE" })
+    ? await promotionsForCart(prisma, good.map((l) => (l.mix && mixProduct
+      ? { productId: l.productId, categoryId: mixProduct.categoryId, quantity: l.quantity, unitPrice: l.unitPrice, happy: false }
+      : { productId: l.productId, categoryId: byId.get(l.productId)!.category.id, quantity: l.quantity, unitPrice: l.unitPrice, happy: byId.get(l.productId)!.happyPct > 0 })), { channel: "SITE" })
     : { discount: 0, applied: [], hints: [] };
-  const cart = good.map((l) => ({ productId: l.productId, quantity: l.quantity }));
+  // совет и «с этим берут» строим только по обычным позициям: у микса нет пар и места в меню
+  const cart = good.filter((l) => !l.mix).map((l) => ({ productId: l.productId, quantity: l.quantity }));
   const [pairs, pop] = await Promise.all([pairStats(cart.map((c) => c.productId)).catch(() => new Map()), popularIds().catch(() => null)]);
   const built = buildAdvice({ cart, menu: menu.map(toLite), pairs, popular: pop, hints: promo.hints, subtotal: Math.max(0, subtotal - promo.discount), exclude: items.map((i) => i.productId) });
   // пока в корзине есть позиция с проблемой, совет только отвлекает: сначала нужно её исправить

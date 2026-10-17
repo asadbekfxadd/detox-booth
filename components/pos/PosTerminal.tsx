@@ -7,8 +7,12 @@ import {
   createOrderAction, quoteAction, searchCustomersAction, createCustomerAction, recentOrdersAction, refundOrderAction, logoutAction,
 } from "@/app/pos/actions";
 import type { PosCatalog, CatalogProduct, CustomerLite, RecentOrder, OrderResult } from "@/services/pos";
+import { MixBuilder, type MixPick } from "@/components/mix/MixBuilder";
+import { mixKey } from "@/lib/mix";
 
-type Line = { key: string; product: CatalogProduct; quantity: number; optionIds: string[] };
+/** mix — «Свой микс»: выбор гостя и цена для показа (при оплате сервер пересчитает сам) */
+type Line = { key: string; product: CatalogProduct; quantity: number; optionIds: string[]; mix?: MixPick };
+const linePrice = (l: Line) => (l.mix ? l.mix.price : unitPrice(l.product, l.optionIds));
 type Method = "CASH" | "CARD" | "ONLINE";
 type Applied = { kind: "promo"; code: string } | { kind: "manual"; type: "PERCENT" | "FIXED"; value: number } | null;
 type Receipt = Extract<OrderResult, { ok: true }>;
@@ -33,6 +37,7 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
   const [q, setQ] = useState("");
   const [cart, setCart] = useState<Line[]>([]);
   const [dialog, setDialog] = useState<CatalogProduct | null>(null);
+  const [mixOpen, setMixOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
   // клиент
@@ -67,9 +72,9 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
   const [orders, setOrders] = useState<RecentOrder[]>([]);
   const [ordersErr, setOrdersErr] = useState("");
 
-  const items = useMemo(() => cart.map((l) => ({ productId: l.product.id, quantity: l.quantity, optionIds: l.optionIds })), [cart]);
+  const items = useMemo(() => cart.map((l) => ({ productId: l.product.id, quantity: l.quantity, optionIds: l.optionIds, ...(l.mix ? { mix: l.mix.mix } : {}) })), [cart]);
   const itemsKey = JSON.stringify(items);
-  const subtotal = cart.reduce((a, l) => a + unitPrice(l.product, l.optionIds) * l.quantity, 0);
+  const subtotal = cart.reduce((a, l) => a + linePrice(l) * l.quantity, 0);
   // сервер считает акции, скидку и баллы при любой непустой корзине
   const quoteActive = cart.length > 0;
   const { discount, pointsAmt, maxRedeem, promotions, hints } = quoteActive ? quoted : ZERO_QUOTE;
@@ -121,6 +126,15 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
       ? c.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity } : l))
       : [...c, { key, product: p, quantity, optionIds }]);
     return true;
+  }
+  function addMix(pick: MixPick) {
+    if (!catalog.mix) return;
+    setNotice(""); setError("");
+    const key = mixKey(pick.mix);
+    const product: CatalogProduct = { id: catalog.mix.productId, name: "Свой микс", price: 0, categoryId: "", image: null, isAvailable: true, portions: null, modifiers: [] };
+    setCart((c) => c.some((l) => l.key === key)
+      ? c.map((l) => (l.key === key ? { ...l, quantity: Math.min(50, l.quantity + 1) } : l))
+      : [...c, { key, product, quantity: 1, optionIds: [], mix: pick }]);
   }
   function changeQty(key: string, delta: number) {
     const line = cart.find((l) => l.key === key);
@@ -210,7 +224,16 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
           </div>
           {notice && <p className="mb-2 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900">{notice}</p>}
           <div className="grid flex-1 content-start gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {visible.length === 0 && <p className="col-span-full p-8 text-center text-neutral-500">Ничего не найдено</p>}
+            {catalog.mix && cat === "all" && !q.trim() && (
+              <button onClick={() => setMixOpen(true)} data-pos-mix className="flex min-h-28 flex-col justify-between rounded-2xl border-2 border-dashed border-green-600 bg-lime-50 p-4 text-left shadow-sm transition hover:shadow-md active:scale-[0.98]">
+                <span className="font-semibold leading-snug">Свой микс</span>
+                <span className="mt-2 flex items-end justify-between">
+                  <span className="text-lg font-bold">от {money(Math.min(...catalog.mix.sizes.map((s) => s.price)))}</span>
+                  <span className="text-xs text-neutral-600">любые ингредиенты</span>
+                </span>
+              </button>
+            )}
+            {visible.length === 0 && !(catalog.mix && cat === "all" && !q.trim()) && <p className="col-span-full p-8 text-center text-neutral-500">Ничего не найдено</p>}
             {visible.map((p) => {
               const out = !p.isAvailable || p.portions === 0;
               return (
@@ -238,15 +261,16 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
               <div key={l.key} className="flex gap-2 border-b border-neutral-100 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium leading-tight">{l.product.name}</p>
+                  {l.mix && <p className="text-xs text-neutral-500">{[l.mix.sizeName, ...l.mix.names].join(", ")}</p>}
                   {l.optionIds.length > 0 && <p className="text-xs text-neutral-500">{optionsOf(l.product, l.optionIds).map((o) => o.name).join(", ")}</p>}
-                  <p className="text-xs text-neutral-500">{money(unitPrice(l.product, l.optionIds))} × {l.quantity}</p>
+                  <p className="text-xs text-neutral-500">{money(linePrice(l))} × {l.quantity}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => changeQty(l.key, -1)} className="h-8 w-8 rounded-lg border border-neutral-200 hover:bg-neutral-50" aria-label="Меньше">−</button>
                   <span className="w-6 text-center">{l.quantity}</span>
                   <button onClick={() => changeQty(l.key, 1)} className="h-8 w-8 rounded-lg border border-neutral-200 hover:bg-neutral-50" aria-label="Больше">+</button>
                 </div>
-                <p className="w-24 text-right font-semibold">{money(unitPrice(l.product, l.optionIds) * l.quantity)}</p>
+                <p className="w-24 text-right font-semibold">{money(linePrice(l) * l.quantity)}</p>
               </div>
             ))}
 
@@ -361,6 +385,12 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
         </aside>
       </div>
 
+      {mixOpen && catalog.mix && (
+        <Overlay wide onClose={() => setMixOpen(false)}>
+          <h2 className="mb-4 text-xl font-bold">Свой микс</h2>
+          <MixBuilder catalog={catalog.mix} skin="pos" addLabel="Добавить в заказ" onAdd={(p) => { addMix(p); setMixOpen(false); }} />
+        </Overlay>
+      )}
       {dialog && <ModifierDialog product={dialog} onClose={() => setDialog(null)} onAdd={(ids, qty) => { if (addToCart(dialog, ids, qty)) setDialog(null); }} />}
 
       {receipt && (

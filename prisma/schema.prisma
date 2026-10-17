@@ -438,6 +438,10 @@ model Ingredient {
   maxStock Decimal @db.Decimal(12,3)
   avgCost Decimal @db.Decimal(12,2)
   shelfLifeDays Int?
+  /// «Свой микс»: доплата к цене стакана, если гость выбрал этот ингредиент (UZS)
+  mixSurcharge Decimal @default(0) @db.Decimal(12,2)
+  /// «Свой микс»: сколько граммов весит одна штука (нужно только для ингредиентов в штуках)
+  pieceWeightG Decimal? @db.Decimal(8,2)
   supplierId String?
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   recipeItems RecipeItem[]

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getLoyaltySettings } from "@/lib/loyalty-settings";
 import { referralBonusTx } from "@/lib/services/loyalty";
 import { lockStock } from "@/lib/stock-lock";
+import { mixNeedsFromModifiers } from "@/lib/mix";
 
 type Tx = Prisma.TransactionClient;
 type ChosenOption = { optionId: string };
@@ -33,6 +34,8 @@ export async function deductInventoryTx(tx: Tx, orderId: string, userId?: string
     const mult = opts.reduce((m, o) => m.times(o.recipeMultiplier), D(1));
     for (const ri of item.product.recipe?.items ?? []) add(ri.ingredientId, ri.quantity.times(mult).times(item.quantity));
     for (const o of opts) if (o.extraIngredientId && o.extraQty) add(o.extraIngredientId, o.extraQty.times(item.quantity));
+    // «Свой микс»: ингредиенты и стаканчик записаны в позиции заказа
+    for (const n of mixNeedsFromModifiers(item.modifiers)) add(n.ingredientId, D(n.qty).times(item.quantity));
   }
 
   let cogs = D(0);

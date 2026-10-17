@@ -10,6 +10,7 @@ import { Icon } from "@/components/site/Icon";
 import { getBrand } from "@/services/brand";
 import { listCategories } from "@/services/catalog";
 import { bookingConfig } from "@/services/reservations";
+import { getMixSizes } from "@/services/mix";
 import { getCurrentTable } from "@/lib/site-table";
 import { leaveTableAction } from "./actions";
 import { MandarinLoader } from "@/components/site/mandarin/MandarinLoader";
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 const navLink = "rounded-full px-3.5 py-1.5 text-[15px] font-bold text-forest/80 transition-colors hover:bg-sand hover:text-forest";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [{ locations, current }, table, brand, cats, booking, deals] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories(), bookingConfig(), Promise.all([prisma.promotion.count({ where: { isActive: true, onSite: true } }), prisma.happyHour.count({ where: { isActive: true } })]).then(([a, b]) => a + b > 0)]);
+  const [{ locations, current }, table, brand, cats, booking, mixSizes, deals] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories(), bookingConfig(), getMixSizes(), Promise.all([prisma.promotion.count({ where: { isActive: true, onSite: true } }), prisma.happyHour.count({ where: { isActive: true } })]).then(([a, b]) => a + b > 0)]);
   return (
     <div className="site flex min-h-screen flex-col">
       <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream">
@@ -28,6 +29,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <Link href="/" className="group" aria-label={`${brand.name} — на главную`}><Logo brand={brand} /></Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Основная навигация">
             <Link href="/menu" className={navLink}>Меню</Link>
+            {mixSizes.length > 0 && <Link href="/mix" className={navLink}>Свой микс</Link>}
             {deals && <Link href="/promo" className={navLink}>Акции</Link>}
             {booking.enabled && <Link href="/book" className={navLink}>Бронь стола</Link>}
             <Link href="/locations" className={navLink}>Точки</Link>
@@ -40,6 +42,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3 pb-2 md:hidden" aria-label="Разделы">
           <Link href="/menu" className={`${navLink} whitespace-nowrap`}>Меню</Link>
+          {mixSizes.length > 0 && <Link href="/mix" className={`${navLink} whitespace-nowrap`}>Свой микс</Link>}
           {deals && <Link href="/promo" className={`${navLink} whitespace-nowrap`}>Акции</Link>}
           {booking.enabled && <Link href="/book" className={`${navLink} whitespace-nowrap`}>Бронь стола</Link>}
           <Link href="/locations" className={`${navLink} whitespace-nowrap`}>Точки</Link>
