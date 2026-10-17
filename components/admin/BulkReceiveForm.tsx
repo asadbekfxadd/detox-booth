@@ -14,13 +14,20 @@ const fmt = (n: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigit
 const isBlank = (r: Row) => !r.ingredientId && !r.label.trim() && r.quantity === "" && r.expiresAt === "";
 
 /** Приход списком: вся накладная в одной таблице и одной кнопкой. На сервер уходит базовая единица (г, мл, шт). */
-export function BulkReceiveForm({ action, ingredients, locations, defaultLocationId }: {
+export function BulkReceiveForm({ action, ingredients, locations, defaultLocationId, initialIngredientId }: {
   action: (prev: OpState, fd: FormData) => Promise<OpState>;
   ingredients: Ing[]; locations: { id: string; name: string }[]; defaultLocationId: string;
+  /** «+ Приход» из строки склада: первая строка сразу заполнена этим ингредиентом */
+  initialIngredientId?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [, start] = useTransition();
-  const [rows, setRows] = useState<Row[]>(() => Array.from({ length: START_ROWS }, empty));
+  const [rows, setRows] = useState<Row[]>(() => {
+    const rows = Array.from({ length: START_ROWS }, empty);
+    const i = ingredients.find((x) => x.id === initialIngredientId);
+    if (i) rows[0] = { ...empty(), ingredientId: i.id, label: `${i.name} (${BASE_LABEL[i.unit]})`, unitCost: String(round6(i.avgCost)) };
+    return rows;
+  });
   const [localError, setLocalError] = useState<string | null>(null);
   const [paste, setPaste] = useState("");
   const [pasteInfo, setPasteInfo] = useState<{ added: number; errors: string[] } | null>(null);
@@ -29,6 +36,8 @@ export function BulkReceiveForm({ action, ingredients, locations, defaultLocatio
   const labelOf = (i: Ing) => `${i.name} (${BASE_LABEL[i.unit]})`;
   const byLabel = new Map(ingredients.map((i) => [labelOf(i), i]));
 
+  // пришли из строки склада с готовым ингредиентом: сразу к количеству
+  useEffect(() => { if (initialIngredientId) document.querySelector<HTMLInputElement>('input[aria-label="Количество, строка 1"]')?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (focusNext.current == null) return;
     const el = document.querySelector<HTMLInputElement>(`[data-row="${focusNext.current}"][data-col="ing"]`);
