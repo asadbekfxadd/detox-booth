@@ -6,8 +6,11 @@ import { sum } from "@/lib/format";
 import { COURSES, defaultHold } from "@/lib/waiter";
 import { createWaiterOrderAction } from "@/app/waiter/actions";
 import type { PosCatalog, CatalogProduct } from "@/services/pos";
+import { MixBuilder, type MixPick } from "@/components/mix/MixBuilder";
+import { mixKey } from "@/lib/mix";
 
-type Line = { key: string; product: CatalogProduct; optionIds: string[]; quantity: number };
+type Line = { key: string; product: CatalogProduct; optionIds: string[]; quantity: number; mix?: MixPick };
+const unitOf = (l: Line) => (l.mix ? l.mix.price : lineUnit(l.product, l.optionIds));
 
 const lineUnit = (p: CatalogProduct, optionIds: string[]) =>
   p.price + p.modifiers.flatMap((m) => m.options).filter((o) => optionIds.includes(o.id)).reduce((a, o) => a + o.priceDelta, 0);
@@ -20,6 +23,7 @@ export function WaiterOrderForm({ tableId, tableNumber, catalog }: { tableId: st
   const [q, setQ] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [picking, setPicking] = useState<{ product: CatalogProduct; chosen: Record<string, string[]> } | null>(null);
+  const [mixOpen, setMixOpen] = useState(false);
   const [course, setCourse] = useState(1);
   const [hold, setHold] = useState(false);
   const [note, setNote] = useState("");
@@ -29,12 +33,18 @@ export function WaiterOrderForm({ tableId, tableNumber, catalog }: { tableId: st
     const s = q.trim().toLowerCase();
     return catalog.products.filter((p) => (s ? p.name.toLowerCase().includes(s) : p.categoryId === cat));
   }, [catalog, cat, q]);
-  const total = lines.reduce((a, l) => a + lineUnit(l.product, l.optionIds) * l.quantity, 0);
+  const total = lines.reduce((a, l) => a + unitOf(l) * l.quantity, 0);
   const count = lines.reduce((a, l) => a + l.quantity, 0);
 
   function add(product: CatalogProduct, optionIds: string[]) {
     const key = `${product.id}:${[...optionIds].sort().join(",")}`;
     setLines((ls) => ls.some((l) => l.key === key) ? ls.map((l) => l.key === key ? { ...l, quantity: Math.min(50, l.quantity + 1) } : l) : [...ls, { key, product, optionIds, quantity: 1 }]);
+  }
+  function addMix(pick: MixPick) {
+    if (!catalog.mix) return;
+    const key = mixKey(pick.mix);
+    const product: CatalogProduct = { id: catalog.mix.productId, name: "Свой микс", price: 0, categoryId: "", image: null, isAvailable: true, portions: null, modifiers: [] };
+    setLines((ls) => ls.some((l) => l.key === key) ? ls.map((l) => l.key === key ? { ...l, quantity: Math.min(50, l.quantity + 1) } : l) : [...ls, { key, product, optionIds: [], quantity: 1, mix: pick }]);
   }
   function tap(p: CatalogProduct) {
     if (!p.isAvailable || p.portions === 0) return;
@@ -50,7 +60,7 @@ export function WaiterOrderForm({ tableId, tableNumber, catalog }: { tableId: st
     start(async () => {
       const r = await createWaiterOrderAction({
         tableId, course, hold, note: note.trim() || undefined,
-        items: lines.map((l) => ({ productId: l.product.id, quantity: l.quantity, optionIds: l.optionIds })),
+        items: lines.map((l) => ({ productId: l.product.id, quantity: l.quantity, optionIds: l.optionIds, ...(l.mix ? { mix: l.mix.mix } : {}) })),
       });
       if (!r.ok) { setError(r.error); return; }
       router.push(`/waiter/tables/${tableId}?ok=${encodeURIComponent(`Заказ №${r.number} ${hold ? "сохранён, ждёт отправки" : "отправлен на кухню"}`)}`);
@@ -76,6 +86,14 @@ export function WaiterOrderForm({ tableId, tableNumber, catalog }: { tableId: st
         </div>
       )}
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {catalog.mix && !q && (
+          <li className="sm:col-span-2">
+            <button onClick={() => setMixOpen(true)} data-waiter-mix className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border-2 border-dashed border-green-600 bg-lime-50 px-4 py-2 text-left active:scale-[.98]">
+              <span className="font-semibold">Свой микс<span className="block text-xs font-normal text-neutral-600">Гость выбирает ингредиенты сам</span></span>
+              <span className="whitespace-nowrap text-sm text-neutral-700">от {sum(Math.min(...catalog.mix.sizes.map((s) => s.price)))}</span>
+            </button>
+          </li>
+        )}
         {shown.map((p) => {
           const off = !p.isAvailable || p.portions === 0;
           return (
@@ -96,7 +114,7 @@ export function WaiterOrderForm({ tableId, tableNumber, catalog }: { tableId: st
             <ul className="max-h-32 space-y-1 overflow-y-auto text-sm">
               {lines.map((l) => (
                 <li key={l.key} className="flex items-center gap-2">
-                  <span className="flex-1 truncate">{l.product.name}{l.optionIds.length > 0 && <span className="text-neutral-500"> ({optionNames(l.product, l.optionIds).join(", ")})</span>}</span>
+                  <span className="flex-1 truncate">{l.product.name}{l.mix && <span className="text-neutral-500"> ({[l.mix.sizeName, ...l.mix.names].join(", ")})</span>}{l.optionIds.length > 0 && <span className="text-neutral-500"> ({optionNames(l.product, l.optionIds).join(", ")})</span>}</span>
                   <button aria-label="Меньше" onClick={() => change(l.key, -1)} className="size-9 rounded-lg border border-neutral-300 font-bold">−</button>
                   <span className="w-6 text-center font-bold">{l.quantity}</span>
                   <button aria-label="Больше" onClick={() => change(l.key, 1)} className="size-9 rounded-lg border border-neutral-300 font-bold">+</button>
@@ -119,6 +137,18 @@ export function WaiterOrderForm({ tableId, tableNumber, catalog }: { tableId: st
           </button>
         </div>
       </section>
+
+      {mixOpen && catalog.mix && (
+        <div className="fixed inset-0 z-30 flex items-end bg-black/40 sm:items-center sm:justify-center" role="dialog" aria-modal="true" aria-label="Свой микс">
+          <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 sm:max-w-lg sm:rounded-3xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Свой микс</h2>
+              <button onClick={() => setMixOpen(false)} className="min-h-11 rounded-lg border border-neutral-300 px-4 text-sm font-semibold">Закрыть</button>
+            </div>
+            <MixBuilder catalog={catalog.mix} skin="pos" addLabel="Добавить" onAdd={(p) => { addMix(p); setMixOpen(false); }} />
+          </div>
+        </div>
+      )}
 
       {picked && (
         <div className="fixed inset-0 z-30 flex items-end bg-black/40 sm:items-center sm:justify-center" role="dialog" aria-modal="true" aria-label={picked.product.name}>

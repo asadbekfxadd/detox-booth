@@ -78,7 +78,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         {o.pointsEarned > 0 && <p className="text-sm font-semibold text-forest">Начислено баллов: {o.pointsEarned}</p>}
       </div>
       <div className="flex flex-wrap gap-3">
-        <RepeatOrder lines={o.items.map((i) => ({ productId: i.productId, quantity: i.quantity, optionIds: i.optionIds }))} />
+        <RepeatOrder lines={o.items.map((i) => ({ productId: i.productId, quantity: i.quantity, optionIds: i.optionIds, mix: i.mix }))} />
         <Link href="/menu" className="btn btn-ghost pop">Заказать ещё</Link>
       </div>
     </div>

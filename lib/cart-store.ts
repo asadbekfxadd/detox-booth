@@ -2,8 +2,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type CartLine = { productId: string; quantity: number; optionIds: string[] };
-export const lineKey = (l: Pick<CartLine, "productId" | "optionIds">) => `${l.productId}|${[...l.optionIds].sort().join(",")}`;
+import { mixKey, type MixInput } from "@/lib/mix";
+
+/** mix — «Свой микс»: размер и ингредиенты. Цену и состав считает сервер. */
+export type CartLine = { productId: string; quantity: number; optionIds: string[]; mix?: MixInput };
+export const lineKey = (l: Pick<CartLine, "productId" | "optionIds" | "mix">) => (l.mix ? mixKey(l.mix) : `${l.productId}|${[...l.optionIds].sort().join(",")}`);
 
 type State = {
   lines: CartLine[];

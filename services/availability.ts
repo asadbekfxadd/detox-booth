@@ -1,9 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { ApiError } from "@/lib/api";
+import { resolveMix } from "@/services/mix";
+import type { MixInput } from "@/lib/mix";
 
 type Db = Prisma.TransactionClient;
 const D = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n);
-export type CartItem = { productId: string; quantity: number; optionIds: string[] };
+/**
+ * mix — «Свой микс» из корзины (состав считаем по базе); mixNeeds — уже сохранённый микс в заказе (состав записан в позиции).
+ */
+export type CartItem = { productId: string; quantity: number; optionIds: string[]; mix?: MixInput; mixNeeds?: { ingredientId: string; qty: number }[] };
 
 /** Остаток, который реально можно продать: только непросроченные партии точки. */
 export async function usableStock(db: Db, locationId: string) {
@@ -28,6 +33,13 @@ export async function computeNeeds(db: Db, items: CartItem[]) {
   const need = new Map<string, Prisma.Decimal>();
   const add = (id: string, q: Prisma.Decimal) => need.set(id, (need.get(id) ?? D(0)).plus(q));
   for (const it of items) {
+    if (it.mix) {
+      const m = await resolveMix(db, it.mix);
+      for (const pt of m.portions) add(pt.ingredientId, D(pt.qty).times(it.quantity));
+      if (m.size.cupIngredientId) add(m.size.cupIngredientId, D(it.quantity));
+      continue;
+    }
+    for (const n of it.mixNeeds ?? []) add(n.ingredientId, D(n.qty).times(it.quantity));
     const chosen = [...new Set(it.optionIds)].map((id) => om.get(id)).filter((o): o is NonNullable<typeof o> => !!o);
     const mult = chosen.reduce((m, o) => m.times(o.recipeMultiplier), D(1));
     for (const ri of pm.get(it.productId)?.recipe?.items ?? []) add(ri.ingredientId, ri.quantity.times(mult).times(it.quantity));
