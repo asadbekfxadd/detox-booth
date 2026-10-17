@@ -7,6 +7,8 @@ import { getScope } from "@/lib/location";
 import { NAV } from "@/components/admin/nav";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { LocationSwitcher } from "@/components/admin/LocationSwitcher";
+import { WarehouseTabs } from "@/components/admin/WarehouseTabs";
+import { WAREHOUSE_TABS } from "@/components/admin/warehouse-tabs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const b = await getBrand();
@@ -16,6 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const [{ user, locations, locationId, canSwitch }, brand] = await Promise.all([getScope(), getBrand()]);
   const items = NAV.filter((i) => can(user.role, i.perm));
+  const tabs = WAREHOUSE_TABS.filter((t) => can(user.role, t.perm)).map(({ label, href, match }) => ({ label, href, match }));
   const unread = await prisma.notification.count({
     where: { isRead: false, ...(locationId ? { OR: [{ locationId }, { locationId: null }] } : {}) },
   });
@@ -35,7 +38,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </form>
           </div>
         </header>
-        <main className="p-6 print:p-0">{children}</main>
+        <main className="p-6 print:p-0"><WarehouseTabs tabs={tabs} />{children}</main>
       </div>
     </div>
   );

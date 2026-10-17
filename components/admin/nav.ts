@@ -1,6 +1,7 @@
 import type { Permission } from "@/lib/rbac";
 
-export type NavItem = { label: string; href: string; perm: Permission; group: string };
+/** match — другие адреса раздела: пункт меню остаётся подсвеченным, пока человек внутри них */
+export type NavItem = { label: string; href: string; perm: Permission; group: string; match?: string[] };
 
 export const NAV: NavItem[] = [
   { group: "Главное", label: "Обзор", href: "/admin/dashboard", perm: "dashboard.view" },
@@ -14,11 +15,7 @@ export const NAV: NavItem[] = [
   { group: "Меню", label: "Категории", href: "/admin/categories", perm: "products.edit" },
   { group: "Меню", label: "Рецепты", href: "/admin/recipes", perm: "recipes.edit" },
   { group: "Меню", label: "Калькуляция", href: "/admin/costing", perm: "finance.view" },
-  { group: "Склад", label: "Склад", href: "/admin/inventory", perm: "inventory.view" },
-  { group: "Склад", label: "Ингредиенты", href: "/admin/ingredients", perm: "inventory.edit" },
-  { group: "Склад", label: "Закупки", href: "/admin/purchases", perm: "purchases.manage" },
-  { group: "Склад", label: "Поставщики", href: "/admin/suppliers", perm: "purchases.manage" },
-  { group: "Склад", label: "Списания", href: "/admin/writeoffs", perm: "writeoffs.create" },
+  { group: "Склад", label: "Склад", href: "/admin/inventory", perm: "inventory.view", match: ["/admin/ingredients", "/admin/purchases", "/admin/suppliers", "/admin/writeoffs"] },
   { group: "Клиенты", label: "Клиенты", href: "/admin/customers", perm: "customers.view" },
   { group: "Клиенты", label: "Лояльность", href: "/admin/loyalty", perm: "customers.view" },
   { group: "Клиенты", label: "Счастливые часы", href: "/admin/happy-hour", perm: "settings.edit" },

@@ -268,7 +268,8 @@ export async function getStockOverview(locationId: string | null) {
       id: i.id, sku: i.sku, name: i.name, category: i.category, unit: i.unit, min, max: Number(i.maxStock), cost: Number(i.avgCost),
       supplier: i.supplier?.name ?? null,
       total: mine.reduce((a, s) => a + Number(s.quantity), 0),
-      low: mine.some((s) => Number(s.quantity) < min),
+      // нет ни одной записи об остатке — это ноль на складе, а не «всё в порядке»
+      low: min > 0 && (mine.length === 0 || mine.some((s) => Number(s.quantity) < min)),
       perLocation: locationId ? null : mine.map((s) => ({ name: lname.get(s.locationId) ?? "?", qty: Number(s.quantity), low: Number(s.quantity) < min })),
       nearestExpiry: exp.length ? new Date(Math.min(...exp)) : null,
     };
