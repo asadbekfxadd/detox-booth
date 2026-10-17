@@ -83,3 +83,18 @@ export function drinksBasis(planned: number, sold30: number): { value: number; s
   if (sold30 > 0) return { value: sold30, source: "fact" };
   return { value: 0, source: "none" };
 }
+
+export const EXPENSE_MONTHS = 3;
+
+/**
+ * Расходы за последние EXPENSE_MONTHS месяцев (сумма по категориям) → среднее в месяц.
+ * Зарплатные расходы (SALARY) отделены от остальных: зарплата в калькуляции берётся из окладов сотрудников,
+ * а расход «Зарплата» из «Финансов» используется, только если окладов нет (иначе она бы посчиталась дважды).
+ */
+export function monthlyExpenses(totals: Record<string, number>, months = EXPENSE_MONTHS) {
+  const perMonth: Record<string, number> = {};
+  for (const [k, v] of Object.entries(totals)) perMonth[k] = Math.max(0, v) / months;
+  const salary = perMonth.SALARY ?? 0;
+  const other = Object.entries(perMonth).filter(([k]) => k !== "SALARY").reduce((a, [, v]) => a + v, 0);
+  return { perMonth, salary, other };
+}

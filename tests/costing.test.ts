@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { costProduct, drinksBasis, equipmentPerDrink, isPackaging, monthlyShares, type CostConfig, type CostProduct, type CostEquipment } from "@/lib/costing";
+import { costProduct, drinksBasis, monthlyExpenses, equipmentPerDrink, isPackaging, monthlyShares, type CostConfig, type CostProduct, type CostEquipment } from "@/lib/costing";
 
 const cfg: CostConfig = { packagingPerDrink: 0, lossPct: 0, payrollTaxPct: 0, salaryMonthly: 0, overheadMonthly: 0, drinksPerMonth: 0 };
 const orange: CostProduct = {
@@ -77,5 +77,13 @@ describe("costing", () => {
     expect(drinksBasis(3000, 500)).toEqual({ value: 3000, source: "plan" });
     expect(drinksBasis(0, 500)).toEqual({ value: 500, source: "fact" });
     expect(drinksBasis(0, 0)).toEqual({ value: 0, source: "none" });
+  });
+
+  it("расходы: среднее в месяц, зарплата отдельно от остальных", () => {
+    const e = monthlyExpenses({ RENT: 9_000_000, UTILITIES: 3_000_000, SALARY: 30_000_000, MARKETING: 600_000 });
+    expect(e.perMonth.RENT).toBe(3_000_000);
+    expect(e.salary).toBe(10_000_000);
+    expect(e.other).toBe(3_000_000 + 1_000_000 + 200_000);
+    expect(monthlyExpenses({}).other).toBe(0);
   });
 });
