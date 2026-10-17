@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findIngredient, isChoppable, knownIngredients } from "@/lib/ingredients";
+import { drinkColor, findIngredient, isChoppable, knownIngredients } from "@/lib/ingredients";
 import { buildVideoPrompt } from "@/lib/video-prompt";
 
 describe("ingredients", () => {
@@ -52,5 +52,26 @@ describe("что рубят ножом", () => {
     expect(isChoppable("🌿")).toBe(true);
     expect(isChoppable("🧊")).toBe(false);
     expect(isChoppable("🥛")).toBe(false);
+  });
+});
+
+describe("цвет напитка", () => {
+  it("один ингредиент даёт его цвет", () => {
+    expect(drinkColor(knownIngredients(["Апельсин"]))).toBe("#ff9a1a");
+  });
+  it("клубника с бананом ближе к клубничному, но не совпадает с ним", () => {
+    const c = drinkColor(knownIngredients(["Клубника-банан"]))!;
+    const d = (x: string, y: string) => [1, 3, 5].reduce((sum, k) => sum + Math.abs(parseInt(x.slice(k, k + 2), 16) - parseInt(y.slice(k, k + 2), 16)), 0);
+    expect(c).not.toBe("#ff5a6e");
+    expect(d(c, "#ff5a6e")).toBeLessThan(d(c, "#f6dc8c"));
+  });
+  it("молоко почти не меняет цвет ягод", () => {
+    const berries = drinkColor(knownIngredients(["Клубника"]))!, withMilk = drinkColor(knownIngredients(["Клубника", "Молоко"]))!;
+    expect(parseInt(withMilk.slice(1, 3), 16)).toBeGreaterThan(220);
+    expect(withMilk).not.toBe(berries);
+  });
+  it("лёд цвета не имеет, одни неизвестные дают null", () => {
+    expect(drinkColor(knownIngredients(["Лёд"]))).toBeNull();
+    expect(drinkColor([])).toBeNull();
   });
 });
