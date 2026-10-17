@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { getSettingValues } from "@/services/settings";
-import { costProduct, drinksBasis, equipmentPerDrink, monthlyShares, type CostEquipment } from "@/lib/costing";
+import { costProduct, drinksBasis, equipmentPerDrink, monthlyExpenses, monthlyShares, type CostEquipment } from "@/lib/costing";
 
 const DAY = 86400000;
 
@@ -18,7 +18,7 @@ export const equipmentSchema = z.object({
 /** Всё для страницы «Калькуляция». Не ограничивается точкой: себестоимость считается по компании. */
 export async function getCosting() {
   const now = Date.now();
-  const [products, equipment, staff, settings, sold, overheadAgg] = await Promise.all([
+  const [products, equipment, staff, settings, sold, expenseAgg] = await Promise.all([
     prisma.product.findMany({
       where: { isArchived: false },
       include: { category: true, recipe: { include: { items: { include: { ingredient: true } } } } },
@@ -28,17 +28,21 @@ export async function getCosting() {
     prisma.user.findMany({ where: { isActive: true, monthlySalary: { not: null } }, select: { monthlySalary: true } }),
     getSettingValues(),
     prisma.orderItem.aggregate({ where: { order: { status: "COMPLETED", createdAt: { gte: new Date(now - 30 * DAY) } } }, _sum: { quantity: true } }),
-    prisma.expense.aggregate({ where: { category: { in: ["RENT", "UTILITIES"] }, date: { gte: new Date(now - 90 * DAY) } }, _sum: { amount: true } }),
+    prisma.expense.groupBy({ by: ["category"], where: { date: { gte: new Date(now - 90 * DAY) } }, _sum: { amount: true } }),
   ]);
 
-  const salaryMonthly = staff.reduce((a, u) => a + Number(u.monthlySalary), 0);
+  const fund = staff.reduce((a, u) => a + Number(u.monthlySalary), 0);
   const sold30 = sold._sum.quantity ?? 0;
   const basis = drinksBasis(settings["costing.plannedDrinks"], sold30);
-  const overheadAuto = Number(overheadAgg._sum.amount ?? 0) / 3;
+  const exp = monthlyExpenses(Object.fromEntries(expenseAgg.map((e) => [e.category, Number(e._sum.amount ?? 0)])));
+  // Окладов нет — берём расход «Зарплата» из «Финансов» как есть (взносы в нём уже учтены).
+  const salaryFromExpenses = staff.length === 0 && exp.salary > 0;
+  const salaryMonthly = salaryFromExpenses ? exp.salary : fund;
+  const payrollTaxPct = salaryFromExpenses ? 0 : settings["costing.payrollTaxPct"];
   const overheadManual = settings["costing.overheadMonthly"] > 0;
   const cfg = {
-    packagingPerDrink: settings["costing.packagingPerDrink"], lossPct: settings["costing.lossPct"], payrollTaxPct: settings["costing.payrollTaxPct"],
-    salaryMonthly, overheadMonthly: overheadManual ? settings["costing.overheadMonthly"] : overheadAuto, drinksPerMonth: basis.value,
+    packagingPerDrink: settings["costing.packagingPerDrink"], lossPct: settings["costing.lossPct"], payrollTaxPct,
+    salaryMonthly, overheadMonthly: overheadManual ? settings["costing.overheadMonthly"] : exp.other, drinksPerMonth: basis.value,
   };
   const activeEq: CostEquipment[] = equipment.filter((e) => e.isActive).map((e) => ({ id: e.id, name: e.name, price: Number(e.price), lifeDrinks: e.lifeDrinks, categoryId: e.categoryId }));
 
@@ -51,7 +55,8 @@ export async function getCosting() {
   });
   const shares = monthlyShares(cfg);
   return {
-    rows, basis, sold30, shares, salaryMonthly, salaryCount: staff.length, payrollTaxPct: cfg.payrollTaxPct,
+    rows, basis, sold30, shares, salaryMonthly, salaryCount: staff.length, payrollTaxPct, salaryFromExpenses,
+    expenses: exp.perMonth,
     overheadMonthly: cfg.overheadMonthly, overheadManual,
     equipment: equipment.map((e) => ({ id: e.id, name: e.name, price: Number(e.price), lifeDrinks: e.lifeDrinks, isActive: e.isActive, category: e.category?.name ?? null, perDrink: equipmentPerDrink({ price: Number(e.price), lifeDrinks: e.lifeDrinks }) })),
   };

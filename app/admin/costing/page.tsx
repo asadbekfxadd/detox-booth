@@ -2,6 +2,7 @@ import Link from "next/link";
 import { pageGuard } from "@/lib/guard";
 import { can } from "@/lib/rbac";
 import { getCosting } from "@/services/costing";
+import { EXPENSE_LABEL } from "@/services/finance";
 import { money, num, pct } from "@/lib/format";
 
 const OK: Record<string, string> = { created: "Оборудование добавлено", updated: "Изменения сохранены", on: "Оборудование включено в калькуляцию", off: "Оборудование выключено из калькуляции", deleted: "Оборудование удалено" };
@@ -27,6 +28,9 @@ export default async function CostingPage({ searchParams }: { searchParams: Prom
   const edit = can(user.role, "finance.edit");
   const settings = can(user.role, "settings.edit");
   const noRecipe = c.rows.filter((r) => !r.hasRecipe).length;
+  const laborTotal = c.salaryMonthly * (1 + c.payrollTaxPct / 100);
+  const expenseTotal = laborTotal + c.overheadMonthly;
+  const perDrink = (v: number) => (c.basis.value > 0 ? money(v / c.basis.value) : "—");
   const costed = c.rows.filter((r) => r.hasRecipe);
   const avgMargin = costed.length ? costed.reduce((a, r) => a + (r.marginPct ?? 0), 0) / costed.length : null;
   const settingsLink = settings ? <Link href="/admin/settings" className="underline">Настройки → Калькуляция</Link> : "Настройки → Калькуляция";
@@ -44,17 +48,38 @@ export default async function CostingPage({ searchParams }: { searchParams: Prom
 
       <div className="space-y-2">
         {c.basis.source === "none" && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900">Продаж за 30 дней ещё нет, поэтому зарплата и аренда не разложены по напиткам. Укажите плановое число напитков в месяц: {settingsLink}.</p>}
-        {c.salaryCount === 0 && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900">Окладов нет, зарплата в себестоимость не входит. Оклад указывается в карточке сотрудника (Бизнес → Сотрудники).</p>}
+        {c.salaryCount === 0 && !c.salaryFromExpenses && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900">Окладов нет, зарплата в себестоимость не входит. Оклад указывается в карточке сотрудника (Бизнес → Сотрудники).</p>}
         {c.equipment.filter((e) => e.isActive).length === 0 && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900">Оборудования нет, амортизация не учтена. Добавьте выжималки и блендеры ниже.</p>}
         {noRecipe > 0 && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900">У {noRecipe} из {c.rows.length} позиций нет рецепта, их прибыль не посчитана. Заполните рецепты в разделе «Рецепты».</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi l="Напитков в месяц в расчёте" v={num(c.basis.value)} sub={c.basis.source === "plan" ? "плановое число" : c.basis.source === "fact" ? `факт за 30 дней` : "нет данных"} />
-        <Kpi l="Зарплата на напиток" v={money(c.shares.labor)} sub={`фонд ${money(c.salaryMonthly * (1 + c.payrollTaxPct / 100))} · ${c.salaryCount} сотр.`} />
-        <Kpi l="Аренда и коммунальные на напиток" v={money(c.shares.overhead)} sub={`${money(c.overheadMonthly)} в месяц${c.overheadManual ? "" : ", из расходов"}`} />
+        <Kpi l="Зарплата на напиток" v={money(c.shares.labor)} sub={c.salaryFromExpenses ? `${money(c.salaryMonthly)} в месяц, из расходов` : `фонд ${money(c.salaryMonthly * (1 + c.payrollTaxPct / 100))} · ${c.salaryCount} сотр.`} />
+        <Kpi l="Аренда и прочие расходы на напиток" v={money(c.shares.overhead)} sub={`${money(c.overheadMonthly)} в месяц${c.overheadManual ? "" : ", из расходов"}`} />
         <Kpi l="Средняя маржа" v={avgMargin == null ? "—" : pct(avgMargin)} sub={`по ${costed.length} позициям с рецептом`} />
       </div>
+
+      <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <h2 className="font-semibold">Расходы в месяц</h2>
+        <p className="mb-3 text-xs text-neutral-500">Всё, что бизнес тратит в месяц помимо ингредиентов. Эти суммы делятся на число напитков в месяц и попадают в себестоимость.</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-neutral-500"><th className="py-2">Статья</th><th className="text-right">В месяц</th><th className="text-right">На напиток</th><th className="pl-4">Откуда</th></tr></thead>
+            <tbody>
+              <tr className="border-t border-neutral-100"><td className="py-2 font-medium">Зарплата{c.payrollTaxPct > 0 && !c.salaryFromExpenses ? ` (+${c.payrollTaxPct}% взносов)` : ""}</td><td className="text-right">{money(laborTotal)}</td><td className="text-right">{perDrink(laborTotal)}</td>
+                <td className="pl-4 text-xs text-neutral-500">{c.salaryFromExpenses ? "расход «Зарплата» из «Финансов»" : c.salaryCount ? `оклады, ${c.salaryCount} сотр.` : "не заполнено"}</td></tr>
+              {c.overheadManual
+                ? <tr className="border-t border-neutral-100"><td className="py-2 font-medium">Аренда и прочие расходы</td><td className="text-right">{money(c.overheadMonthly)}</td><td className="text-right">{perDrink(c.overheadMonthly)}</td><td className="pl-4 text-xs text-neutral-500">сумма из Настроек</td></tr>
+                : Object.entries(c.expenses).filter(([k]) => k !== "SALARY").sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                  <tr key={k} className="border-t border-neutral-100"><td className="py-2 font-medium">{EXPENSE_LABEL[k] ?? k}</td><td className="text-right">{money(v)}</td><td className="text-right">{perDrink(v)}</td><td className="pl-4 text-xs text-neutral-500">расходы в «Финансах», среднее за 90 дней</td></tr>
+                ))}
+              {!c.overheadManual && c.overheadMonthly === 0 && <tr className="border-t border-neutral-100"><td colSpan={4} className="py-3 text-neutral-500">Аренды и других расходов пока нет. Внесите их в «Финансы → Расходы» или укажите сумму в {settings ? <Link href="/admin/settings" className="underline">Настройках</Link> : "Настройках"}.</td></tr>}
+              <tr className="border-t border-neutral-200 font-bold"><td className="py-2">Итого</td><td className="text-right">{money(expenseTotal)}</td><td className="text-right">{perDrink(expenseTotal)}</td><td /></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -97,7 +122,7 @@ export default async function CostingPage({ searchParams }: { searchParams: Prom
         </div>
         <p className="mt-3 text-xs text-neutral-500">
           Ингредиенты считаются по средней закупочной цене. Упаковка — ингредиенты категории «Packaging» или «Упаковка» из рецепта плюс сумма на напиток из настроек.
-          Зарплата и накладные делятся на число напитков в месяц. Маржа ниже 30% выделена жёлтым, отрицательная — красным.
+          Зарплата и расходы месяца делятся на число напитков в месяц. Маржа ниже 30% выделена жёлтым, отрицательная — красным.
         </p>
       </section>
 
