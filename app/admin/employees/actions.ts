@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
-import { createEmployee, updateEmployee, setEmployeeActive, resetPassword } from "@/services/employees";
+import { createEmployee, updateEmployee, setEmployeeActive, resetPassword, setSalary } from "@/services/employees";
 import type { OpState } from "@/components/admin/ops";
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? "");
@@ -34,4 +34,12 @@ export async function resetPasswordAction(_p: OpState, fd: FormData): Promise<Op
   try { const u = await requireUser("employees.manage"); await resetPassword(u, s(fd, "id"), s(fd, "password")); }
   catch (e) { return { error: toMessage(e) }; }
   redirect("/admin/employees?ok=password");
+}
+
+export async function setSalaryAction(_p: OpState, fd: FormData): Promise<OpState> {
+  try { const u = await requireUser("employees.manage"); await setSalary(u, s(fd, "id"), s(fd, "monthlySalary")); }
+  catch (e) { return { error: toMessage(e) }; }
+  revalidatePath("/admin/employees");
+  revalidatePath("/admin/costing");
+  redirect("/admin/employees?ok=salary");
 }

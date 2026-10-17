@@ -167,6 +167,8 @@ model User {
   locationId String?
   location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   isActive Boolean @default(true)
+  /// Оклад в месяц, UZS. Входит в фонд оплаты труда для калькуляции. Пусто — сотрудник не учитывается в себестоимости
+  monthlySalary Decimal? @db.Decimal(14,2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   shifts Shift[]
@@ -356,7 +358,23 @@ model Category {
   station Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
   products Product[]
   happyHours HappyHour[]
+  equipment Equipment[]
   @@index([stationId])
+}
+
+/// Оборудование для калькуляции: выжималки, блендеры, холодильники. Амортизация = цена ÷ ресурс в напитках.
+model Equipment {
+  id String @id @default(cuid())
+  name String
+  price Decimal @db.Decimal(14,2)
+  /// Сколько напитков оборудование отработает за срок службы
+  lifeDrinks Int
+  /// Пусто — работает на все напитки, иначе только на напитки этой категории
+  categoryId String?
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  @@index([categoryId])
 }
 
 model Product {
