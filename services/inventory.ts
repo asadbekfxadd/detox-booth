@@ -75,25 +75,64 @@ export const stockInSchema = z.object({
   expiresAt: optDate,
 });
 
+/** Одна строка прихода внутри транзакции: партия, журнал, остаток, пересчёт средней цены. Склад точки уже заблокирован. */
+async function receiveLine(tx: Tx, locationId: string, d: { ingredientId: string; quantity: number; unitCost: number; expiresAt: Date | null }, userId: string) {
+  const ing = await mustIngredient(tx, d.ingredientId);
+  const total = await tx.stockItem.aggregate({ where: { ingredientId: ing.id }, _sum: { quantity: true } });
+  const have = Prisma.Decimal.max(D(0), total._sum.quantity ?? D(0));
+  const q = D(d.quantity), c = D(d.unitCost);
+  const avg = have.plus(q).gt(0) ? have.times(ing.avgCost).plus(q.times(c)).div(have.plus(q)) : c;
+  await tx.ingredient.update({ where: { id: ing.id }, data: { avgCost: avg.toDecimalPlaces(2) } });
+  const expiresAt = d.expiresAt ?? (ing.shelfLifeDays ? new Date(Date.now() + ing.shelfLifeDays * DAY) : null);
+  const batch = await tx.batch.create({ data: { locationId, ingredientId: ing.id, code: `${ing.sku}-${stamp()}`, quantity: q, unitCost: c, expiresAt } });
+  await tx.inventoryTransaction.create({ data: { locationId, ingredientId: ing.id, type: "PURCHASE", quantity: q, unitCost: c, batchId: batch.id, refType: "StockIn", refId: batch.id, userId } });
+  await changeStock(tx, locationId, ing.id, q);
+  return batch.id;
+}
+
 export async function stockIn(input: unknown, user: Actor) {
   const d = stockInSchema.parse(input);
   const locationId = resolveLocation(user, d.locationId);
   const batchId = await prisma.$transaction(async (tx) => {
     await lockStock(tx, locationId);
-    const ing = await mustIngredient(tx, d.ingredientId);
     await mustLocation(tx, locationId);
-    const total = await tx.stockItem.aggregate({ where: { ingredientId: ing.id }, _sum: { quantity: true } });
-    const have = Prisma.Decimal.max(D(0), total._sum.quantity ?? D(0));
-    const q = D(d.quantity), c = D(d.unitCost);
-    const avg = have.plus(q).gt(0) ? have.times(ing.avgCost).plus(q.times(c)).div(have.plus(q)) : c;
-    await tx.ingredient.update({ where: { id: ing.id }, data: { avgCost: avg.toDecimalPlaces(2) } });
-    const expiresAt = d.expiresAt ?? (ing.shelfLifeDays ? new Date(Date.now() + ing.shelfLifeDays * DAY) : null);
-    const batch = await tx.batch.create({ data: { locationId, ingredientId: ing.id, code: `${ing.sku}-${stamp()}`, quantity: q, unitCost: c, expiresAt } });
-    await tx.inventoryTransaction.create({ data: { locationId, ingredientId: ing.id, type: "PURCHASE", quantity: q, unitCost: c, batchId: batch.id, refType: "StockIn", refId: batch.id, userId: user.id } });
-    await changeStock(tx, locationId, ing.id, q);
-    return batch.id;
+    return receiveLine(tx, locationId, d, user.id);
   });
   await audit({ userId: user.id, action: "STOCK_IN", entity: "Batch", entityId: batchId, newValue: { locationId, ingredientId: d.ingredientId, quantity: d.quantity, unitCost: d.unitCost } });
+}
+
+export const MAX_RECEIVE_LINES = 100;
+const lineSchema = stockInSchema.omit({ locationId: true });
+
+/**
+ * Приход списком: много позиций одной накладной за один раз. Всё или ничего: если одна строка с ошибкой,
+ * на склад не попадёт ни одна (иначе непонятно, что уже оприходовано, и повторная отправка задвоит остатки).
+ * Одинаковый ингредиент в двух строках допустим: это две партии (разные цена и срок годности).
+ */
+export async function stockInMany(input: unknown, user: Actor) {
+  const raw = z.object({ locationId: z.string().optional(), items: z.array(z.unknown()) }).safeParse(input);
+  if (!raw.success) throw new ApiError(400, "Некорректные данные прихода");
+  const items = raw.data.items;
+  if (items.length === 0) throw new ApiError(400, "Добавьте хотя бы одну позицию");
+  if (items.length > MAX_RECEIVE_LINES) throw new ApiError(400, `За один раз можно оформить не больше ${MAX_RECEIVE_LINES} позиций`);
+  const lines = items.map((it, i) => {
+    const r = lineSchema.safeParse(it);
+    if (!r.success) throw new ApiError(400, `Строка ${i + 1}: ${r.error.issues[0]?.message ?? "некорректные данные"}`);
+    return r.data;
+  });
+  const locationId = resolveLocation(user, raw.data.locationId);
+  const batchIds = await prisma.$transaction(async (tx) => {
+    await lockStock(tx, locationId);
+    await mustLocation(tx, locationId);
+    const ids: string[] = [];
+    for (const [i, l] of lines.entries()) {
+      try { ids.push(await receiveLine(tx, locationId, l, user.id)); }
+      catch (e) { throw e instanceof ApiError ? new ApiError(e.status, `Строка ${i + 1}: ${e.message}`) : e; }
+    }
+    return ids;
+  }, { timeout: 30_000, maxWait: 10_000 });
+  await audit({ userId: user.id, action: "STOCK_IN_BULK", entity: "Batch", entityId: batchIds[0], newValue: { locationId, count: lines.length, batchIds, items: lines.map((l) => ({ ingredientId: l.ingredientId, quantity: l.quantity, unitCost: l.unitCost })) } });
+  return lines.length;
 }
 
 // ---------- Списание ----------

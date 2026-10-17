@@ -3,18 +3,21 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
-import { stockIn, transfer, countInventory } from "@/services/inventory";
+import { stockInMany, transfer, countInventory } from "@/services/inventory";
 import type { OpState } from "@/components/admin/ops";
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? "");
 
-export async function stockInAction(_p: OpState, fd: FormData): Promise<OpState> {
+export async function stockInManyAction(_p: OpState, fd: FormData): Promise<OpState> {
+  let n = 0;
   try {
     const u = await requireUser("inventory.edit");
-    await stockIn({ locationId: s(fd, "locationId"), ingredientId: s(fd, "ingredientId"), quantity: s(fd, "quantity"), unitCost: s(fd, "unitCost"), expiresAt: s(fd, "expiresAt") }, u);
+    let items: unknown;
+    try { items = JSON.parse(s(fd, "items")); } catch { return { error: "Некорректные данные прихода" }; }
+    n = await stockInMany({ locationId: s(fd, "locationId"), items }, u);
   } catch (e) { return { error: toMessage(e) }; }
   revalidatePath("/admin/inventory");
-  redirect("/admin/inventory?ok=stockin");
+  redirect(`/admin/inventory?ok=stockin&n=${n}`);
 }
 
 export async function transferAction(_p: OpState, fd: FormData): Promise<OpState> {
