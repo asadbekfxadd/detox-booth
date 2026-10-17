@@ -9,7 +9,7 @@ import { nowMs } from "@/lib/time";
 const OK: Record<string, string> = { stockin: "Приход оформлен", transfer: "Перемещение выполнено" };
 const btn = "rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm hover:bg-neutral-50";
 
-export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
+export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ ok?: string; n?: string }> }) {
   const sp = await searchParams;
   const user = (await currentSession())!.user;
   const { locationId } = await getScope();
@@ -30,7 +30,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
           <Link href="/admin/writeoffs" className={btn}>Списания</Link>
         </div>
       </div>
-      {sp.ok && OK[sp.ok] && <p className="rounded-lg bg-lime-100 px-4 py-2 text-sm text-green-900">{OK[sp.ok]}</p>}
+      {sp.ok && OK[sp.ok] && <p className="rounded-lg bg-lime-100 px-4 py-2 text-sm text-green-900">{OK[sp.ok]}{sp.ok === "stockin" && Number(sp.n) > 0 ? `: ${Number(sp.n)} поз.` : ""}</p>}
       <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-neutral-500">

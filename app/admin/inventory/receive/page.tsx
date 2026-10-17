@@ -1,22 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { pageGuard, formLocations } from "@/lib/guard";
-import { FormShell, Field, LocationField, fieldClass } from "@/components/admin/ops";
-import { IngredientQty } from "@/components/admin/IngredientQty";
-import { stockInAction } from "../actions";
+import { BulkReceiveForm } from "@/components/admin/BulkReceiveForm";
+import { stockInManyAction } from "../actions";
 
 export default async function ReceivePage() {
   await pageGuard("inventory.edit");
   const { options, defaultId } = await formLocations();
-  const ingredients = await prisma.ingredient.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, unit: true } });
+  const ingredients = (await prisma.ingredient.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, unit: true, avgCost: true } }))
+    .map((i) => ({ ...i, avgCost: Number(i.avgCost) }));
   return (
-    <div className="max-w-2xl space-y-5">
-      <h1 className="text-2xl font-bold">Приход товара</h1>
-      <FormShell action={stockInAction} submitLabel="Оформить приход" cancelHref="/admin/inventory">
-        <LocationField options={options} defaultValue={defaultId} />
-        <IngredientQty ingredients={ingredients} withCost />
-        <Field label="Срок годности (пусто = по умолчанию для ингредиента)"><input name="expiresAt" type="date" className={fieldClass} /></Field>
-        <p className="text-xs text-neutral-500">Остаток ведётся в граммах, миллилитрах и штуках. Для г и мл можно вводить в кг и л: система сама пересчитает. Создаётся новая партия, средняя цена ингредиента пересчитывается.</p>
-      </FormShell>
+    <div className="max-w-6xl space-y-5">
+      <div><h1 className="text-2xl font-bold">Приход товара</h1><p className="text-sm text-neutral-500">Вся поставка одним списком: добавляйте строки или вставьте накладную целиком.</p></div>
+      <BulkReceiveForm action={stockInManyAction} ingredients={ingredients} locations={options} defaultLocationId={defaultId} />
     </div>
   );
 }
