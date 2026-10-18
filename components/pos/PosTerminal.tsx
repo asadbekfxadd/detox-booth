@@ -38,6 +38,8 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
   const [cart, setCart] = useState<Line[]>([]);
   const [dialog, setDialog] = useState<CatalogProduct | null>(null);
   const [mixOpen, setMixOpen] = useState(false);
+  /** Телефон: корзина — отдельный экран поверх каталога (на широком экране она всегда справа) */
+  const [cartOpen, setCartOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
   // клиент
@@ -149,7 +151,7 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
   }
   function resetOrder() {
     setCart([]); setCustomer(null); setCq(""); setFound([]); setApplied(null); setQuoted(ZERO_QUOTE); setRedeem(""); setPromo(""); setMValue("");
-    setDiscErr(""); setTendered(""); setMethod("CASH"); setError(""); setNotice("");
+    setDiscErr(""); setTendered(""); setMethod("CASH"); setError(""); setNotice(""); setCartOpen(false);
   }
 
   function applyDiscount() {
@@ -198,11 +200,11 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#f7f3ea] text-neutral-900">
-      <header className="flex flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2">
+    <div className="flex h-dvh flex-col bg-[#f7f3ea] text-neutral-900">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-neutral-200 bg-white px-3 py-2 sm:px-4">
         <span className="text-lg font-bold text-green-800">{brandName}</span>
-        <span className="text-sm text-neutral-600">{locationName} · {cashier}</span>
-        <div className="ml-auto flex flex-wrap items-center gap-2 text-sm">
+        <span className="min-w-0 flex-1 truncate text-sm text-neutral-600 lg:flex-none">{locationName} · {cashier}</span>
+        <div className="-mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 overflow-x-auto px-3 pb-0.5 text-sm [&>*]:shrink-0 [&_button]:whitespace-nowrap [&_a]:whitespace-nowrap sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0 sm:pb-0 lg:ml-auto">
           <button onClick={() => { setOrdersOpen(true); loadOrders(); }} className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Заказы смены</button>
           <Link href="/pos/tables" className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Столы</Link>
           <Link href="/pos/shift" className="rounded-lg border border-neutral-200 px-3 py-1.5 hover:bg-neutral-50">Смена</Link>
@@ -213,23 +215,23 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Каталог */}
-        <section className="flex min-h-0 flex-1 flex-col p-4">
-          <div className="mb-3 flex flex-wrap gap-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по названию" className="min-w-48 flex-1 rounded-xl border border-neutral-200 bg-white px-4 py-2 outline-none focus:border-green-600" />
-            <div className="flex flex-wrap gap-1">
+        <section className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по названию" className="min-h-11 min-w-48 flex-1 rounded-xl border border-neutral-200 bg-white px-4 py-2 outline-none focus:border-green-600" />
+            <div className="-mx-3 flex gap-1 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
               {[{ id: "all", name: "Все" }, ...catalog.categories].map((c) => (
                 <button key={c.id} onClick={() => setCat(c.id)} className={`rounded-full px-4 py-2 text-sm ${cat === c.id ? "bg-green-700 text-white" : "bg-white hover:bg-neutral-50"}`}>{c.name}</button>
               ))}
             </div>
           </div>
           {notice && <p className="mb-2 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900">{notice}</p>}
-          <div className="grid flex-1 content-start gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid flex-1 grid-cols-2 content-start gap-2 overflow-y-auto pb-24 sm:gap-3 md:grid-cols-3 lg:pb-0 xl:grid-cols-3 2xl:grid-cols-4">
             {catalog.mix && cat === "all" && !q.trim() && (
               <button onClick={() => setMixOpen(true)} data-pos-mix className="flex min-h-28 flex-col justify-between rounded-2xl border-2 border-dashed border-green-600 bg-lime-50 p-4 text-left shadow-sm transition hover:shadow-md active:scale-[0.98]">
                 <span className="font-semibold leading-snug">Свой микс</span>
                 <span className="mt-2 flex items-end justify-between">
-                  <span className="text-lg font-bold">от {money(Math.min(...catalog.mix.sizes.map((s) => s.price)))}</span>
-                  <span className="text-xs text-neutral-600">любые ингредиенты</span>
+                  <span className="whitespace-nowrap text-base font-bold sm:text-lg">от {money(Math.min(...catalog.mix.sizes.map((s) => s.price)))}</span>
+                  <span className="hidden text-xs text-neutral-600 xl:inline">любые ингредиенты</span>
                 </span>
               </button>
             )}
@@ -238,10 +240,10 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
               const out = !p.isAvailable || p.portions === 0;
               return (
                 <button key={p.id} disabled={out} onClick={() => tapProduct(p)}
-                  className={`flex min-h-28 flex-col justify-between rounded-2xl p-4 text-left shadow-sm transition ${out ? "cursor-not-allowed bg-neutral-100 text-neutral-400" : "bg-white hover:shadow-md active:scale-[0.98]"}`}>
+                  className={`flex min-h-24 flex-col justify-between rounded-2xl p-3 text-left shadow-sm transition sm:min-h-28 sm:p-4 ${out ? "cursor-not-allowed bg-neutral-100 text-neutral-400" : "bg-white hover:shadow-md active:scale-[0.98]"}`}>
                   <span className="font-semibold leading-snug">{p.name}</span>
                   <span className="mt-2 flex items-end justify-between">
-                    <span className="text-lg font-bold">{money(p.price)}</span>
+                    <span className="whitespace-nowrap text-base font-bold sm:text-lg">{money(p.price)}</span>
                     {out ? <span className="rounded bg-neutral-200 px-2 py-0.5 text-xs">{p.isAvailable ? "Нет в наличии" : "Недоступно"}</span>
                       : p.portions != null && p.portions <= 5 ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">осталось {p.portions}</span>
                       : p.modifiers.length ? <span className="text-xs text-neutral-500">опции</span> : null}
@@ -253,9 +255,12 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
         </section>
 
         {/* Корзина */}
-        <aside className="flex max-h-[60vh] w-full flex-col border-t border-neutral-200 bg-white lg:max-h-none lg:w-[400px] lg:border-l lg:border-t-0">
+        <aside className={`${cartOpen ? "flex" : "max-lg:hidden"} fixed inset-0 z-40 flex-col bg-white lg:static lg:z-auto lg:flex lg:w-[400px] lg:border-l lg:border-neutral-200`}>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            <h2 className="mb-2 font-bold">Заказ</h2>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="font-bold">Заказ</h2>
+              <button onClick={() => setCartOpen(false)} className="min-h-10 rounded-lg border border-neutral-200 px-3 text-sm lg:hidden">← К товарам</button>
+            </div>
             {cart.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">Выберите товары слева</p>}
             {cart.map((l) => (
               <div key={l.key} className="flex gap-2 border-b border-neutral-100 py-2">
@@ -384,6 +389,16 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
           </div>
         </aside>
       </div>
+
+      {/* Телефон: нижняя панель с итогом открывает корзину */}
+      {cart.length > 0 && !cartOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white p-3 shadow-[0_-4px_20px_rgba(0,0,0,.08)] lg:hidden">
+          <button onClick={() => setCartOpen(true)} data-pos-cart-open className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-green-700 px-5 text-white">
+            <span className="font-semibold">Заказ · {cart.reduce((a, l) => a + l.quantity, 0)} шт</span>
+            <span className="text-lg font-bold">{money(total)}</span>
+          </button>
+        </div>
+      )}
 
       {mixOpen && catalog.mix && (
         <Overlay wide onClose={() => setMixOpen(false)}>
