@@ -48,21 +48,21 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Kpi l="Выручка" v={money(f.revenue)} sub={`${f.orders} заказов`} />
-        <Kpi l="Себестоимость" v={money(f.cogs)} sub={f.revenue ? `${pct((f.cogs / f.revenue) * 100)} от выручки` : undefined} />
-        <Kpi l="Валовая прибыль" v={money(f.gross)} sub={`маржа ${pct(f.grossMargin)}`} />
-        <Kpi l="Списания" v={money(f.writeOffs)} tone={f.writeOffs ? "bad" : undefined} />
-        <Kpi l="Расходы" v={money(f.expenses)} />
-        <Kpi l="Чистая прибыль" v={money(f.net)} sub={`маржа ${pct(f.netMargin)}`} tone={f.net < 0 ? "bad" : "good"} />
+        <Kpi l="Стоимость продуктов" v={money(f.cogs)} sub={f.revenue ? `${pct((f.cogs / f.revenue) * 100)} от выручки` : "по рецептам и ценам закупки"} />
+        <Kpi l="Прибыль с продаж" v={money(f.gross)} sub={`${pct(f.grossMargin)} выручки остаётся после продуктов`} />
+        <Kpi l="Списано (порча, брак)" v={money(f.writeOffs)} tone={f.writeOffs ? "bad" : undefined} />
+        <Kpi l="Расходы" v={money(f.expenses)} sub="аренда, зарплаты и др." />
+        <Kpi l="Чистая прибыль" v={money(f.net)} sub={`${pct(f.netMargin)} выручки: что остаётся вам`} tone={f.net < 0 ? "bad" : "good"} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Отчёт о прибылях и убытках">
+        <Card title="Сколько заработали">
           <table className="w-full text-sm"><tbody>
             {row("Выручка", f.revenue, { bold: true, note: f.delivery ? `включая доставку ${money(f.delivery)}` : undefined })}
-            {row("Себестоимость проданного", f.cogs, { minus: true })}
-            {row("Валовая прибыль", f.gross, { bold: true })}
-            {row("Списания ингредиентов", f.writeOffs, { minus: true })}
-            {row("Операционные расходы", f.expenses, { minus: true })}
+            {row("Стоимость проданных продуктов", f.cogs, { minus: true })}
+            {row("Прибыль с продаж", f.gross, { bold: true })}
+            {row("Списано (порча, брак)", f.writeOffs, { minus: true })}
+            {row("Расходы (аренда, зарплаты и др.)", f.expenses, { minus: true })}
             {row("Чистая прибыль", f.net, { bold: true })}
           </tbody></table>
           <p className="mt-3 text-xs text-neutral-500">Скидки и оплата баллами ({money(f.discounts)}) уже вычтены из выручки. Возвраты ({f.refundCount} шт., {money(f.refunds)}) в выручку не входят. Налоги не учитываются.</p>
@@ -105,7 +105,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       </section>
 
       {edit && (
-        <section className="max-w-xl space-y-3">
+        <section id="expense" className="max-w-xl scroll-mt-4 space-y-3">
           <h2 className="text-lg font-bold">Добавить расход</h2>
           <FormShell action={createExpenseAction} submitLabel="Добавить" cancelHref="/admin/finance">
             <div className="grid grid-cols-2 gap-3">

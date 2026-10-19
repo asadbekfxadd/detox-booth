@@ -5,6 +5,16 @@ import { listLocationContacts } from "@/services/locations";
 import { hasMap } from "@/lib/brand";
 import { saveSettingsAction, saveLocationsAction } from "./actions";
 
+/** Одна строка простым языком: что настраивается в разделе */
+const GROUP_INFO: Record<string, string> = {
+  "Баллы клиентов": "Сколько баллов гости получают за покупки и как могут ими платить",
+  "Заказы": "Доставка и время выдачи заказов",
+  "Столы": "Сервисный сбор за столом",
+  "Бронь столов": "Можно ли бронировать на сайте, часы, депозит, лимиты",
+  "Себестоимость": "Аренда, зарплаты, потери: чтобы верно считать, во сколько обходится напиток",
+  "Касса и склад": "Лимит скидки кассира и порог крупного списания",
+};
+
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; loc?: string }> }) {
   await pageGuard("settings.edit");
   const { ok, loc } = await searchParams;
@@ -12,24 +22,37 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const groups = [...new Set(SETTING_FIELDS.map((f) => f.group))];
   return (
     <div className="max-w-2xl space-y-5">
-      <div><h1 className="text-2xl font-bold">Настройки</h1><p className="text-sm text-neutral-500">Изменения применяются сразу и записываются в журнал действий.</p></div>
+      <div><h1 className="text-2xl font-bold">Настройки</h1><p className="text-sm text-neutral-500">Здесь меняются правила работы заведения. Изменения применяются сразу и записываются в журнал действий. Не уверены в значении, оставьте как есть.</p></div>
       {ok != null && <p className="rounded-xl bg-lime-100 px-4 py-2 text-sm text-green-900">{ok === "0" ? "Изменений нет" : `Настройки сохранены (изменено: ${ok})`}</p>}
       <FormShell action={saveSettingsAction} submitLabel="Сохранить" cancelHref="/admin/settings">
         {groups.map((g) => (
-          <fieldset key={g} className="space-y-4">
-            <legend className="mb-1 text-sm font-bold uppercase tracking-wide text-green-800">{g}</legend>
-            {SETTING_FIELDS.filter((f) => f.group === g).map((f) => (
-              <Field key={f.key} label={f.label}>
-                <input name={f.key} type="number" required min={f.min} max={f.max} step={f.step} defaultValue={values[f.key]} className={fieldClass} />
-                <span className="mt-1 block text-xs text-neutral-500">{f.hint}</span>
-              </Field>
-            ))}
-          </fieldset>
+          <details key={g} className="group rounded-xl border border-neutral-200 bg-white open:border-green-300">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4">
+              <span><span className="block font-bold text-green-800">{g}</span><span className="block text-sm text-neutral-500">{GROUP_INFO[g]}</span></span>
+              <span className="shrink-0 text-sm text-neutral-400 group-open:hidden">Открыть</span>
+              <span className="hidden shrink-0 text-sm text-neutral-400 group-open:inline">Свернуть</span>
+            </summary>
+            <div className="space-y-4 border-t border-neutral-100 p-4">
+              {SETTING_FIELDS.filter((f) => f.group === g).map((f) => (
+                <Field key={f.key} label={f.label}>
+                  {f.toggle ? (
+                    <select name={f.key} defaultValue={String(values[f.key])} className={fieldClass}>
+                      <option value="1">Включено</option><option value="0">Выключено</option>
+                    </select>
+                  ) : (
+                    <input name={f.key} type="number" required min={f.min} max={f.max} step={f.step} defaultValue={values[f.key]} className={fieldClass} />
+                  )}
+                  <span className="mt-1 block text-xs text-neutral-500">{f.hint}</span>
+                </Field>
+              ))}
+            </div>
+          </details>
         ))}
+        <p className="text-xs text-neutral-500">Откройте нужный раздел, измените значения и нажмите «Сохранить»: сохраняются сразу все разделы.</p>
       </FormShell>
 
-      <div className="border-t border-neutral-200 pt-5">
-        <h2 className="text-lg font-bold">Точки на сайте</h2>
+      <div id="locations" className="scroll-mt-4 border-t border-neutral-200 pt-5">
+        <h2 className="text-lg font-bold">Адрес и телефон точек</h2>
         <p className="text-sm text-neutral-500">Адрес и телефон показываются клиентам. Внизу сайта появляется карта, если заданы координаты или точный адрес (улица и дом).</p>
       </div>
       {loc != null && <p className="rounded-xl bg-lime-100 px-4 py-2 text-sm text-green-900">{loc === "0" ? "Изменений нет" : `Точки сохранены (изменено: ${loc})`}</p>}

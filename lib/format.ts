@@ -1,7 +1,8 @@
 const nf = new Intl.NumberFormat("ru-RU");
 const qf = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 });
-export const money = (n: number) => `${nf.format(Math.round(n))} UZS`;
-export const num = (n: number) => nf.format(Math.round(n));
+// `|| 0`: Math.round(-0.3) даёт -0, и на экране было бы «-0 UZS»
+export const money = (n: number) => `${nf.format(Math.round(n) || 0)} UZS`;
+export const num = (n: number) => nf.format(Math.round(n) || 0);
 export const qty = (n: number) => qf.format(n);
 export const pct = (n: number) => `${n.toFixed(1)}%`;
 const UNITS: Record<string, string> = { G: "г", KG: "кг", ML: "мл", L: "л", PC: "шт" };

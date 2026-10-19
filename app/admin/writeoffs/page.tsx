@@ -7,8 +7,9 @@ import { FormShell, Field, LocationField, fieldClass } from "@/components/admin/
 import { IngredientQty } from "@/components/admin/IngredientQty";
 import { money, qty, unitLabel, dateTimeStr } from "@/lib/format";
 import { writeOffAction } from "./actions";
+import { REASON_LABEL } from "@/services/finance";
 
-const REASONS: [string, string][] = [["EXPIRED", "Expired"], ["SPOILED", "Spoiled"], ["DAMAGED", "Damaged"], ["PRODUCTION_WASTE", "Production Waste"], ["EMPLOYEE_ERROR", "Employee Error"], ["OTHER", "Other"]];
+const REASONS = Object.entries(REASON_LABEL);
 
 export default async function WriteOffsPage({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
   const sp = await searchParams;
@@ -44,7 +45,7 @@ export default async function WriteOffsPage({ searchParams }: { searchParams: Pr
             {rows.map((w) => (
               <tr key={w.id} className="border-t border-neutral-100">
                 <td className="p-3">{dateTimeStr(w.date)}</td><td>{w.location}</td><td className="font-medium">{w.ingredient}</td>
-                <td className="text-right">{fmtStock(w.unit, w.quantity)}</td><td>{w.reason.replace("_", " ")}</td>
+                <td className="text-right">{fmtStock(w.unit, w.quantity)}</td><td>{REASON_LABEL[w.reason] ?? w.reason}</td>
                 <td className="text-right">{money(w.cost)}</td><td className="p-3">{w.user}</td>
               </tr>
             ))}

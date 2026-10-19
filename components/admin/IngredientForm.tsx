@@ -60,7 +60,7 @@ export function IngredientForm({ action, submitLabel, defaults = EMPTY, categori
           <input name="shelfLifeDays" type="number" min="1" step="1" defaultValue={defaults.shelfLifeDays ?? ""} placeholder="5" className={fieldClass} />
         </Field>
       </div>
-      <p className="-mt-2 text-xs text-neutral-500">Цена нужна для себестоимости; при каждом приходе она пересчитывается по средней. Ниже минимального остатка склад подсветит «LOW STOCK».</p>
+      <p className="-mt-2 text-xs text-neutral-500">Цена нужна для себестоимости; при каждом приходе она пересчитывается по средней. Когда остаток станет ниже минимального, продукт подсветится красным и придёт уведомление «Мало на складе».</p>
 
       <Field label="Поставщик (необязательно)">
         <select name="supplierId" defaultValue={defaults.supplierId ?? ""} className={fieldClass}>
