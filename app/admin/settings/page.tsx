@@ -3,7 +3,9 @@ import { SETTING_FIELDS, getSettingValues } from "@/services/settings";
 import { FormShell, Field, fieldClass } from "@/components/admin/ops";
 import { listLocationContacts } from "@/services/locations";
 import { hasMap } from "@/lib/brand";
-import { saveSettingsAction, saveLocationsAction } from "./actions";
+import { saveSettingsAction, saveLocationsAction, resetStockAction } from "./actions";
+import { ResetStockForm } from "@/components/admin/ResetStockForm";
+import { RESET_STOCK_WORD } from "@/services/inventory";
 
 /** Одна строка простым языком: что настраивается в разделе */
 const GROUP_INFO: Record<string, string> = {
@@ -15,9 +17,9 @@ const GROUP_INFO: Record<string, string> = {
   "Касса и склад": "Лимит скидки кассира и порог крупного списания",
 };
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; loc?: string }> }) {
-  await pageGuard("settings.edit");
-  const { ok, loc } = await searchParams;
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; loc?: string; reset?: string }> }) {
+  const me = await pageGuard("settings.edit");
+  const { ok, loc, reset } = await searchParams;
   const [values, locations] = await Promise.all([getSettingValues(), listLocationContacts()]);
   const groups = [...new Set(SETTING_FIELDS.map((f) => f.group))];
   return (
@@ -73,6 +75,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </fieldset>
         ))}
       </FormShell>
+
+      {me.role === "OWNER" && (
+        <div id="reset" className="scroll-mt-4 space-y-3 border-t border-neutral-200 pt-5">
+          <h2 className="text-lg font-bold text-red-700">Обнулить остатки склада</h2>
+          {reset != null && <p className="rounded-xl bg-lime-100 px-4 py-2 text-sm text-green-900">Остатки обнулены (позиций: {reset}). Теперь оприходуйте реальные остатки.</p>}
+          <ResetStockForm action={resetStockAction} locations={locations.map((l) => ({ id: l.id, name: l.name }))} word={RESET_STOCK_WORD} />
+        </div>
+      )}
     </div>
   );
 }

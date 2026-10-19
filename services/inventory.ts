@@ -135,6 +135,28 @@ export async function stockInMany(input: unknown, user: Actor) {
   return lines.length;
 }
 
+// ---------- Обнуление остатков (перед запуском) ----------
+export const RESET_STOCK_WORD = "ОЧИСТИТЬ";
+/**
+ * Обнуляет остатки: удаляет партии и строки остатков (по точке или везде). Закупки, списания, история движений, заказы,
+ * продукты, рецепты и ингредиенты остаются. Только владелец; в журнале остаётся запись с числом удалённого.
+ */
+export async function resetStock(locationId: string | null, confirm: string, user: Actor) {
+  if (user.role !== "OWNER") throw new ApiError(403, "Очистить остатки может только владелец");
+  if (confirm.trim().toUpperCase() !== RESET_STOCK_WORD) throw new ApiError(400, `Для подтверждения введите слово «${RESET_STOCK_WORD}»`);
+  const where = locationId ? { locationId } : {};
+  if (locationId && !(await prisma.location.findUnique({ where: { id: locationId } }))) throw new ApiError(404, "Точка не найдена");
+  const res = await prisma.$transaction(async (tx) => {
+    const batches = await tx.batch.deleteMany({ where });
+    const stocks = await tx.stockItem.deleteMany({ where });
+    // старые «Мало на складе» и «Срок годности» про уже удалённое больше не нужны
+    await tx.notification.updateMany({ where: { ...where, isRead: false, type: { in: ["LOW_STOCK", "EXPIRATION"] } }, data: { isRead: true } });
+    return { batches: batches.count, stocks: stocks.count };
+  }, { timeout: 30_000, maxWait: 10_000 });
+  await audit({ userId: user.id, action: "STOCK_RESET", entity: "Batch", entityId: locationId ?? "all", newValue: { locationId, ...res } });
+  return res;
+}
+
 // ---------- Списание ----------
 export const WRITE_OFF_REASONS = ["EXPIRED", "SPOILED", "DAMAGED", "PRODUCTION_WASTE", "EMPLOYEE_ERROR", "OTHER"] as const;
 export const writeOffSchema = z.object({
