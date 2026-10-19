@@ -2,20 +2,25 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { LocationField, fieldClass, type OpState } from "@/components/admin/ops";
-import { BASE_LABEL, bigUnit, round6 } from "@/components/admin/units";
+import { recvUnit, round6 } from "@/components/admin/units";
+import { receiveWarnings } from "@/lib/receive-check";
 import { parseReceiveList, type ListRow, type MissingItem } from "@/lib/receive-list";
 import { UNIT_CHOICES } from "@/lib/ingredient-units";
 import { quickCreateIngredientAction, type QuickIngredient } from "@/app/admin/inventory/actions";
 
-type Ing = { id: string; name: string; unit: string; avgCost: number };
-type Row = { ingredientId: string; label: string; quantity: string; unitCost: string; big: boolean; expiresAt: string };
+/** avgCost и lastCost — за учётную единицу (г, мл, шт); lastCost — цена прошлой закупки */
+type Ing = { id: string; name: string; unit: string; avgCost: number; lastCost: number | null };
+type Row = { ingredientId: string; label: string; quantity: string; unitCost: string; expiresAt: string };
 const START_ROWS = 5;
 const MAX_ROWS = 100;
-const empty = (): Row => ({ ingredientId: "", label: "", quantity: "", unitCost: "", big: false, expiresAt: "" });
+const empty = (): Row => ({ ingredientId: "", label: "", quantity: "", unitCost: "", expiresAt: "" });
 const fmt = (n: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(n);
 const isBlank = (r: Row) => !r.ingredientId && !r.label.trim() && r.quantity === "" && r.expiresAt === "";
 
-/** Приход списком: вся накладная в одной таблице и одной кнопкой. На сервер уходит базовая единица (г, мл, шт). */
+/** Прежняя цена за кг, л или шт: цена последней закупки, а если закупок не было — средняя. Пусто, если цены ещё нет. */
+const priceOf = (i: Ing) => { const per = i.lastCost != null && i.lastCost > 0 ? i.lastCost : i.avgCost; return per > 0 ? String(round6(per * recvUnit(i.unit).mult)) : ""; };
+
+/** Приход списком: вся накладная в одной таблице и одной кнопкой. Вводим кг, л и шт, на сервер уходит учётная единица (г, мл, шт). */
 export function BulkReceiveForm({ action, ingredients: initialIngredients, categories, locations, defaultLocationId, initialIngredientId }: {
   action: (prev: OpState, fd: FormData) => Promise<OpState>;
   ingredients: Ing[]; categories: string[]; locations: { id: string; name: string }[]; defaultLocationId: string;
@@ -33,7 +38,7 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
   const [rows, setRows] = useState<Row[]>(() => {
     const rows = Array.from({ length: START_ROWS }, empty);
     const i = ingredients.find((x) => x.id === initialIngredientId);
-    if (i) rows[0] = { ...empty(), ingredientId: i.id, label: `${i.name} (${BASE_LABEL[i.unit]})`, unitCost: String(round6(i.avgCost)) };
+    if (i) rows[0] = { ...empty(), ingredientId: i.id, label: `${i.name} (${recvUnit(i.unit).label})`, unitCost: priceOf(i) };
     return rows;
   });
   const [localError, setLocalError] = useState<string | null>(null);
@@ -41,7 +46,7 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
   const [pasteInfo, setPasteInfo] = useState<{ added: number; errors: string[]; missing: MissingItem[] } | null>(null);
   const focusNext = useRef<number | null>(null);
   const byId = new Map(ingredients.map((i) => [i.id, i]));
-  const labelOf = (i: Ing) => `${i.name} (${BASE_LABEL[i.unit]})`;
+  const labelOf = (i: Ing) => `${i.name} (${recvUnit(i.unit).label})`;
   const byLabel = new Map(ingredients.map((i) => [labelOf(i), i]));
 
   // пришли из строки склада с готовым ингредиентом: сразу к количеству
@@ -54,13 +59,13 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
   });
 
   const set = (idx: number, patch: Partial<Row>) => setRows((r) => r.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
-  const mult = (r: Row) => { const i = byId.get(r.ingredientId); const b = i ? bigUnit(i.unit) : null; return r.big && b ? b.mult : 1; };
+  const mult = (r: Row) => { const i = byId.get(r.ingredientId); return i ? recvUnit(i.unit).mult : 1; };
 
   function onIngredient(idx: number, text: string) {
     const i = byLabel.get(text);
     if (!i) { set(idx, { label: text, ingredientId: "" }); return; }
-    // цена по умолчанию — прежняя средняя, чтобы вводить только то, что изменилось
-    set(idx, { label: text, ingredientId: i.id, big: false, unitCost: rows[idx].unitCost === "" || rows[idx].ingredientId !== i.id ? String(round6(i.avgCost)) : rows[idx].unitCost });
+    // цена по умолчанию — с прошлой закупки, чтобы вводить только то, что изменилось
+    set(idx, { label: text, ingredientId: i.id, unitCost: rows[idx].unitCost === "" || rows[idx].ingredientId !== i.id ? priceOf(i) : rows[idx].unitCost });
   }
   /** Ушли из поля с названием без выбора из списка: если это точное название существующего продукта (без учёта регистра), берём его. Похожие не подставляем: «Манго» не то же самое, что «Манго-кокос». */
   function onIngredientBlur(idx: number) {
@@ -69,12 +74,6 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
     const n = r.label.trim().replace(/\s*\((г|мл|шт|кг|л)\)\s*$/i, "").toLowerCase().replace(/ё/g, "е");
     const hit = ingredients.filter((i) => i.name.toLowerCase().replace(/ё/g, "е") === n);
     if (hit.length === 1) onIngredient(idx, labelOf(hit[0]));
-  }
-  function toggle(idx: number, next: boolean) {
-    const r = rows[idx]; const i = byId.get(r.ingredientId); const b = i ? bigUnit(i.unit) : null;
-    if (!b) return;
-    const k = next ? 1 / b.mult : b.mult;
-    set(idx, { big: next, quantity: r.quantity === "" ? "" : String(round6(Number(r.quantity) * k)), unitCost: r.unitCost === "" ? "" : String(round6(Number(r.unitCost) / k)) });
   }
   function addRow() { setRows((r) => (r.length >= MAX_ROWS ? r : [...r, empty()])); }
   function onEnter(e: React.KeyboardEvent, idx: number) {
@@ -95,7 +94,7 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
   }
 
   function registerCreated(ing: QuickIngredient): Ing {
-    const x: Ing = { id: ing.id, name: ing.name, unit: ing.unit, avgCost: ing.avgCost };
+    const x: Ing = { id: ing.id, name: ing.name, unit: ing.unit, avgCost: ing.avgCost, lastCost: null };
     setIngredients((l) => [...l, x].sort((a, b) => a.name.localeCompare(b.name, "ru")));
     setCats((c) => (c.includes(ing.category) ? c : [...c, ing.category]));
     setLastCategory(ing.category);
@@ -114,7 +113,7 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
     const x = registerCreated(r.ingredient);
     const idx = quick.idx;
     // цену подставит сам приход (первая закупка задаёт среднюю), поэтому поле цены остаётся пустым: её нужно ввести
-    set(idx, { ingredientId: x.id, label: labelOf(x), big: false });
+    set(idx, { ingredientId: x.id, label: labelOf(x) });
     setQuick(null);
     setTimeout(() => document.querySelector<HTMLInputElement>(`input[aria-label="Количество, строка ${idx + 1}"]`)?.focus(), 50);
   }
@@ -134,6 +133,14 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
 
   const filled = rows.filter((r) => !isBlank(r));
   const total = filled.reduce((a, r) => a + (Number(r.quantity) || 0) * (Number(r.unitCost) || 0), 0);
+  // подсказки про опечатки (лишний ноль, цена за грамм); не мешают оформить приход
+  const warnings = receiveWarnings(rows.map((r) => {
+    const i = byId.get(r.ingredientId);
+    if (!i || !(Number(r.quantity) > 0)) return null;
+    const m = recvUnit(i.unit).mult;
+    const last = i.lastCost != null && i.lastCost > 0 ? i.lastCost : i.avgCost;
+    return { ingredientId: i.id, unit: recvUnit(i.unit).label, qty: Number(r.quantity), cost: r.unitCost === "" ? null : Number(r.unitCost), lastCost: last > 0 ? last * m : null };
+  }));
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -167,7 +174,7 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
         <summary className="cursor-pointer text-sm font-semibold">Вставить списком из накладной или Excel</summary>
         <div className="mt-3 space-y-3">
           <p className="text-xs text-neutral-500">
-            Одна позиция в строке: <b>название; количество; цена; срок годности</b>. Разделитель — «;» или табуляция (копирование из Excel). Цена и срок необязательны. Цена указывается за ту же единицу, что и количество. Пример:
+            Одна позиция в строке: <b>название; количество; цена; срок годности</b>. Разделитель — «;» или табуляция (копирование из Excel). Цена и срок необязательны. Количество без единицы считается в кг, л или шт, цена всегда за 1 кг, 1 л или 1 шт. Пример:
           </p>
           <pre className="overflow-x-auto rounded-lg bg-white p-2 text-xs text-neutral-700">{"Клубника; 5 кг; 60000\nМолоко; 10 л; 12000; 15.11.2026\nСтакан 400 мл; 500 шт"}</pre>
           <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={5} placeholder="Вставьте строки сюда" className={`${fieldClass} font-mono`} aria-label="Список прихода" />
@@ -196,29 +203,23 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
       <div className="space-y-3">
         <datalist id="receive-categories">{cats.map((c) => <option key={c} value={c} />)}</datalist>
         <datalist id="receive-ingredients">{ingredients.map((i) => <option key={i.id} value={labelOf(i)} />)}</datalist>
-        <p className="text-xs text-neutral-500">Начните вводить название и выберите из списка. Enter переводит на следующую строку. Для г и мл можно переключить на кг и л. Цена подставляется прежняя, поправьте её, если изменилась.</p>
+        <p className="text-xs text-neutral-500">Начните вводить название и выберите из списка. Количество вводите в кг, л или шт (дробные через запятую: 0,5 кг). Цена за 1 кг, 1 л или 1 шт подставляется с прошлой закупки, поправьте её, если изменилась. Enter переводит на следующую строку.</p>
         {rows.map((r, idx) => {
           const ing = byId.get(r.ingredientId);
-          const b = ing ? bigUnit(ing.unit) : null;
-          const base = ing ? BASE_LABEL[ing.unit] : "";
-          const shown = r.big && b ? b.label : base;
+          const shown = ing ? recvUnit(ing.unit).label : "";
           const lineTotal = (Number(r.quantity) || 0) * (Number(r.unitCost) || 0);
           const unknown = r.label.trim() !== "" && !r.ingredientId;
           return (
             <div key={idx} className="space-y-2">
-            <div className="grid items-end gap-2 rounded-xl border border-neutral-100 p-3 md:grid-cols-[1fr_190px_160px_150px_100px_36px] md:border-0 md:p-0">
+            <div className="grid items-end gap-2 rounded-xl border border-neutral-100 p-3 md:grid-cols-[1fr_150px_170px_150px_100px_36px] md:border-0 md:p-0">
               <label className="block">{lab(idx, "Ингредиент")}
                 <input data-row={idx} data-col="ing" list="receive-ingredients" value={r.label} onChange={(e) => onIngredient(idx, e.target.value)} onBlur={() => onIngredientBlur(idx)} onKeyDown={(e) => onEnter(e, idx)} autoComplete="off" placeholder="Начните вводить…"
                   className={`${fieldClass} ${unknown ? "border-red-400" : ""}`} aria-invalid={unknown} />
               </label>
               <div>{lab(idx, `Количество${shown ? `, ${shown}` : ""}`)}
-                <div className="flex gap-1">
-                  <input type="number" min="0" step="any" inputMode="decimal" value={r.quantity} onChange={(e) => set(idx, { quantity: e.target.value })} onKeyDown={(e) => onEnter(e, idx)} aria-label={`Количество, строка ${idx + 1}`} className={fieldClass} />
-                  {b && (
-                    <select value={r.big ? "big" : "base"} onChange={(e) => toggle(idx, e.target.value === "big")} aria-label={`Единица, строка ${idx + 1}`} className="rounded-lg border border-neutral-200 bg-white px-1 text-sm">
-                      <option value="base">{base}</option><option value="big">{b.label}</option>
-                    </select>
-                  )}
+                <div className="relative">
+                  <input type="number" min="0" step="any" inputMode="decimal" value={r.quantity} onChange={(e) => set(idx, { quantity: e.target.value })} onKeyDown={(e) => onEnter(e, idx)} aria-label={`Количество, строка ${idx + 1}`} className={`${fieldClass} ${shown ? "pr-10" : ""}`} />
+                  {shown && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-neutral-500">{shown}</span>}
                 </div>
               </div>
               <label className="block">{lab(idx, `Цена за 1 ${shown || "ед."}, UZS`)}
@@ -230,6 +231,11 @@ export function BulkReceiveForm({ action, ingredients: initialIngredients, categ
               <p className="py-2 text-right text-sm text-neutral-600">{lineTotal ? fmt(lineTotal) : ""}</p>
               <button type="button" disabled={rows.length === 1} onClick={() => setRows((x) => (x.length === 1 ? x : x.filter((_, i) => i !== idx)))} className="rounded-lg border border-neutral-200 py-2 text-neutral-500 hover:bg-neutral-50 disabled:opacity-30" aria-label={`Удалить строку ${idx + 1}`}>×</button>
             </div>
+            {(warnings[idx]?.length ?? 0) > 0 && (
+              <ul className="space-y-0.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-900" aria-label={`Проверьте, строка ${idx + 1}`}>
+                {warnings[idx].map((w) => <li key={w}>{w}</li>)}
+              </ul>
+            )}
             {unknown && quick?.idx !== idx && (
               <p className="text-sm text-neutral-600">
                 Такого продукта нет на складе.{" "}

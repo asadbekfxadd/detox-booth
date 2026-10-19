@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { fmtStock, bigUnit } from "@/lib/ingredient-units";
 import { getScope } from "@/lib/location";
 import { formLocations } from "@/lib/guard";
 import { listWriteOffs } from "@/services/inventory";
@@ -43,7 +44,7 @@ export default async function WriteOffsPage({ searchParams }: { searchParams: Pr
             {rows.map((w) => (
               <tr key={w.id} className="border-t border-neutral-100">
                 <td className="p-3">{dateTimeStr(w.date)}</td><td>{w.location}</td><td className="font-medium">{w.ingredient}</td>
-                <td className="text-right">{qty(w.quantity)} {unitLabel(w.unit)}</td><td>{w.reason.replace("_", " ")}</td>
+                <td className="text-right">{fmtStock(w.unit, w.quantity)}</td><td>{w.reason.replace("_", " ")}</td>
                 <td className="text-right">{money(w.cost)}</td><td className="p-3">{w.user}</td>
               </tr>
             ))}

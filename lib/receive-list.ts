@@ -1,11 +1,13 @@
 /**
  * Приход списком: разбор текста, вставленного из накладной, Excel или мессенджера.
  * Строка: «Название; количество [единица]; цена; срок годности», разделитель — табуляция (из Excel) или «;».
- * Цена и срок необязательны: цена берётся прежняя (средняя), срок — по умолчанию для ингредиента.
- * Цена указывается за ту же единицу, что и количество: «Клубника; 5 кг; 60000» — 60 000 за кг.
+ * Количество без единицы — в кг, л или шт (как считает склад). Граммы и миллилитры тоже понимаем и пересчитываем в кг и л.
+ * Цена всегда за 1 кг, 1 л или 1 шт: «Клубника; 5 кг; 60000» — 60 000 за кг; «Клубника; 500 г; 60000» — те же 60 000 за кг.
+ * Цена и срок необязательны: цена берётся с прошлой закупки, срок — по умолчанию для ингредиента.
+ * Количество и цена в результате уже в кг/л/шт.
  */
-export type ListIngredient = { id: string; name: string; unit: string; avgCost: number };
-export type ListRow = { ingredientId: string; quantity: string; unitCost: string; big: boolean; expiresAt: string };
+export type ListIngredient = { id: string; name: string; unit: string; avgCost: number; /** цена прошлой закупки за учётную единицу; нет — берётся avgCost */ lastCost?: number | null };
+export type ListRow = { ingredientId: string; quantity: string; unitCost: string; expiresAt: string };
 /** failed — исходные строки с ошибками: их оставляем в поле, чтобы поправить и вставить снова */
 /** missing — названия, которых нет на складе, но единица понятна из количества («5 кг» — граммы): их можно создать одним нажатием */
 export type MissingItem = { name: string; unit: "G" | "ML" | "PC" };
@@ -17,9 +19,11 @@ const num = (s: string) => {
   return /^\d+(\.\d+)?$/.test(t) ? Number(t) : NaN;
 };
 const UNITS: Record<string, "G" | "ML" | "PC" | "KG" | "L"> = { г: "G", гр: "G", кг: "KG", мл: "ML", л: "L", шт: "PC" };
-/** Базовая единица ингредиента и какими единицами её можно записать. */
-const ALLOWED: Record<string, { small: string[]; big: string[]; mult: number }> = {
-  G: { small: ["G"], big: ["KG"], mult: 1000 }, ML: { small: ["ML"], big: ["L"], mult: 1000 }, PC: { small: ["PC"], big: [], mult: 1 },
+/** Учётная единица ингредиента, какими единицами её можно записать и во сколько раз «человеческая» единица (кг, л, шт) больше учётной.
+ *  big — как вводят без единицы, small — граммы/мл (пересчитываются в кг/л). Старые ингредиенты в кг и л уже в крупных единицах. */
+const ALLOWED: Record<string, { big: string[]; small: string[]; mult: number }> = {
+  G: { big: ["KG"], small: ["G"], mult: 1000 }, ML: { big: ["L"], small: ["ML"], mult: 1000 }, PC: { big: ["PC"], small: [], mult: 1 },
+  KG: { big: ["KG"], small: ["G"], mult: 1 }, L: { big: ["L"], small: ["ML"], mult: 1 },
 };
 const r6 = (n: number) => String(Number(n.toFixed(6)));
 
@@ -79,15 +83,17 @@ export function parseReceiveList(text: string, list: ListIngredient[]): ParseRes
     const unitKey = qm?.[2] ? UNITS[qm[2].toLowerCase()] : undefined;
     if (qm?.[2] && !unitKey) { errors.push(`${at}: неизвестная единица «${qm[2]}»`); return; }
     const al = ALLOWED[ing.unit] ?? ALLOWED.PC;
-    let big = false;
+    // без единицы — кг/л/шт; г и мл пересчитываем (500 г = 0,5 кг)
+    let qty = q;
     if (unitKey) {
-      if (al.big.includes(unitKey)) big = true;
-      else if (!al.small.includes(unitKey)) { errors.push(`${at}: «${ing.name}» считается не в «${qm![2]}»`); return; }
+      if (al.small.includes(unitKey)) qty = q / 1000;
+      else if (!al.big.includes(unitKey)) { errors.push(`${at}: «${ing.name}» считается не в «${qm![2]}»`); return; }
     }
-    const mult = big ? al.mult : 1;
     let unitCost: string;
-    if (costRaw === "") unitCost = r6(ing.avgCost * mult);
-    else {
+    if (costRaw === "") {
+      const per = ing.lastCost != null && ing.lastCost > 0 ? ing.lastCost : ing.avgCost;
+      unitCost = r6(per * al.mult);
+    } else {
       const c = num(costRaw);
       if (!(c >= 0)) { errors.push(`${at}: «${costRaw}» — не цена`); return; }
       unitCost = r6(c);
@@ -98,7 +104,7 @@ export function parseReceiveList(text: string, list: ListIngredient[]): ParseRes
       if (!d) { errors.push(`${at}: срок годности «${dateRaw}» не распознан (ГГГГ-ММ-ДД или ДД.ММ.ГГГГ)`); return; }
       expiresAt = d;
     }
-    rows.push({ ingredientId: ing.id, quantity: r6(q), unitCost, big, expiresAt });
+    rows.push({ ingredientId: ing.id, quantity: r6(qty), unitCost, expiresAt });
   }
   return { rows, errors, failed, missing };
 }

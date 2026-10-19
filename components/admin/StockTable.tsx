@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { fmtQty, bigUnit } from "@/lib/ingredient-units";
+import { fmtStock, bigUnit } from "@/lib/ingredient-units";
 import { money, dateStr } from "@/lib/format";
 
 export type StockRow = {
@@ -63,10 +63,10 @@ export function StockTable({ rows, now, showCost, edit }: { rows: StockRow[]; no
                   <td className="font-medium">{edit ? <Link href={`/admin/ingredients/${r.id}`} className="hover:text-green-800 hover:underline">{r.name}</Link> : r.name}<span className="block text-xs font-normal text-neutral-400">{r.sku}</span></td>
                   <td>{r.category}</td>
                   <td className="text-right">
-                    <b className={r.low ? "text-red-700" : ""}>{fmtQty(r.unit, r.total)}</b>
-                    {r.perLocation && r.perLocation.length > 1 && <div className="text-xs text-neutral-500">{r.perLocation.map((p) => <div key={p.name} className={p.low ? "text-red-700" : ""}>{p.name}: {fmtQty(r.unit, p.qty)}</div>)}</div>}
+                    <b className={r.low ? "text-red-700" : ""}>{fmtStock(r.unit, r.total)}</b>
+                    {r.perLocation && r.perLocation.length > 1 && <div className="text-xs text-neutral-500">{r.perLocation.map((p) => <div key={p.name} className={p.low ? "text-red-700" : ""}>{p.name}: {fmtStock(r.unit, p.qty)}</div>)}</div>}
                   </td>
-                  <td className="text-right text-neutral-500">{r.min > 0 ? fmtQty(r.unit, r.min) : "—"}</td>
+                  <td className="text-right text-neutral-500">{r.min > 0 ? fmtStock(r.unit, r.min) : "—"}</td>
                   <td>{r.low ? <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Мало</span> : <span className="rounded bg-lime-100 px-2 py-0.5 text-xs text-green-900">В норме</span>}</td>
                   <td className={st === "expired" ? "font-semibold text-red-700" : st === "soon" ? "text-amber-700" : ""}>{r.expiry ? dateStr(new Date(r.expiry)) : "—"}</td>
                   {showCost && <td className="whitespace-nowrap text-right">{r.cost > 0 ? `${money(r.cost * bigUnit(r.unit).factor)} / ${bigUnit(r.unit).label}` : "—"}</td>}
