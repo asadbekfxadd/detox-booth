@@ -5,6 +5,7 @@ import { canSwitchLocation } from "@/lib/rbac";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { lockStock } from "@/lib/stock-lock";
+import { lowStockMessage, lowStockPrefix, legacyLowStockPrefix, largeWriteOffMessage, varianceMessage } from "@/lib/notify";
 
 type Tx = Prisma.TransactionClient;
 type Actor = { id: string; role: string; locationId: string | null };
@@ -44,9 +45,8 @@ async function changeStock(tx: Tx, locationId: string, ingredientId: string, del
 }
 async function maybeLowStock(tx: Tx, locationId: string, ing: { name: string; unit: string; minStock: Prisma.Decimal }, now: Prisma.Decimal) {
   if (now.gte(ing.minStock)) return;
-  const prefix = `LOW STOCK: ${ing.name}`;
-  const exists = await tx.notification.findFirst({ where: { locationId, type: "LOW_STOCK", isRead: false, message: { startsWith: prefix } } });
-  if (!exists) await tx.notification.create({ data: { locationId, type: "LOW_STOCK", message: `${prefix} — ${now} ${ing.unit} (min ${ing.minStock})` } });
+  const exists = await tx.notification.findFirst({ where: { locationId, type: "LOW_STOCK", isRead: false, OR: [{ message: { startsWith: lowStockPrefix(ing.name) } }, { message: { startsWith: legacyLowStockPrefix(ing.name) } }] } });
+  if (!exists) await tx.notification.create({ data: { locationId, type: "LOW_STOCK", message: lowStockMessage(ing.name, ing.unit, Number(now), Number(ing.minStock)) } });
 }
 /** FEFO: сначала партии с ближайшим сроком годности. */
 async function fefoTake(tx: Tx, locationId: string, ingredientId: string, need: Prisma.Decimal, allowExpired: boolean) {
@@ -166,7 +166,7 @@ export async function writeOff(input: unknown, user: Actor) {
     await maybeLowStock(tx, locationId, ing, now);
     const th = await tx.setting.findUnique({ where: { key: "writeoff.largeThreshold" } });
     if (cost.gte((th?.value as number | undefined) ?? 200_000))
-      await tx.notification.create({ data: { locationId, type: "LARGE_WRITE_OFF", message: `LARGE WRITE-OFF: ${ing.name} ${d.quantity} ${ing.unit} на ${cost.toFixed(0)} UZS (${d.reason})` } });
+      await tx.notification.create({ data: { locationId, type: "LARGE_WRITE_OFF", message: largeWriteOffMessage(ing.name, ing.unit, Number(d.quantity), Number(cost), d.reason) } });
     return { id: w.id, cost: Number(cost) };
   });
   await audit({ userId: user.id, action: "WRITEOFF_CREATED", entity: "WriteOff", entityId: res.id, newValue: { locationId, ingredientId: d.ingredientId, quantity: d.quantity, reason: d.reason, cost: res.cost } });
@@ -245,7 +245,7 @@ export async function countInventory(input: unknown, user: Actor) {
     await audit({ userId: user.id, action: "INVENTORY_COUNT", entity: "Ingredient", entityId: r.ing.id,
       oldValue: { expected: Number(r.expected) }, newValue: { locationId, actual: Number(r.actual), variance: Number(r.variance), cost } });
     if (Math.abs(cost) >= VARIANCE_ALERT_UZS)
-      await prisma.notification.create({ data: { locationId, type: "INVENTORY_VARIANCE", message: `INVENTORY VARIANCE: ${r.ing.name} ${Number(r.variance) > 0 ? "+" : ""}${Number(r.variance)} ${r.ing.unit} (${Math.round(cost)} UZS)` } });
+      await prisma.notification.create({ data: { locationId, type: "INVENTORY_VARIANCE", message: varianceMessage(r.ing.name, r.ing.unit, Number(r.variance), cost) } });
   }
   return results.length;
 }

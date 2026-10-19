@@ -4,6 +4,7 @@ import { getLoyaltySettings } from "@/lib/loyalty-settings";
 import { referralBonusTx } from "@/lib/services/loyalty";
 import { lockStock } from "@/lib/stock-lock";
 import { mixNeedsFromModifiers } from "@/lib/mix";
+import { lowStockMessage, lowStockPrefix, legacyLowStockPrefix } from "@/lib/notify";
 
 type Tx = Prisma.TransactionClient;
 type ChosenOption = { optionId: string };
@@ -72,12 +73,11 @@ export async function deductInventoryTx(tx: Tx, orderId: string, userId?: string
       include: { ingredient: true },
     });
     if (stock.quantity.lt(stock.ingredient.minStock)) {
-      const prefix = `LOW STOCK: ${stock.ingredient.name}`;
-      const exists = await tx.notification.findFirst({ where: { locationId: order.locationId, type: "LOW_STOCK", isRead: false, message: { startsWith: prefix } } });
+      const exists = await tx.notification.findFirst({ where: { locationId: order.locationId, type: "LOW_STOCK", isRead: false, OR: [{ message: { startsWith: lowStockPrefix(stock.ingredient.name) } }, { message: { startsWith: legacyLowStockPrefix(stock.ingredient.name) } }] } });
       if (!exists)
         await tx.notification.create({ data: {
           locationId: order.locationId, type: "LOW_STOCK",
-          message: `${prefix} — ${stock.quantity} ${stock.ingredient.unit} (min ${stock.ingredient.minStock})`,
+          message: lowStockMessage(stock.ingredient.name, stock.ingredient.unit, Number(stock.quantity), Number(stock.ingredient.minStock)),
         } });
     }
   }

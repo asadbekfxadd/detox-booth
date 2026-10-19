@@ -3,16 +3,22 @@ import { fmtStock, bigUnit } from "@/lib/ingredient-units";
 import { getScope } from "@/lib/location";
 import { getDashboard, parseRange } from "@/services/dashboard";
 import { money, num, pct } from "@/lib/format";
+import { humanizeNotification } from "@/lib/notify";
+import { can } from "@/lib/rbac";
+import { getStartGuide } from "@/services/start-guide";
+import { StartGuide } from "@/components/admin/StartGuide";
 import { RevenueProfitChart, OrdersChart, HBarChart } from "@/components/admin/charts";
 
 type SP = { range?: string; from?: string; to?: string };
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: "warn" | "bad" }) {
+/** hint — одна строка простым языком: что это за цифра (видна под значением и в подсказке при наведении) */
+function Kpi({ label, value, tone, hint }: { label: string; value: string; tone?: "warn" | "bad"; hint?: string }) {
   const c = tone === "bad" ? "text-red-700" : tone === "warn" ? "text-amber-700" : "text-neutral-900";
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm">
+    <div className="rounded-2xl bg-white p-4 shadow-sm" title={hint}>
       <p className="text-xs text-neutral-500">{label}</p>
       <p className={`mt-1 text-xl font-bold ${c}`}>{value}</p>
+      {hint && <p className="mt-1 text-[11px] leading-snug text-neutral-400">{hint}</p>}
     </div>
   );
 }
@@ -22,7 +28,9 @@ const Card = ({ title, children }: { title: string; children: React.ReactNode })
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
-  const { locationId } = await getScope();
+  const { locationId, user } = await getScope();
+  // подсказки «с чего начать» нужны тому, кто настраивает систему
+  const guide = can(user.role, "settings.edit") ? await getStartGuide() : null;
   const range = parseRange(sp);
   const d = await getDashboard(range, locationId);
   const tabs: [string, string][] = [["today", "Сегодня"], ["7", "7 дней"], ["30", "30 дней"]];
@@ -44,19 +52,21 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </form>
       </div>
 
+      {guide && <StartGuide steps={guide} />}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
-        <Kpi label="Выручка" value={money(d.revenue)} />
-        <Kpi label="Заказы" value={num(d.orders)} />
-        <Kpi label="Средний чек" value={money(d.avgCheck)} />
-        <Kpi label="Валовая прибыль" value={money(d.profit)} />
-        <Kpi label="Валовая маржа" value={pct(d.margin)} />
-        <Kpi label="Доля себестоимости" value={pct(d.foodCost)} />
-        <Kpi label="Заканчивается" value={num(d.lowStock.length)} tone={d.lowStock.length ? "bad" : undefined} />
-        <Kpi label="Write-offs" value={money(d.writeOffs)} tone={d.writeOffs ? "warn" : undefined} />
-        <Kpi label="Новые клиенты" value={num(d.newCustomers)} />
-        <Kpi label="Повторные клиенты" value={num(d.returningCustomers)} />
-        <Kpi label="Скоро истекает срок" value={num(d.expiringSoon)} tone={d.expiringSoon ? "warn" : undefined} />
-        <Kpi label="Просрочено" value={num(d.expired)} tone={d.expired ? "bad" : undefined} />
+        <Kpi label="Выручка" value={money(d.revenue)} hint="Всё, что заплатили гости" />
+        <Kpi label="Заказы" value={num(d.orders)} hint="Завершённые, выданные гостям" />
+        <Kpi label="Средний чек" value={money(d.avgCheck)} hint="Выручка ÷ число заказов" />
+        <Kpi label="Прибыль с продаж" value={money(d.profit)} hint="Выручка минус стоимость продуктов" />
+        <Kpi label="Что остаётся с выручки" value={pct(d.margin)} hint="Чем выше, тем лучше" />
+        <Kpi label="Стоимость продуктов" value={pct(d.foodCost)} hint="Доля выручки, ушедшая на продукты" />
+        <Kpi label="Мало на складе" value={num(d.lowStock.length)} tone={d.lowStock.length ? "bad" : undefined} hint="Продуктов ниже минимума: пора закупать" />
+        <Kpi label="Списано (порча, брак)" value={money(d.writeOffs)} tone={d.writeOffs ? "warn" : undefined} hint="Выброшенные продукты за период" />
+        <Kpi label="Новые клиенты" value={num(d.newCustomers)} hint="Купили впервые" />
+        <Kpi label="Постоянные клиенты" value={num(d.returningCustomers)} hint="Покупали не в первый раз" />
+        <Kpi label="Скоро испортятся" value={num(d.expiringSoon)} tone={d.expiringSoon ? "warn" : undefined} hint="Партий с близким сроком годности" />
+        <Kpi label="Просрочено" value={num(d.expired)} tone={d.expired ? "bad" : undefined} hint="Партий с истёкшим сроком: спишите их" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -67,8 +77,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="⚠️ Заканчивается на складе">
-          {d.lowStock.length === 0 ? <p className="text-sm text-neutral-500">Всё в норме.</p> : (
+        <Card title="⚠️ Мало на складе">
+          {d.lowStock.length === 0 ? <p className="text-sm text-neutral-500">Всё в норме: всего хватает.</p> : (
             <ul className="space-y-1 text-sm">
               {d.lowStock.map((s, i) => (
                 <li key={i} className="flex justify-between"><span>{s.name} <span className="text-neutral-400">· {s.location}</span></span>
@@ -79,7 +89,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Card>
         <Card title="Уведомления">
           {d.notifications.length === 0 ? <p className="text-sm text-neutral-500">Нет уведомлений.</p> : (
-            <ul className="space-y-1 text-sm">{d.notifications.map((n) => <li key={n.id}>{n.message}</li>)}</ul>
+            <ul className="space-y-1 text-sm">{d.notifications.map((n) => <li key={n.id}>{humanizeNotification(n.message)}</li>)}</ul>
           )}
         </Card>
       </div>

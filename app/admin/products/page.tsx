@@ -53,7 +53,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                 <td>{p.category}</td>
                 <td className="text-right">{money(p.price)}</td>
                 {showCost && <>
-                  <td className="text-right">{p.cost == null ? "—" : money(p.cost)}</td>
+                  <td className="text-right">{p.cost == null ? <Link href={`/admin/recipes/${p.id}`} title="Себестоимость считается по рецепту: добавьте рецепт и цены продуктов" className="text-xs text-amber-700 underline">задать рецепт</Link> : money(p.cost)}</td>
                   <td className="text-right">{p.cost == null || !p.price ? "—" : pct(((p.price - p.cost) / p.price) * 100)}</td>
                 </>}
                 <td className="text-center">
