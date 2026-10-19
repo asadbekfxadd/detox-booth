@@ -57,7 +57,7 @@ export function Configurator({ p }: { p: PublicProduct }) {
         <button type="button" disabled={!p.available || !!missing}
           onClick={() => { add({ productId: p.id, quantity: qty, optionIds }); setAdded(true); }}
           className="press rounded-xl bg-orange px-7 py-3.5 text-lg font-black text-forest-deep disabled:cursor-not-allowed disabled:bg-forest/8 disabled:text-forest/40 disabled:shadow-none">
-          {!p.available ? "Скоро вернём" : `В корзину · ${sum(unit * qty)}`}
+          {!p.available ? (p.comingSoon ? "Скоро будет доступно" : "Скоро вернём") : `В корзину · ${sum(unit * qty)}`}
         </button>
       </div>
       {missing && <p role="status" className="text-sm text-red-700">Выберите «{missing.name}»</p>}

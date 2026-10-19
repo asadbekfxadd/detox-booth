@@ -55,3 +55,17 @@ export async function assertInStock(db: Db, locationId: string, items: CartItem[
   const ings = await db.ingredient.findMany({ where: { id: { in: short } }, select: { name: true } });
   throw new ApiError(400, `Не хватает ингредиентов: ${ings.map((i) => i.name).join(", ")}. Уберите позицию или пополните склад.`);
 }
+
+/**
+ * Сайт: продукт без рецепта «Скоро будет доступно», заказать его нельзя (даже если обойти кнопку).
+ * Настройка site.requireRecipe (по умолчанию включена). POS и официант этой проверкой не затронуты. «Свой микс» состав несёт сам.
+ */
+export async function assertSellableOnSite(db: Db, items: CartItem[]) {
+  const row = await db.setting.findUnique({ where: { key: "site.requireRecipe" } });
+  if (typeof row?.value === "number" && row.value === 0) return;
+  const ids = [...new Set(items.filter((i) => !i.mix && !i.mixNeeds).map((i) => i.productId))];
+  if (!ids.length) return;
+  const rows = await db.product.findMany({ where: { id: { in: ids } }, select: { name: true, recipe: { select: { _count: { select: { items: true } } } } } });
+  const soon = rows.filter((p) => !p.recipe || p.recipe._count.items === 0).map((p) => p.name);
+  if (soon.length) throw new ApiError(400, `Скоро будет доступно: ${soon.join(", ")}. Уберите позицию из корзины.`);
+}
