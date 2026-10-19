@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bigUnit, toBig, toBase, fmtQty, portionsFrom, smallLabel } from "@/lib/ingredient-units";
+import { bigUnit, toBig, toBase, fmtQty, fmtStock, portionsFrom, smallLabel } from "@/lib/ingredient-units";
 
 describe("ingredient units", () => {
   it("converts kg <-> g and l <-> ml", () => {
@@ -19,6 +19,15 @@ describe("ingredient units", () => {
     expect(fmtQty("ML", 1200)).toBe("1,2 л");
     expect(fmtQty("PC", 40)).toBe("40 шт");
     expect(fmtQty("G", 0)).toBe("0 г");
+  });
+  it("shows stock in kg/l/pcs only, no grams", () => {
+    expect(fmtStock("G", 850)).toBe("0,85 кг");
+    expect(fmtStock("G", 2500)).toBe("2,5 кг");
+    expect(fmtStock("G", 5)).toBe("0,005 кг");
+    expect(fmtStock("ML", 1200)).toBe("1,2 л");
+    expect(fmtStock("PC", 40)).toBe("40 шт");
+    expect(fmtStock("KG", 3)).toBe("3 кг");
+    expect(fmtStock("G", 0)).toBe("0 кг");
   });
   it("counts portions from stock", () => {
     expect(portionsFrom(5000, 30)).toBe(166);

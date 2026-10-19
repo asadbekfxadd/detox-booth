@@ -10,27 +10,40 @@ const L: ListIngredient[] = [
 ];
 
 describe("приход списком: разбор вставленного текста", () => {
-  it("строка с тремя полями, цена за ту же единицу, что и количество", () => {
+  it("строка с тремя полями: количество в кг, цена за 1 кг", () => {
     const r = parseReceiveList("Клубника; 5 кг; 60000", L);
     expect(r.errors).toEqual([]);
-    expect(r.rows).toEqual([{ ingredientId: "a", quantity: "5", unitCost: "60000", big: true, expiresAt: "" }]);
+    expect(r.rows).toEqual([{ ingredientId: "a", quantity: "5", unitCost: "60000", expiresAt: "" }]);
   });
 
   it("из Excel (табуляция), запятая в числе, пробел в тысячах", () => {
     const r = parseReceiveList("Молоко\t10,5 л\t12 000\t15.11.2026", L);
     expect(r.errors).toEqual([]);
-    expect(r.rows[0]).toMatchObject({ ingredientId: "b", quantity: "10.5", unitCost: "12000", big: true, expiresAt: "2026-11-15" });
+    expect(r.rows[0]).toMatchObject({ ingredientId: "b", quantity: "10.5", unitCost: "12000", expiresAt: "2026-11-15" });
   });
 
-  it("без единицы — базовая (граммы), без цены — прежняя средняя", () => {
-    const r = parseReceiveList("Клубника; 2500", L);
-    expect(r.rows[0]).toMatchObject({ quantity: "2500", unitCost: "60", big: false });
-    const kg = parseReceiveList("Клубника; 2 кг", L);
-    expect(kg.rows[0]).toMatchObject({ quantity: "2", unitCost: "60000", big: true });
+  it("без единицы — кг/л/шт, без цены — с прошлой закупки, а если её не было, то средняя", () => {
+    const r = parseReceiveList("Клубника; 2,5", L);
+    expect(r.rows[0]).toMatchObject({ quantity: "2.5", unitCost: "60000" });
+    const withLast = parseReceiveList("Клубника; 2 кг", [{ ...L[0], lastCost: 65 }]);
+    expect(withLast.rows[0]).toMatchObject({ quantity: "2", unitCost: "65000" });
+    expect(parseReceiveList("Молоко; 3", L).rows[0]).toMatchObject({ quantity: "3", unitCost: "12000" });
+    expect(parseReceiveList("Стакан; 100", L).rows[0]).toMatchObject({ quantity: "100", unitCost: "600" });
+  });
+
+  it("граммы и мл понимаем и пересчитываем в кг и л, цена остаётся за кг/л", () => {
+    expect(parseReceiveList("Клубника; 500 г; 60000", L).rows[0]).toMatchObject({ quantity: "0.5", unitCost: "60000" });
+    expect(parseReceiveList("Молоко; 250 мл", L).rows[0]).toMatchObject({ quantity: "0.25", unitCost: "12000" });
+  });
+
+  it("старые ингредиенты в кг и л не пересчитываются", () => {
+    const old: ListIngredient[] = [{ id: "k", name: "Соль", unit: "KG", avgCost: 3000 }];
+    expect(parseReceiveList("Соль; 2 кг", old).rows[0]).toMatchObject({ quantity: "2", unitCost: "3000" });
+    expect(parseReceiveList("Соль; 500 г", old).rows[0]).toMatchObject({ quantity: "0.5" });
   });
 
   it("штуки; кг для штучного ингредиента нельзя", () => {
-    expect(parseReceiveList("Стакан; 500 шт; 600", L).rows[0]).toMatchObject({ ingredientId: "c", quantity: "500", big: false });
+    expect(parseReceiveList("Стакан; 500 шт; 600", L).rows[0]).toMatchObject({ ingredientId: "c", quantity: "500" });
     expect(parseReceiveList("Стакан; 5 кг", L).errors[0]).toMatch(/Строка 1.*не в «кг»/);
   });
 

@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { LocationField, Field, fieldClass, type OpState } from "@/components/admin/ops";
-import { BASE_LABEL, bigUnit, round6 } from "@/components/admin/units";
+import { recvUnit, round6 } from "@/components/admin/units";
 
 type Ing = { id: string; name: string; unit: string; avgCost: number };
-type Row = { ingredientId: string; quantity: string; unitCost: string; big: boolean };
+type Row = { ingredientId: string; quantity: string; unitCost: string };
 const fmt = (n: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(n);
-const empty = (): Row => ({ ingredientId: "", quantity: "", unitCost: "", big: false });
+const empty = (): Row => ({ ingredientId: "", quantity: "", unitCost: "" });
 
 export function PurchaseForm({ action, suppliers, ingredients, locations, defaultLocationId }: {
   action: (prev: OpState, fd: FormData) => Promise<OpState>;
@@ -19,8 +19,8 @@ export function PurchaseForm({ action, suppliers, ingredients, locations, defaul
   const byId = new Map(ingredients.map((i) => [i.id, i]));
   const set = (idx: number, patch: Partial<Row>) => setRows((r) => r.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
 
-  const mult = (r: Row) => { const i = byId.get(r.ingredientId); const b = i ? bigUnit(i.unit) : null; return r.big && b ? b.mult : 1; };
-  // на сервер уходит всегда базовая единица (г, мл, шт)
+  const mult = (r: Row) => { const i = byId.get(r.ingredientId); return i ? recvUnit(i.unit).mult : 1; };
+  // вводим кг, л и шт, на сервер уходит учётная единица (г, мл, шт)
   const payload = rows.map((r) => ({
     ingredientId: r.ingredientId,
     quantity: r.quantity === "" ? "" : String(round6(Number(r.quantity) * mult(r))),
@@ -30,13 +30,7 @@ export function PurchaseForm({ action, suppliers, ingredients, locations, defaul
 
   function pick(idx: number, id: string) {
     const i = byId.get(id);
-    set(idx, { ingredientId: id, big: false, quantity: "", unitCost: i ? String(round6(i.avgCost)) : "" });
-  }
-  function toggle(idx: number, next: boolean) {
-    const r = rows[idx]; const i = byId.get(r.ingredientId); const b = i ? bigUnit(i.unit) : null;
-    if (!b) return;
-    const k = next ? 1 / b.mult : b.mult;
-    set(idx, { big: next, quantity: r.quantity === "" ? "" : String(round6(Number(r.quantity) * k)), unitCost: r.unitCost === "" ? "" : String(round6(Number(r.unitCost) / k)) });
+    set(idx, { ingredientId: id, quantity: "", unitCost: i && i.avgCost > 0 ? String(round6(i.avgCost * recvUnit(i.unit).mult)) : "" });
   }
 
   return (
@@ -53,29 +47,23 @@ export function PurchaseForm({ action, suppliers, ingredients, locations, defaul
 
       <div className="space-y-3">
         <p className="text-sm font-semibold">Позиции</p>
-        <p className="text-xs text-neutral-500">Количество и цена указываются в одной единице (рядом с полем). Для г и мл можно переключить на кг и л.</p>
+        <p className="text-xs text-neutral-500">Количество в кг, л или штуках, цена за 1 кг, 1 л или 1 шт.</p>
         {rows.map((r, idx) => {
           const ing = byId.get(r.ingredientId);
-          const b = ing ? bigUnit(ing.unit) : null;
-          const base = ing ? BASE_LABEL[ing.unit] : "";
-          const shown = r.big && b ? b.label : base;
+          const shown = ing ? recvUnit(ing.unit).label : "";
           const lineTotal = (Number(r.quantity) || 0) * (Number(r.unitCost) || 0);
           return (
             <div key={idx} className="grid items-end gap-2 md:grid-cols-[1fr_190px_190px_110px_40px]">
               <Field label={idx === 0 ? "Ингредиент" : ""}>
                 <select value={r.ingredientId} onChange={(e) => pick(idx, e.target.value)} className={fieldClass}>
                   <option value="" disabled>Выберите…</option>
-                  {ingredients.map((i) => <option key={i.id} value={i.id}>{i.name} ({BASE_LABEL[i.unit]})</option>)}
+                  {ingredients.map((i) => <option key={i.id} value={i.id}>{i.name} ({recvUnit(i.unit).label})</option>)}
                 </select>
               </Field>
               <Field label={idx === 0 ? `Количество${shown ? `, ${shown}` : ""}` : ""}>
-                <div className="flex gap-1">
-                  <input type="number" min="0" step="any" value={r.quantity} onChange={(e) => set(idx, { quantity: e.target.value })} className={fieldClass} />
-                  {b && (
-                    <select value={r.big ? "big" : "base"} onChange={(e) => toggle(idx, e.target.value === "big")} className="rounded-lg border border-neutral-200 bg-white px-1 text-sm">
-                      <option value="base">{base}</option><option value="big">{b.label}</option>
-                    </select>
-                  )}
+                <div className="relative">
+                  <input type="number" min="0" step="any" inputMode="decimal" value={r.quantity} onChange={(e) => set(idx, { quantity: e.target.value })} className={`${fieldClass} ${shown ? "pr-10" : ""}`} />
+                  {shown && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-neutral-500">{shown}</span>}
                 </div>
               </Field>
               <Field label={idx === 0 ? `Цена за 1 ${shown || "ед."}, UZS` : ""}>
@@ -103,6 +91,27 @@ export function PurchaseForm({ action, suppliers, ingredients, locations, defaul
 
 export type ReceiveLine = { id: string; name: string; unit: string; quantity: number; unitCost: number; expiresAt: string };
 
+/** Приёмка заказа: количество и цена видны в кг, л, шт; в форму для сервера уходят учётные единицы (г, мл, шт) */
+function ReceiveRow({ l }: { l: ReceiveLine }) {
+  const u = recvUnit(l.unit);
+  const [qty, setQty] = useState(String(round6(l.quantity / u.mult)));
+  const [cost, setCost] = useState(String(round6(l.unitCost * u.mult)));
+  return (
+    <tr className="border-t border-neutral-100">
+      <td className="py-2 font-medium">{l.name}</td>
+      <td className="pr-3">
+        <div className="flex items-center gap-2"><input type="number" min="0" step="any" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} required aria-label={`Количество, ${l.name}`} className={fieldClass} /><span className="text-neutral-500">{u.label}</span></div>
+        <input type="hidden" name={`qty_${l.id}`} value={qty === "" ? "" : String(round6(Number(qty) * u.mult))} />
+      </td>
+      <td className="pr-3">
+        <div className="flex items-center gap-2"><input type="number" min="0" step="any" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} required aria-label={`Цена, ${l.name}`} className={fieldClass} /><span className="whitespace-nowrap text-neutral-500">/ {u.label}</span></div>
+        <input type="hidden" name={`cost_${l.id}`} value={cost === "" ? "" : String(round6(Number(cost) / u.mult))} />
+      </td>
+      <td><input name={`exp_${l.id}`} type="date" defaultValue={l.expiresAt} className={fieldClass} /></td>
+    </tr>
+  );
+}
+
 export function ReceiveForm({ action, purchaseId, lines }: {
   action: (prev: OpState, fd: FormData) => Promise<OpState>; purchaseId: string; lines: ReceiveLine[];
 }) {
@@ -111,18 +120,11 @@ export function ReceiveForm({ action, purchaseId, lines }: {
     <form action={formAction} className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
       <input type="hidden" name="id" value={purchaseId} />
       <h2 className="text-lg font-bold">Приёмка товара</h2>
-      <p className="text-sm text-neutral-500">Проверьте фактическое количество, цену и срок годности и поправьте, если пришло не то, что заказывали. Количество и цена здесь в учётных единицах (г, мл, шт).</p>
-      <table className="w-full text-sm">
-        <thead><tr className="text-left text-neutral-500"><th className="py-1">Ингредиент</th><th>Количество</th><th>Цена за 1 ед., UZS</th><th>Срок годности</th></tr></thead>
+      <p className="text-sm text-neutral-500">Проверьте фактическое количество, цену и срок годности и поправьте, если пришло не то, что заказывали. Количество в кг, л или штуках, цена за 1 кг, 1 л или 1 шт.</p>
+      <table className="w-full text-sm max-md:block max-md:overflow-x-auto">
+        <thead><tr className="text-left text-neutral-500"><th className="py-1">Ингредиент</th><th>Количество</th><th>Цена за 1 кг / л / шт, UZS</th><th>Срок годности</th></tr></thead>
         <tbody>
-          {lines.map((l) => (
-            <tr key={l.id} className="border-t border-neutral-100">
-              <td className="py-2 font-medium">{l.name}</td>
-              <td className="pr-3"><div className="flex items-center gap-2"><input name={`qty_${l.id}`} type="number" min="0" step="any" defaultValue={l.quantity} required className={fieldClass} /><span className="text-neutral-500">{BASE_LABEL[l.unit]}</span></div></td>
-              <td className="pr-3"><div className="flex items-center gap-2"><input name={`cost_${l.id}`} type="number" min="0" step="any" defaultValue={l.unitCost} required className={fieldClass} /><span className="whitespace-nowrap text-neutral-500">/ {BASE_LABEL[l.unit]}</span></div></td>
-              <td><input name={`exp_${l.id}`} type="date" defaultValue={l.expiresAt} className={fieldClass} /></td>
-            </tr>
-          ))}
+          {lines.map((l) => <ReceiveRow key={l.id} l={l} />)}
         </tbody>
       </table>
       {state?.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}

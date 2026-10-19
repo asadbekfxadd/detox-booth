@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getIngredient, categorySuggestions } from "@/services/ingredients";
 import { IngredientForm } from "@/components/admin/IngredientForm";
 import { ActionButton } from "@/components/admin/ActionButton";
-import { fmtQty, portionsFrom } from "@/lib/ingredient-units";
+import { fmtQty, fmtStock, portionsFrom } from "@/lib/ingredient-units";
 import { updateIngredientAction, deleteIngredientAction } from "../actions";
 
 export default async function IngredientPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +20,7 @@ export default async function IngredientPage({ params }: { params: Promise<{ id:
     <div className="max-w-2xl space-y-5">
       <div>
         <h1 className="text-2xl font-bold">{ing.name}</h1>
-        <p className="text-sm text-neutral-500">{ing.sku} · на складе: <b className="text-neutral-800">{fmtQty(ing.unit, total)}</b>
+        <p className="text-sm text-neutral-500">{ing.sku} · на складе: <b className="text-neutral-800">{fmtStock(ing.unit, total)}</b>
           {" "}· <Link href="/admin/inventory/receive" className="text-green-800 underline">Оформить приход</Link></p>
       </div>
       <IngredientForm

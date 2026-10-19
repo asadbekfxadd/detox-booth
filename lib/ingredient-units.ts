@@ -6,9 +6,9 @@ export const BASE_UNITS = ["G", "ML", "PC"] as const;
 export type BaseUnit = (typeof BASE_UNITS)[number];
 
 export const UNIT_CHOICES: { value: BaseUnit; label: string; small: string; big: string; hint: string }[] = [
-  { value: "G", label: "Граммы (вес)", small: "г", big: "кг", hint: "Фрукты, ягоды, овощи, сыпучее. Приход можно оформлять в кг." },
-  { value: "ML", label: "Миллилитры (жидкость)", small: "мл", big: "л", hint: "Соки, молоко, сиропы. Приход можно оформлять в литрах." },
-  { value: "PC", label: "Штуки", small: "шт", big: "шт", hint: "Стаканчики, крышки, трубочки, яйца." },
+  { value: "G", label: "Вес (кг)", small: "г", big: "кг", hint: "Фрукты, ягоды, овощи, сыпучее. Приход, остаток и цена считаются в кг; в рецептах расход на порцию в граммах." },
+  { value: "ML", label: "Жидкость (л)", small: "мл", big: "л", hint: "Соки, молоко, сиропы. Приход, остаток и цена считаются в литрах; в рецептах расход на порцию в мл." },
+  { value: "PC", label: "Штуки (шт)", small: "шт", big: "шт", hint: "Стаканчики, крышки, трубочки, яйца." },
 ];
 
 const SMALL: Record<string, string> = { G: "г", KG: "кг", ML: "мл", L: "л", PC: "шт" };
@@ -39,4 +39,11 @@ export function fmtQty(u: string, base: number): string {
 export function portionsFrom(stock: number, perPortion: number): number {
   if (!(perPortion > 0)) return 0;
   return Math.max(0, Math.floor(stock / perPortion + 1e-9));
+}
+
+const nf3 = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 });
+/** Остаток на складе для людей: всегда кг, л или шт (0,85 кг, 2,5 кг, 1,2 л, 40 шт). Граммы только в рецептах (fmtQty). */
+export function fmtStock(u: string, base: number): string {
+  const { factor, label } = bigUnit(u);
+  return `${nf3.format(base / factor)} ${label}`;
 }

@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import type { RecipeState } from "@/app/admin/recipes/actions";
 import { quickCreateIngredientAction } from "@/app/admin/ingredients/actions";
 import { money, pct } from "@/lib/format";
-import { UNIT_CHOICES, bigUnit, fmtQty, portionsFrom, smallLabel } from "@/lib/ingredient-units";
+import { UNIT_CHOICES, bigUnit, fmtQty, fmtStock, portionsFrom, smallLabel } from "@/lib/ingredient-units";
 
 type Ing = { id: string; name: string; unit: string; cost: number | null; stock: number };
 type Row = { ingredientId: string; quantity: string };
@@ -68,7 +68,7 @@ export function RecipeEditor({ ingredients, initial, price, action }: {
                       <span className="text-neutral-500">{smallLabel(ing?.unit ?? "")}</span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap text-right text-neutral-600">{fmtQty(ing?.unit ?? "", stock)}</td>
+                  <td className="whitespace-nowrap text-right text-neutral-600">{fmtStock(ing?.unit ?? "", stock)}</td>
                   <td className={`whitespace-nowrap text-right ${left === 0 ? "font-semibold text-red-700" : ""}`}>{left == null ? "—" : `${left} порц.`}</td>
                   {showCost && <td className="text-right">{money(lineCost(r))}</td>}
                   <td className="text-right"><button type="button" onClick={() => setRows(rows.filter((_, i) => i !== idx))} className="rounded-lg border border-neutral-200 px-3 py-1 text-xs text-red-700 hover:bg-neutral-50">Убрать</button></td>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtStock, bigUnit } from "@/lib/ingredient-units";
 import { getScope } from "@/lib/location";
 import { listVariances } from "@/services/inventory";
 import { money, qty, unitLabel, dateTimeStr } from "@/lib/format";
@@ -23,8 +24,8 @@ export default async function VariancePage({ searchParams }: { searchParams: Pro
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-neutral-100">
                 <td className="p-3">{dateTimeStr(r.date)}</td><td>{r.location}</td><td className="font-medium">{r.ingredient}</td>
-                <td className="text-right">{qty(r.expected)} {unitLabel(r.unit)}</td><td className="text-right">{qty(r.actual)} {unitLabel(r.unit)}</td>
-                <td className={`text-right font-semibold ${r.variance < 0 ? "text-red-700" : r.variance > 0 ? "text-green-700" : ""}`}>{r.variance > 0 ? "+" : ""}{qty(r.variance)} {unitLabel(r.unit)}</td>
+                <td className="text-right">{fmtStock(r.unit, r.expected)}</td><td className="text-right">{fmtStock(r.unit, r.actual)}</td>
+                <td className={`text-right font-semibold ${r.variance < 0 ? "text-red-700" : r.variance > 0 ? "text-green-700" : ""}`}>{r.variance > 0 ? "+" : ""}{fmtStock(r.unit, r.variance)}</td>
                 <td className={`text-right ${r.cost < 0 ? "text-red-700" : ""}`}>{money(r.cost)}</td><td className="p-3">{r.user}</td>
               </tr>
             ))}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtStock, bigUnit } from "@/lib/ingredient-units";
 import { getScope } from "@/lib/location";
 import { getDashboard, parseRange } from "@/services/dashboard";
 import { money, num, pct } from "@/lib/format";
@@ -71,7 +72,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             <ul className="space-y-1 text-sm">
               {d.lowStock.map((s, i) => (
                 <li key={i} className="flex justify-between"><span>{s.name} <span className="text-neutral-400">· {s.location}</span></span>
-                  <span className="font-semibold text-red-700">{num(s.qty)} / min {num(s.min)} {s.unit}</span></li>
+                  <span className="font-semibold text-red-700">{fmtStock(s.unit, s.qty)} / мин. {fmtStock(s.unit, s.min)}</span></li>
               ))}
             </ul>
           )}

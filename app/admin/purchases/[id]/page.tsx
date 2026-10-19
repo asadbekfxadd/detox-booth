@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtStock, bigUnit } from "@/lib/ingredient-units";
 import { notFound } from "next/navigation";
 import { pageGuard } from "@/lib/guard";
 import { getPurchase } from "@/services/purchases";
@@ -37,12 +38,12 @@ export default async function PurchasePage({ params, searchParams }: { params: P
       ) : (
         <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-neutral-500"><th className="p-3">Ингредиент</th><th className="text-right">Количество</th><th className="text-right">Цена за 1 ед.</th><th className="text-right">Сумма</th><th className="p-3">Срок</th></tr></thead>
+            <thead><tr className="text-left text-neutral-500"><th className="p-3">Ингредиент</th><th className="text-right">Количество</th><th className="text-right">Цена за кг/л/шт</th><th className="text-right">Сумма</th><th className="p-3">Срок</th></tr></thead>
             <tbody>
               {p.items.map((i) => (
                 <tr key={i.id} className="border-t border-neutral-100">
-                  <td className="p-3 font-medium">{i.name}</td><td className="text-right">{qty(i.quantity)} {unitLabel(i.unit)}</td>
-                  <td className="text-right">{money(i.unitCost)} / {unitLabel(i.unit)}</td><td className="text-right">{money(i.quantity * i.unitCost)}</td>
+                  <td className="p-3 font-medium">{i.name}</td><td className="text-right">{fmtStock(i.unit, i.quantity)}</td>
+                  <td className="text-right">{money(i.unitCost * bigUnit(i.unit).factor)} / {bigUnit(i.unit).label}</td><td className="text-right">{money(i.quantity * i.unitCost)}</td>
                   <td className="p-3">{i.expiresAt ? dateStr(i.expiresAt) : "—"}</td>
                 </tr>
               ))}

@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { pageGuard, formLocations } from "@/lib/guard";
-import { FormShell, LocationField, fieldClass } from "@/components/admin/ops";
-import { qty, unitLabel } from "@/lib/format";
+import { FormShell, LocationField } from "@/components/admin/ops";
+import { fmtStock } from "@/lib/ingredient-units";
+import { CountInput } from "@/components/admin/CountInput";
 import { countAction } from "../actions";
 
 export default async function CountPage() {
@@ -16,7 +17,7 @@ export default async function CountPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Инвентаризация</h1>
-      <p className="text-sm text-neutral-500">Введите фактический остаток там, где пересчитали, в единицах из колонки (г, мл, шт). Пустые строки пропускаются. Чтобы пересчитать другую точку, переключите её вверху.</p>
+      <p className="text-sm text-neutral-500">Введите фактический остаток там, где пересчитали, в кг, л или штуках (дробные через запятую: 2,5 кг). Пустые строки пропускаются. Чтобы пересчитать другую точку, переключите её вверху.</p>
       {!locationId && <p className="rounded-lg bg-amber-100 px-4 py-2 text-sm text-amber-900">Выбраны «все точки», поэтому пересчёт идёт для первой точки из списка. Выберите нужную точку в переключателе слева.</p>}
       <FormShell action={countAction} submitLabel="Сохранить пересчёт" cancelHref="/admin/inventory">
         <div className="max-w-sm"><LocationField options={only} defaultValue={defaultId} /></div>
@@ -26,8 +27,8 @@ export default async function CountPage() {
             {ingredients.map((i) => (
               <tr key={i.id} className="border-t border-neutral-100">
                 <td className="py-2 font-medium">{i.name}</td>
-                <td className="text-right">{qty(st.get(i.id) ?? 0)} {unitLabel(i.unit)}</td>
-                <td className="pl-6"><div className="flex items-center gap-2"><input name={`actual_${i.id}`} type="number" min="0" step="any" placeholder="—" className={`${fieldClass} w-32`} /><span className="text-neutral-500">{unitLabel(i.unit)}</span></div></td>
+                <td className="text-right">{fmtStock(i.unit, st.get(i.id) ?? 0)}</td>
+                <td className="pl-6"><CountInput ingredientId={i.id} unit={i.unit} /></td>
               </tr>
             ))}
           </tbody>
