@@ -3,7 +3,7 @@ import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { assertInStock } from "@/services/availability";
+import { assertInStock, assertSellableOnSite } from "@/services/availability";
 import { createCustomerTx } from "@/lib/services/loyalty";
 import { checkScheduled } from "@/lib/slots";
 import { enabledProviders, repayUrl } from "@/services/payments";
@@ -54,6 +54,7 @@ export async function quoteWeb(input: unknown, locationId: string | null): Promi
   const d = quoteSchema.parse(input);
   if (!locationId) throw new ApiError(400, "Выберите точку");
   const { lines, subtotal } = await priceItems(prisma, d.items);
+  await assertSellableOnSite(prisma, d.items);
   await assertInStock(prisma, locationId, d.items);
   const x = await discountWithPromotions(prisma, lines, subtotal, { promoCode: d.promoCode, manualDiscount: null }, WEB_ACTOR, { channel: "SITE", phone: d.phone ? normalizePhone(d.phone) : null });
   const dl = d.fulfillment === "DELIVERY" ? await resolveDelivery(prisma, locationId, d.zoneId, r2(subtotal - x.discount)) : { fee: 0, zoneId: null, free: false };
@@ -110,6 +111,7 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
 
   const order = await prisma.$transaction(async (tx) => {
     const { lines, subtotal } = await priceItems(tx, d.items);
+    await assertSellableOnSite(tx, d.items);
     await assertInStock(tx, locationId, d.items);
     const x = await discountWithPromotions(tx, lines, subtotal, { promoCode: d.promoCode, manualDiscount: null, customerId: customer.id }, WEB_ACTOR, { channel: "SITE", phone });
     const disc = { ...x.disc, discount: x.discount };

@@ -25,6 +25,8 @@ export type PublicProduct = {
   volumeMl: number | null; prepMinutes: number; allergens: string[]; ingredients: string[];
   isVegan: boolean; isHighProtein: boolean; isSugarFree: boolean;
   available: boolean; portions: number | null; modifiers: PublicModifier[];
+  /** Нет рецепта: на сайте «Скоро будет доступно», заказать нельзя (настройка «Продавать на сайте только продукты с рецептом») */
+  comingSoon: boolean;
 };
 
 const productInclude = {
@@ -34,8 +36,15 @@ const productInclude = {
 } satisfies Prisma.ProductInclude;
 type Row = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
 
-function toPublic(p: Row, stock: Map<string, Prisma.Decimal>, rules: HappyRule[] = []): PublicProduct {
+/** Настройка «Продавать на сайте только продукты с рецептом». По умолчанию включена: без рецепта нет остатков и себестоимости. */
+export async function requireRecipe(db: Pick<typeof prisma, "setting"> = prisma): Promise<boolean> {
+  const row = await db.setting.findUnique({ where: { key: "site.requireRecipe" } });
+  return typeof row?.value === "number" ? row.value !== 0 : true;
+}
+
+function toPublic(p: Row, stock: Map<string, Prisma.Decimal>, rules: HappyRule[] = [], needRecipe = true): PublicProduct {
   const items = p.recipe?.items ?? [];
+  const comingSoon = needRecipe && items.length === 0;
   const portions = items.length
     ? Math.max(0, Math.min(...items.map((i) => Math.floor(Number(stock.get(i.ingredientId) ?? 0) / Number(i.quantity)))))
     : null;
@@ -58,7 +67,7 @@ function toPublic(p: Row, stock: Map<string, Prisma.Decimal>, rules: HappyRule[]
     // состав для покупателя: без упаковки (стаканы, крышки)
     ingredients: items.filter((i) => i.ingredient.category.toLowerCase() !== "packaging").map((i) => i.ingredient.name),
     isVegan: p.isVegan, isHighProtein: p.isHighProtein, isSugarFree: p.isSugarFree,
-    available: p.isAvailable && (portions === null || portions > 0), portions, modifiers,
+    available: !comingSoon && p.isAvailable && (portions === null || portions > 0), portions, modifiers, comingSoon,
   };
 }
 
@@ -74,12 +83,13 @@ export async function listMenu(locationId: string | null, f: MenuFilters = {}) {
   if (q) where.OR = [{ name: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }];
   const orderBy: Prisma.ProductOrderByWithRelationInput =
     f.sort === "price_asc" ? { price: "asc" } : f.sort === "price_desc" ? { price: "desc" } : f.sort === "calories" ? { calories: "asc" } : { name: "asc" };
-  const [rows, stock, rules] = await Promise.all([
+  const [rows, stock, rules, needRecipe] = await Promise.all([
     prisma.product.findMany({ where, include: productInclude, orderBy }),
     locationId ? usableStock(prisma, locationId) : Promise.resolve(new Map<string, Prisma.Decimal>()),
     loadRules(),
+    requireRecipe(),
   ]);
-  return rows.map((r) => toPublic(r, stock, rules));
+  return rows.map((r) => toPublic(r, stock, rules, needRecipe));
 }
 
 export const listCategories = () => prisma.category.findMany({ where: { products: { some: { isArchived: false } } }, orderBy: { sort: "asc" }, select: { id: true, name: true, slug: true } });
@@ -87,7 +97,7 @@ export const listCategories = () => prisma.category.findMany({ where: { products
 export async function getProductBySlug(slug: string, locationId: string | null) {
   const row = await prisma.product.findUnique({ where: { slug }, include: productInclude });
   if (!row || row.isArchived) return null;
-  return toPublic(row, locationId ? await usableStock(prisma, locationId) : new Map(), await loadRules());
+  return toPublic(row, locationId ? await usableStock(prisma, locationId) : new Map(), await loadRules(), await requireRecipe());
 }
 
 /** Хиты за 30 дней по реальным продажам; если продаж нет — null (на сайте не выдаём это за «хиты»). Кэш на минуту: корзина пересчитывается на каждое нажатие. */
@@ -168,8 +178,9 @@ export async function quoteCart(input: unknown, locationId: string | null): Prom
     const ids = [...new Set(it.optionIds)];
     const all = p.modifiers.flatMap((m) => m.options.map((o) => ({ o, m })));
     const chosen = ids.map((id) => all.find((x) => x.o.id === id));
-    let problem: string | null = null;
-    if (chosen.some((c) => !c)) problem = "Состав позиции изменился — выберите её заново в меню";
+    // «Скоро будет доступно» важнее остальных замечаний: такую позицию нужно просто убрать
+    let problem: string | null = p.comingSoon ? "Скоро будет доступно: уберите позицию из корзины" : null;
+    if (!problem && chosen.some((c) => !c)) problem = "Состав позиции изменился — выберите её заново в меню";
     const ok = chosen.filter((c): c is NonNullable<typeof c> => !!c);
     for (const m of p.modifiers) {
       const n = ok.filter((c) => c.m.id === m.id).length;

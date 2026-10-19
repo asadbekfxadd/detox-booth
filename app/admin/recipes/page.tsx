@@ -10,12 +10,17 @@ export default async function RecipesPage() {
   const { locationId } = await getScope();
   const showCost = can(user.role, "products.cost");
   const rows = await listRecipes(locationId, showCost);
+  const ready = rows.filter((r) => r.hasRecipe).length;
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Рецепты</h1>
         <p className="text-sm text-neutral-500">Технологические карты. При каждой продаже ингредиенты списываются со склада по этим рецептам. «Порций» считается по остаткам выбранной точки. Нужного ингредиента нет? Добавьте его в разделе <Link href="/admin/ingredients" className="text-green-800 underline">«Ингредиенты»</Link> или прямо в рецепте.</p>
       </div>
+      <p className={`rounded-xl px-4 py-3 text-sm ${ready === rows.length ? "bg-lime-100 text-green-900" : "bg-amber-50 text-amber-900"}`}>
+        Рецепты готовы у <b>{ready} из {rows.length}</b> продуктов.
+        {ready < rows.length && " Пока у продукта нет рецепта, на сайте он показывается как «Скоро будет доступно» и его нельзя заказать. Откройте продукт, впишите ингредиенты и граммы на одну порцию, и он сразу появится в продаже: дальше его количество считается по остатку склада."}
+      </p>
       <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-neutral-500">
