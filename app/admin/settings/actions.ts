@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
 import { saveSettings, SETTING_FIELDS } from "@/services/settings";
 import { saveLocationContacts } from "@/services/locations";
+import { resetStock } from "@/services/inventory";
 import type { OpState } from "@/components/admin/ops";
 
 export async function saveSettingsAction(_p: OpState, fd: FormData): Promise<OpState> {
@@ -26,4 +27,16 @@ export async function saveLocationsAction(_p: OpState, fd: FormData): Promise<Op
   } catch (e) { return { error: toMessage(e) }; }
   revalidatePath("/admin/settings"); revalidatePath("/", "layout");
   redirect(`/admin/settings?loc=${n}`);
+}
+
+/** Обнуление остатков перед запуском. Только владелец, с подтверждением словом. */
+export async function resetStockAction(_p: OpState, fd: FormData): Promise<OpState> {
+  let done: { batches: number; stocks: number };
+  try {
+    const u = await requireUser("settings.edit");
+    const loc = String(fd.get("locationId") ?? "");
+    done = await resetStock(loc || null, String(fd.get("confirm") ?? ""), u);
+  } catch (e) { return { error: toMessage(e) }; }
+  revalidatePath("/admin", "layout");
+  redirect(`/admin/settings?reset=${done.stocks}`);
 }
