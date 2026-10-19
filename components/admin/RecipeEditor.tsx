@@ -4,19 +4,30 @@ import { useActionState, useState, useTransition } from "react";
 import type { RecipeState } from "@/app/admin/recipes/actions";
 import { quickCreateIngredientAction } from "@/app/admin/ingredients/actions";
 import { money, pct } from "@/lib/format";
-import { UNIT_CHOICES, bigUnit, fmtQty, fmtStock, portionsFrom, smallLabel } from "@/lib/ingredient-units";
+import { UNIT_CHOICES, bigUnit, fmtStock, portionsFrom, smallLabel } from "@/lib/ingredient-units";
 
 type Ing = { id: string; name: string; unit: string; cost: number | null; stock: number };
-type Row = { ingredientId: string; quantity: string };
+type Size = { id: string; name: string; priceDelta: number; items: { ingredientId: string; quantity: number }[] };
+/** Одна строка таблицы: ингредиент и граммовка по каждому размеру (q[id размера]) */
+type Row = { ingredientId: string; q: Record<string, string> };
 const input = "rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-green-600";
+const BASE = "base";
 
-export function RecipeEditor({ ingredients, initial, price, action }: {
+export function RecipeEditor({ ingredients, initial, sizes, sizeName, price, action }: {
   ingredients: Ing[]; initial: { ingredientId: string; quantity: number }[]; price: number;
+  /** Размеры продукта («Объём»: 300 мл, 500 мл): у каждого своя граммовка. null: продукт без размеров, рецепт один. */
+  sizes: Size[] | null; sizeName: string | null;
   action: (prev: RecipeState, fd: FormData) => Promise<RecipeState>;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [list, setList] = useState<Ing[]>(ingredients);
-  const [rows, setRows] = useState<Row[]>(initial.map((r) => ({ ingredientId: r.ingredientId, quantity: String(r.quantity) })));
+  // столбцы: размеры продукта или один общий «На порцию»
+  const cols: Size[] = sizes ?? [{ id: BASE, name: "На порцию", priceDelta: 0, items: initial }];
+  const [rows, setRows] = useState<Row[]>(() => {
+    const order: string[] = [];
+    for (const c of cols) for (const i of c.items) if (!order.includes(i.ingredientId)) order.push(i.ingredientId);
+    return order.map((id) => ({ ingredientId: id, q: Object.fromEntries(cols.map((c) => [c.id, String(c.items.find((i) => i.ingredientId === id)?.quantity ?? "")])) }));
+  });
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({ name: "", unit: "G", price: "" });
   const [createError, setCreateError] = useState("");
@@ -25,12 +36,19 @@ export function RecipeEditor({ ingredients, initial, price, action }: {
   const free = list.filter((i) => !rows.some((r) => r.ingredientId === i.id));
   const showCost = list.some((i) => i.cost != null);
 
-  const qtyOf = (r: Row) => Number(r.quantity) || 0;
-  const lineCost = (r: Row) => { const ing = byId.get(r.ingredientId); return ing?.cost != null && qtyOf(r) > 0 ? ing.cost * qtyOf(r) : 0; };
-  const total = rows.reduce((a, r) => a + lineCost(r), 0);
-  const filled = rows.filter((r) => qtyOf(r) > 0);
-  const portions = filled.length ? Math.min(...filled.map((r) => portionsFrom(byId.get(r.ingredientId)?.stock ?? 0, qtyOf(r)))) : null;
-  const short = filled.filter((r) => (byId.get(r.ingredientId)?.stock ?? 0) < qtyOf(r)).map((r) => byId.get(r.ingredientId)?.name ?? "?");
+  const qty = (r: Row, col: string) => Number(r.q[col]) || 0;
+  const emptyQ = () => Object.fromEntries(cols.map((c) => [c.id, ""]));
+  /** Итоги по каждому размеру: себестоимость, цена, сколько порций из остатков, чего не хватает */
+  const summary = cols.map((c) => {
+    const filled = rows.filter((r) => qty(r, c.id) > 0);
+    const cost = filled.reduce((a, r) => { const ing = byId.get(r.ingredientId); return a + (ing?.cost != null ? ing.cost * qty(r, c.id) : 0); }, 0);
+    const portions = filled.length ? Math.min(...filled.map((r) => portionsFrom(byId.get(r.ingredientId)?.stock ?? 0, qty(r, c.id)))) : null;
+    const short = filled.filter((r) => (byId.get(r.ingredientId)?.stock ?? 0) < qty(r, c.id)).map((r) => byId.get(r.ingredientId)?.name ?? "?");
+    return { col: c, count: filled.length, cost, price: price + c.priceDelta, portions, short };
+  });
+  const anyFilled = summary.some((x) => x.count > 0);
+  const shortAll = [...new Set(summary.flatMap((x) => x.short))];
+  const payload = (c: Size) => rows.filter((r) => qty(r, c.id) > 0).map((r) => ({ ingredientId: r.ingredientId, quantity: qty(r, c.id) }));
 
   function create() {
     setCreateError("");
@@ -38,7 +56,7 @@ export function RecipeEditor({ ingredients, initial, price, action }: {
       const res = await quickCreateIngredientAction(draft);
       if ("error" in res) { setCreateError(res.error); return; }
       setList((l) => [...l, res.ingredient]);
-      setRows((rs) => [...rs, { ingredientId: res.ingredient.id, quantity: "" }]);
+      setRows((rs) => [...rs, { ingredientId: res.ingredient.id, q: emptyQ() }]);
       setDraft({ name: "", unit: draft.unit, price: "" });
       setCreating(false);
     });
@@ -46,31 +64,38 @@ export function RecipeEditor({ ingredients, initial, price, action }: {
 
   return (
     <form action={formAction} className="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
-      <input type="hidden" name="items" value={JSON.stringify(rows.map((r) => ({ ingredientId: r.ingredientId, quantity: Number(r.quantity) })))} />
-      <p className="text-sm text-neutral-600">Сколько каждого ингредиента уходит на <b>одну порцию</b>. Например, для смузи: клубника 30 г, банан 50 г, киви 20 г. При каждой продаже это количество списывается со склада.</p>
+      <input type="hidden" name="items" value={JSON.stringify(payload(cols[0]))} />
+      {sizes && <input type="hidden" name="sizes" value={JSON.stringify(cols.map((c) => ({ optionId: c.id, items: payload(c) })))} />}
+      <p className="text-sm text-neutral-600">
+        {sizes
+          ? <>Сколько каждого ингредиента уходит на <b>одну порцию каждого размера ({sizeName ?? "Объём"})</b>. Впишите свою граммовку в каждую колонку: именно она списывается со склада при продаже этого размера и входит в себестоимость. Если ингредиент в размере не нужен, оставьте пусто.</>
+          : <>Сколько каждого ингредиента уходит на <b>одну порцию</b>. Например, для смузи: клубника 30 г, банан 50 г, киви 20 г. При каждой продаже это количество списывается со склада.</>}
+      </p>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-neutral-500"><th className="py-1">Ингредиент</th><th>На порцию</th><th className="text-right">На складе</th><th className="text-right">Хватит на</th>{showCost && <th className="text-right">Стоимость</th>}<th /></tr></thead>
+          <thead><tr className="text-left text-neutral-500">
+            <th className="py-1">Ингредиент</th>
+            {cols.map((c) => <th key={c.id}>{sizes ? `На ${c.name}` : "На порцию"}</th>)}
+            <th className="text-right">На складе</th><th />
+          </tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={6} className="py-6 text-center text-neutral-500">Рецепт пуст. Добавьте ингредиенты ниже.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={cols.length + 3} className="py-6 text-center text-neutral-500">Рецепт пуст. Добавьте ингредиенты ниже.</td></tr>}
             {rows.map((r, idx) => {
               const ing = byId.get(r.ingredientId);
-              const stock = ing?.stock ?? 0;
-              const left = qtyOf(r) > 0 ? portionsFrom(stock, qtyOf(r)) : null;
               return (
                 <tr key={r.ingredientId} className="border-t border-neutral-100">
                   <td className="py-2 font-medium">{ing?.name ?? "—"}</td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <input type="number" min="0" step="any" value={r.quantity} placeholder="30" className={`${input} w-24`} aria-label={`${ing?.name}: количество на порцию`}
-                        onChange={(e) => setRows(rows.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)))} />
-                      <span className="text-neutral-500">{smallLabel(ing?.unit ?? "")}</span>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap text-right text-neutral-600">{fmtStock(ing?.unit ?? "", stock)}</td>
-                  <td className={`whitespace-nowrap text-right ${left === 0 ? "font-semibold text-red-700" : ""}`}>{left == null ? "—" : `${left} порц.`}</td>
-                  {showCost && <td className="text-right">{money(lineCost(r))}</td>}
+                  {cols.map((c) => (
+                    <td key={c.id} className="pr-2">
+                      <div className="flex items-center gap-2">
+                        <input type="number" min="0" step="any" value={r.q[c.id] ?? ""} placeholder="30" className={`${input} w-24`} aria-label={`${ing?.name}: количество на ${sizes ? c.name : "порцию"}`}
+                          onChange={(e) => setRows(rows.map((x, i) => (i === idx ? { ...x, q: { ...x.q, [c.id]: e.target.value } } : x)))} />
+                        <span className="text-neutral-500">{smallLabel(ing?.unit ?? "")}</span>
+                      </div>
+                    </td>
+                  ))}
+                  <td className="whitespace-nowrap text-right text-neutral-600">{fmtStock(ing?.unit ?? "", ing?.stock ?? 0)}</td>
                   <td className="text-right"><button type="button" onClick={() => setRows(rows.filter((_, i) => i !== idx))} className="rounded-lg border border-neutral-200 px-3 py-1 text-xs text-red-700 hover:bg-neutral-50">Убрать</button></td>
                 </tr>
               );
@@ -81,7 +106,7 @@ export function RecipeEditor({ ingredients, initial, price, action }: {
 
       <div className="flex flex-wrap items-center gap-2">
         <select id="add" defaultValue="" className={input}
-          onChange={(e) => { if (e.target.value) { setRows([...rows, { ingredientId: e.target.value, quantity: "" }]); e.target.value = ""; } }}>
+          onChange={(e) => { if (e.target.value) { setRows([...rows, { ingredientId: e.target.value, q: emptyQ() }]); e.target.value = ""; } }}>
           <option value="">+ Добавить ингредиент…</option>
           {free.map((i) => <option key={i.id} value={i.id}>{i.name} ({smallLabel(i.unit)})</option>)}
         </select>
@@ -109,18 +134,19 @@ export function RecipeEditor({ ingredients, initial, price, action }: {
         </div>
       )}
 
-      {filled.length > 0 && (
-        <div className="space-y-2 rounded-xl bg-[#f7f3ea] p-4 text-sm">
-          {showCost && (
-            <>
-              <p>Себестоимость порции: <b>{money(total)}</b></p>
-              <p>Цена продажи: <b>{money(price)}</b> · Маржа: <b>{price ? pct(((price - total) / price) * 100) : "—"}</b></p>
-            </>
-          )}
-          <p>Из текущих остатков можно приготовить: <b className={portions === 0 ? "text-red-700" : ""}>{portions} порц.</b></p>
-          {short.length > 0 && (
+      {anyFilled && (
+        <div className="space-y-3 rounded-xl bg-[#f7f3ea] p-4 text-sm">
+          {summary.map((x) => x.count > 0 && (
+            <div key={x.col.id} className="space-y-0.5">
+              {sizes && <p className="font-semibold">{x.col.name}</p>}
+              {showCost && <p>Себестоимость порции: <b>{money(x.cost)}</b> · Цена продажи: <b>{money(x.price)}</b> · Маржа: <b>{x.price ? pct(((x.price - x.cost) / x.price) * 100) : "—"}</b></p>}
+              <p>Из текущих остатков можно приготовить: <b className={x.portions === 0 ? "text-red-700" : ""}>{x.portions} порц.</b></p>
+            </div>
+          ))}
+          {sizes && summary.some((x) => x.count === 0) && <p className="rounded-lg bg-red-50 px-3 py-2 text-red-700">Заполните граммовку для каждого размера: {summary.filter((x) => x.count === 0).map((x) => x.col.name).join(", ")}.</p>}
+          {shortAll.length > 0 && (
             <p className="rounded-lg bg-amber-100 px-3 py-2 text-amber-900">
-              Не хватает на складе: <b>{short.join(", ")}</b>. Пока их нет, на сайте этот продукт будет с пометкой «Скоро вернём», а на кассе «Нет в наличии». Сначала <Link href="/admin/inventory/receive" className="underline">оформите приход</Link>.
+              Не хватает на складе: <b>{shortAll.join(", ")}</b>. Пока их нет, на сайте этот продукт будет с пометкой «Скоро вернём», а на кассе «Нет в наличии». Сначала <Link href="/admin/inventory/receive" className="underline">оформите приход</Link>.
             </p>
           )}
         </div>

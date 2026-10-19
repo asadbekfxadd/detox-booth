@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { ApiError } from "@/lib/api";
 import { resolveMix } from "@/services/mix";
 import type { MixInput } from "@/lib/mix";
+import { pickSizeRows } from "@/lib/recipe-size";
 
 type Db = Prisma.TransactionClient;
 const D = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n);
@@ -24,7 +25,7 @@ export async function usableStock(db: Db, locationId: string) {
 export async function computeNeeds(db: Db, items: CartItem[]) {
   const products = await db.product.findMany({
     where: { id: { in: [...new Set(items.map((i) => i.productId))] } },
-    include: { recipe: { include: { items: true } } },
+    include: { recipe: { include: { items: true, sizeItems: true } } },
   });
   const pm = new Map(products.map((p) => [p.id, p]));
   const optionIds = [...new Set(items.flatMap((i) => i.optionIds))];
@@ -41,8 +42,14 @@ export async function computeNeeds(db: Db, items: CartItem[]) {
     }
     for (const n of it.mixNeeds ?? []) add(n.ingredientId, D(n.qty).times(it.quantity));
     const chosen = [...new Set(it.optionIds)].map((id) => om.get(id)).filter((o): o is NonNullable<typeof o> => !!o);
-    const mult = chosen.reduce((m, o) => m.times(o.recipeMultiplier), D(1));
-    for (const ri of pm.get(it.productId)?.recipe?.items ?? []) add(ri.ingredientId, ri.quantity.times(mult).times(it.quantity));
+    const recipe = pm.get(it.productId)?.recipe;
+    // у размера своя граммовка: берём её, коэффициент не нужен
+    const bySize = pickSizeRows(recipe?.sizeItems ?? [], chosen.map((o) => o.id));
+    if (bySize) for (const ri of bySize) add(ri.ingredientId, ri.quantity.times(it.quantity));
+    else {
+      const mult = chosen.reduce((m, o) => m.times(o.recipeMultiplier), D(1));
+      for (const ri of recipe?.items ?? []) add(ri.ingredientId, ri.quantity.times(mult).times(it.quantity));
+    }
     for (const o of chosen) if (o.extraIngredientId && o.extraQty) add(o.extraIngredientId, o.extraQty.times(it.quantity));
   }
   return need;
