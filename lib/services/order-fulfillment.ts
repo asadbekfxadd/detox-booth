@@ -4,6 +4,7 @@ import { getLoyaltySettings } from "@/lib/loyalty-settings";
 import { referralBonusTx } from "@/lib/services/loyalty";
 import { lockStock } from "@/lib/stock-lock";
 import { mixNeedsFromModifiers } from "@/lib/mix";
+import { pickSizeRows } from "@/lib/recipe-size";
 import { lowStockMessage, lowStockPrefix, legacyLowStockPrefix } from "@/lib/notify";
 
 type Tx = Prisma.TransactionClient;
@@ -17,7 +18,7 @@ const D = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n);
 export async function deductInventoryTx(tx: Tx, orderId: string, userId?: string) {
   const order = await tx.order.findUniqueOrThrow({
     where: { id: orderId },
-    include: { items: { include: { product: { include: { recipe: { include: { items: true } } } } } } },
+    include: { items: { include: { product: { include: { recipe: { include: { items: true, sizeItems: true } } } } } } },
   });
   if (order.inventoryDeducted) return order;
   if (order.status === "CANCELLED") throw new Error("ORDER_CANCELLED");
@@ -32,8 +33,12 @@ export async function deductInventoryTx(tx: Tx, orderId: string, userId?: string
     const mods = Array.isArray(item.modifiers) ? (item.modifiers as unknown as Partial<ChosenOption>[]) : [];
     const ids = mods.map((m) => m?.optionId).filter((x): x is string => typeof x === "string" && x.length > 0);
     const opts = ids.length ? await tx.modifierOption.findMany({ where: { id: { in: ids } } }) : [];
-    const mult = opts.reduce((m, o) => m.times(o.recipeMultiplier), D(1));
-    for (const ri of item.product.recipe?.items ?? []) add(ri.ingredientId, ri.quantity.times(mult).times(item.quantity));
+    const bySize = pickSizeRows(item.product.recipe?.sizeItems ?? [], opts.map((o) => o.id));
+    if (bySize) for (const ri of bySize) add(ri.ingredientId, ri.quantity.times(item.quantity));
+    else {
+      const mult = opts.reduce((m, o) => m.times(o.recipeMultiplier), D(1));
+      for (const ri of item.product.recipe?.items ?? []) add(ri.ingredientId, ri.quantity.times(mult).times(item.quantity));
+    }
     for (const o of opts) if (o.extraIngredientId && o.extraQty) add(o.extraIngredientId, o.extraQty.times(item.quantity));
     // «Свой микс»: ингредиенты и стаканчик записаны в позиции заказа
     for (const n of mixNeedsFromModifiers(item.modifiers)) add(n.ingredientId, D(n.qty).times(item.quantity));

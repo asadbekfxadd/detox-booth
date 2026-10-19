@@ -81,14 +81,15 @@ export async function createIngredientQuick(input: unknown, userId: string) {
 
 /** Ингредиент уже участвует в учёте: менять единицу и удалять нельзя. */
 async function usage(id: string) {
-  const [recipes, purchases, txs, writeOffs, batches] = await Promise.all([
+  const [recipes, purchases, txs, writeOffs, batches, sized] = await Promise.all([
     prisma.recipeItem.count({ where: { ingredientId: id } }),
     prisma.purchaseItem.count({ where: { ingredientId: id } }),
     prisma.inventoryTransaction.count({ where: { ingredientId: id } }),
     prisma.writeOff.count({ where: { ingredientId: id } }),
     prisma.batch.count({ where: { ingredientId: id } }),
+    prisma.recipeSizeItem.count({ where: { ingredientId: id } }),
   ]);
-  return { recipes, inUse: recipes + purchases + txs + writeOffs + batches > 0 };
+  return { recipes, inUse: recipes + sized + purchases + txs + writeOffs + batches > 0 };
 }
 
 export async function updateIngredient(id: string, input: unknown, userId: string) {

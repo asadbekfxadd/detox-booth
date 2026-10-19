@@ -29,6 +29,8 @@ export default async function RecipePage({ params }: { params: Promise<{ product
       <RecipeEditor
         price={recipe.product.price}
         initial={recipe.items}
+        sizes={recipe.sizes}
+        sizeName={recipe.sizeName}
         action={saveRecipeAction.bind(null, productId)}
         ingredients={ingredients.map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: showCost ? Number(i.avgCost) : null, stock: stock.get(i.id) ?? 0 }))}
       />

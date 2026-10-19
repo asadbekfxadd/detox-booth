@@ -426,6 +426,7 @@ model ModifierOption {
   recipeMultiplier Decimal @default(1) @db.Decimal(5,2)
   extraIngredientId String?
   extraQty Decimal? @db.Decimal(12,3)
+  sizeItems RecipeSizeItem[]
 }
 
 model Ingredient {
@@ -445,6 +446,7 @@ model Ingredient {
   supplierId String?
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   recipeItems RecipeItem[]
+  recipeSizeItems RecipeSizeItem[]
   stocks StockItem[]
   batches Batch[]
   purchaseItems PurchaseItem[]
@@ -457,6 +459,8 @@ model Recipe {
   productId String @unique
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   items RecipeItem[]
+  /// Своя граммовка для каждого размера (опции «Объём»). Если у размера есть строки здесь, берутся они, а не items × коэффициент
+  sizeItems RecipeSizeItem[]
   updatedAt DateTime @updatedAt
 }
 model RecipeItem {
@@ -467,6 +471,20 @@ model RecipeItem {
   ingredient Ingredient @relation(fields: [ingredientId], references: [id])
   quantity Decimal @db.Decimal(12,3)
   @@unique([recipeId, ingredientId])
+}
+
+/// Граммовка ингредиента на порцию для конкретного размера (опции модификатора «Объём»)
+model RecipeSizeItem {
+  id String @id @default(cuid())
+  recipeId String
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  optionId String
+  option ModifierOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity Decimal @db.Decimal(12,3)
+  @@unique([optionId, ingredientId])
+  @@index([recipeId])
 }
 
 model StockItem {
