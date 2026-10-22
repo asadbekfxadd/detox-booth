@@ -24,13 +24,13 @@ export default async function RecipePage({ params }: { params: Promise<{ product
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Рецепт: {recipe.product.name}</h1>
-        <p className="text-sm text-neutral-500">Остатки показаны по выбранной точке.</p>
+        <p className="text-sm text-neutral-500">Здесь можно поменять всё: название, размеры и цены, граммы и цены ингредиентов. Остатки показаны по выбранной точке.</p>
       </div>
       <RecipeEditor
-        price={recipe.product.price}
+        key={`${recipe.product.id}-${recipe.sizes?.map((x) => x.id).join(",") ?? ""}`}
+        product={recipe.product}
         initial={recipe.items}
         sizes={recipe.sizes}
-        sizeName={recipe.sizeName}
         action={saveRecipeAction.bind(null, productId)}
         ingredients={ingredients.map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: showCost ? Number(i.avgCost) : null, stock: stock.get(i.id) ?? 0 }))}
       />
