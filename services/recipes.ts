@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { findSizeModifier } from "@/lib/recipe-size";
+import { Prisma } from "@prisma/client";
+import { toBase } from "@/lib/ingredient-units";
 
 const itemsSchema = z.array(z.object({
   ingredientId: z.string().min(1, "Выберите ингредиент"),
@@ -14,6 +16,10 @@ export const recipeSchema = z.object({
   items: itemsSchema,
   /** Граммовка по размерам: по одному набору на каждый размер продукта */
   sizes: z.array(z.object({ optionId: z.string().min(1), items: itemsSchema })).max(10).optional(),
+  /** Цены ингредиентов за 1 кг/л/шт, вписанные прямо в рецепте (только тем, кто видит себестоимость) */
+  prices: z.array(z.object({ ingredientId: z.string().min(1), price: z.coerce.number({ error: "Укажите цену" }).min(0, "Цена не может быть отрицательной").max(1_000_000_000, "Слишком большая цена") })).max(60).optional(),
+  /** Название и цена продажи каждого размера */
+  sizeEdits: z.array(z.object({ optionId: z.string().min(1), name: z.string().trim().min(1, "Название размера не может быть пустым").max(40, "Название размера слишком длинное"), price: z.coerce.number({ error: "Укажите цену размера" }).min(0, "Цена не может быть отрицательной").max(1_000_000_000, "Слишком большая цена") })).max(10).optional(),
 });
 
 /** Список продуктов с рецептом, себестоимостью и числом порций, которые можно приготовить из остатков. */
@@ -87,14 +93,39 @@ export async function saveRecipe(productId: string, input: unknown, userId: stri
   const found = await prisma.ingredient.count({ where: { id: { in: allIds } } });
   if (found !== allIds.length) throw new ApiError(400, "Один из ингредиентов не найден");
 
+  // цены ингредиентов, вписанные в рецепте
+  const priceEdits = parsed.prices ?? [];
+  const ingRows = priceEdits.length ? await prisma.ingredient.findMany({ where: { id: { in: priceEdits.map((p) => p.ingredientId) } } }) : [];
+  if (ingRows.length !== new Set(priceEdits.map((p) => p.ingredientId)).size) throw new ApiError(400, "Один из ингредиентов не найден");
+  // название и цена размеров
+  const sizeEdits = sizeMod ? (parsed.sizeEdits ?? []) : [];
+  const optById = new Map((sizeMod?.options ?? []).map((o) => [o.id, o]));
+  for (const e of sizeEdits) if (!optById.has(e.optionId)) throw new ApiError(400, "Размер не найден");
+  if (new Set(sizeEdits.map((e) => e.name.toLowerCase())).size !== sizeEdits.length) throw new ApiError(400, "Названия размеров не должны повторяться");
+
   const oldItems = (product.recipe?.items ?? []).map((i) => ({ ingredientId: i.ingredientId, quantity: Number(i.quantity) }));
   await prisma.$transaction(async (tx) => {
     const recipe = await tx.recipe.upsert({ where: { productId }, create: { productId }, update: {} });
     await tx.recipeItem.deleteMany({ where: { recipeId: recipe.id } });
     await tx.recipeItem.createMany({ data: items.map((i) => ({ recipeId: recipe.id, ingredientId: i.ingredientId, quantity: i.quantity })) });
     await tx.recipeSizeItem.deleteMany({ where: { recipeId: recipe.id } });
+    for (const pe of priceEdits) {
+      const ing = ingRows.find((i) => i.id === pe.ingredientId)!;
+      const avg = new Prisma.Decimal(pe.price / toBase(ing.unit, 1)).toDecimalPlaces(2);
+      if (!avg.equals(ing.avgCost)) await tx.ingredient.update({ where: { id: ing.id }, data: { avgCost: avg } });
+    }
+    for (const e of sizeEdits) {
+      const o = optById.get(e.optionId)!;
+      const delta = new Prisma.Decimal(e.price).minus(product.price).toDecimalPlaces(2);
+      if (o.name !== e.name || !delta.equals(o.priceDelta)) await tx.modifierOption.update({ where: { id: o.id }, data: { name: e.name, priceDelta: delta } });
+    }
     if (sizes) await tx.recipeSizeItem.createMany({ data: sizes.flatMap((s) => s.items.map((i) => ({ recipeId: recipe.id, optionId: s.optionId, ingredientId: i.ingredientId, quantity: i.quantity }))) });
   });
+  for (const pe of priceEdits) {
+    const ing = ingRows.find((i) => i.id === pe.ingredientId)!;
+    const old = Number(ing.avgCost) * toBase(ing.unit, 1);
+    if (Math.abs(old - pe.price) > 0.005) await audit({ userId, action: "INGREDIENT_UPDATED", entity: "Ingredient", entityId: ing.id, oldValue: { price: Math.round(old * 100) / 100 }, newValue: { price: pe.price, via: "рецепт" } });
+  }
   await audit({
     userId, action: "RECIPE_CHANGED", entity: "Recipe", entityId: productId,
     oldValue: { items: oldItems, sizes: (product.recipe?.sizeItems ?? []).length },

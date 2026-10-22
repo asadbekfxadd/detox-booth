@@ -35,3 +35,17 @@ describe("pickSizeRows", () => {
     expect(pickSizeRows([], ["300"])).toBeNull();
   });
 });
+
+import { recipeSchema } from "@/services/recipes";
+describe("recipeSchema: цены и размеры из рецепта", () => {
+  const items = [{ ingredientId: "a", quantity: 30 }];
+  it("принимает цены ингредиентов и название/цену размера", () => {
+    const r = recipeSchema.parse({ items, prices: [{ ingredientId: "a", price: "60000" }], sizeEdits: [{ optionId: "o", name: " 330 мл ", price: 28000 }] });
+    expect(r.prices?.[0].price).toBe(60000);
+    expect(r.sizeEdits?.[0].name).toBe("330 мл");
+  });
+  it("отклоняет отрицательную цену и пустое название размера", () => {
+    expect(() => recipeSchema.parse({ items, prices: [{ ingredientId: "a", price: -1 }] })).toThrow();
+    expect(() => recipeSchema.parse({ items, sizeEdits: [{ optionId: "o", name: " ", price: 1 }] })).toThrow();
+  });
+});
