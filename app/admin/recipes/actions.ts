@@ -11,17 +11,16 @@ export type RecipeState = { error?: string } | undefined;
 export async function saveRecipeAction(productId: string, _prev: RecipeState, fd: FormData): Promise<RecipeState> {
   try {
     const u = await requireUser("recipes.edit");
-    let items: unknown, sizes: unknown, prices: unknown, sizeEdits: unknown;
+    let body: Record<string, unknown>;
     try {
-      items = JSON.parse(String(fd.get("items") ?? "[]"));
-      const raw = String(fd.get("sizes") ?? "");
-      sizes = raw ? JSON.parse(raw) : undefined;
-      const rp = String(fd.get("prices") ?? "");
-      prices = rp && can(u.role, "products.cost") ? JSON.parse(rp) : undefined; // цены меняет только тот, кто видит себестоимость
-      const rs = String(fd.get("sizeEdits") ?? "");
-      sizeEdits = rs && can(u.role, "products.cost") ? JSON.parse(rs) : undefined;
+      body = {};
+      for (const k of ["items", "sizes", "prices"]) { const raw = String(fd.get(k) ?? ""); if (raw) body[k] = JSON.parse(raw); }
+      for (const k of ["name", "price"]) { const raw = String(fd.get(k) ?? ""); if (raw !== "") body[k] = raw; }
     } catch { return { error: "Некорректные данные формы" }; }
-    await saveRecipe(productId, { items, sizes, prices, sizeEdits }, u.id);
+    // название, цена и размеры: как в карточке продукта; цены ингредиентов: только тем, кто видит себестоимость
+    if (!can(u.role, "products.edit") && (body.name !== undefined || body.price !== undefined || body.sizes !== undefined)) return { error: "Менять название, цену и размеры продукта может только тот, у кого есть доступ к продуктам" };
+    if (!can(u.role, "products.cost")) delete body.prices;
+    await saveRecipe(productId, body, u.id);
   } catch (e) { return { error: toMessage(e) }; }
   revalidatePath("/admin/recipes");
   revalidatePath("/admin/products");

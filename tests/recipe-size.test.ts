@@ -37,15 +37,41 @@ describe("pickSizeRows", () => {
 });
 
 import { recipeSchema } from "@/services/recipes";
-describe("recipeSchema: цены и размеры из рецепта", () => {
+import { mlOf, pickReference, sizeRatio } from "@/lib/recipe-size";
+describe("recipeSchema: размеры, цены и название из рецепта", () => {
   const items = [{ ingredientId: "a", quantity: 30 }];
-  it("принимает цены ингредиентов и название/цену размера", () => {
-    const r = recipeSchema.parse({ items, prices: [{ ingredientId: "a", price: "60000" }], sizeEdits: [{ optionId: "o", name: " 330 мл ", price: 28000 }] });
+  it("принимает цены ингредиентов, название и размеры (новый размер без id)", () => {
+    const r = recipeSchema.parse({ name: " Апельсин ", prices: [{ ingredientId: "a", price: "60000" }], sizes: [{ optionId: "o", name: " 330 мл ", price: 28000, items }, { name: "500 мл", price: "40000", items }] });
     expect(r.prices?.[0].price).toBe(60000);
-    expect(r.sizeEdits?.[0].name).toBe("330 мл");
+    expect(r.sizes?.[0].name).toBe("330 мл");
+    expect(r.sizes?.[1].optionId).toBeUndefined();
+    expect(r.sizes?.[1].price).toBe(40000);
+    expect(r.name).toBe("Апельсин");
   });
-  it("отклоняет отрицательную цену и пустое название размера", () => {
+  it("нужны ингредиенты или размеры; цена не отрицательная; название размера не пустое", () => {
+    expect(() => recipeSchema.parse({})).toThrow();
     expect(() => recipeSchema.parse({ items, prices: [{ ingredientId: "a", price: -1 }] })).toThrow();
-    expect(() => recipeSchema.parse({ items, sizeEdits: [{ optionId: "o", name: " ", price: 1 }] })).toThrow();
+    expect(() => recipeSchema.parse({ sizes: [{ name: " ", price: 1, items }] })).toThrow();
+    expect(() => recipeSchema.parse({ sizes: [{ name: "250 мл", price: 1, items: [] }] })).toThrow();
+  });
+});
+
+describe("объём из названия размера", () => {
+  it("мл, л и десятичные", () => {
+    expect(mlOf("330 мл")).toBe(330);
+    expect(mlOf("1 л")).toBe(1000);
+    expect(mlOf("0,5 л")).toBe(500);
+    expect(mlOf("500мл")).toBe(500);
+    expect(mlOf("Большой")).toBeNull();
+    expect(mlOf("Литр")).toBeNull();
+  });
+  it("пропорция и образец для копирования", () => {
+    expect(sizeRatio("500 мл", "250 мл")).toBe(0.5);
+    expect(sizeRatio("Малый", "250 мл")).toBe(1);
+    const cols = [{ name: "300 мл" }, { name: "500 мл" }];
+    expect(pickReference(cols, "250 мл")?.name).toBe("300 мл");
+    expect(pickReference(cols, "450 мл")?.name).toBe("500 мл");
+    expect(pickReference(cols, "Свой")?.name).toBe("500 мл");
+    expect(pickReference([], "250 мл")).toBeNull();
   });
 });

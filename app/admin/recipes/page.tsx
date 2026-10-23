@@ -24,7 +24,7 @@ export default async function RecipesPage() {
       <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-neutral-500">
-            <th className="p-3">Продукт</th><th>Категория</th><th className="text-right">Ингредиентов</th>
+            <th className="p-3">Продукт</th><th>Категория</th><th>Размеры</th><th className="text-right">Ингредиентов</th>
             {showCost && <><th className="text-right">Себестоимость</th><th className="text-right">Маржа</th></>}
             <th className="text-right">Порций на складе</th><th className="p-3" />
           </tr></thead>
@@ -33,6 +33,7 @@ export default async function RecipesPage() {
               <tr key={r.id} className="border-t border-neutral-100">
                 <td className="p-3 font-medium">{r.name}</td>
                 <td>{r.category}</td>
+                <td className="text-neutral-600">{r.sizes.length ? r.sizes.join(" · ") : "один"}</td>
                 <td className="text-right">{r.hasRecipe ? num(r.ingredients) : <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">нет рецепта</span>}</td>
                 {showCost && <>
                   <td className="text-right">{r.cost == null ? "—" : money(r.cost)}</td>
