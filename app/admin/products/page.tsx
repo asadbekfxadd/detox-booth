@@ -24,7 +24,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Продукты</h1>
-        <Link href="/admin/products/new" className="rounded-xl bg-green-700 px-5 py-2 text-sm font-semibold text-white hover:bg-green-800">+ Новый продукт</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/products/quick" className="rounded-xl bg-green-700 px-5 py-2 text-sm font-semibold text-white hover:bg-green-800">+ Создать по описанию</Link>
+          <Link href="/admin/products/new" className="rounded-xl border border-neutral-200 bg-white px-5 py-2 text-sm font-semibold hover:bg-neutral-50">+ Вручную</Link>
+        </div>
       </div>
       <FilterForm key={JSON.stringify(sp)} className="flex flex-wrap gap-2">
         <input name="q" defaultValue={sp.q} placeholder="Поиск по названию" className={input} />
