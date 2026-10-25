@@ -29,7 +29,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Аналитика</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">Аналитика</h1>
+        <div className="flex gap-2 text-sm"><Link href="/admin/analytics/staff" className="rounded-full bg-white px-4 py-1.5 text-green-800 hover:bg-neutral-100">Продажи по сотрудникам</Link><Link href="/admin/analytics/menu" className="rounded-full bg-white px-4 py-1.5 text-green-800 hover:bg-neutral-100">ABC×XYZ и непродаваемые</Link></div>
+      </div>
       <RangeBar base="/admin/analytics" range={range} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Kpi l="Выручка" v={money(a.revenue)} /><Kpi l="Заказов" v={num(a.orders)} /><Kpi l="Средний чек" v={money(a.avgCheck)} />
