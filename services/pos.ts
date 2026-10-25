@@ -15,6 +15,7 @@ import { lockStock } from "@/lib/stock-lock";
 import { ensureMixProduct, resolveMix, getMixCatalog, type MixCatalog } from "@/services/mix";
 import { MIX_PRODUCT_NAME, mixInputSchema } from "@/lib/mix";
 import { grossQty } from "@/lib/yield";
+import { expectedCash as calcExpectedCash, canWithdraw } from "@/lib/cash";
 import { promotionsForCart, codeBlockedBy, recordUses, type Applied, type CartLine } from "@/services/promotions";
 
 type Tx = Prisma.TransactionClient;
@@ -74,7 +75,10 @@ export async function openShift(input: unknown, user: Actor) {
 export async function shiftSummary(shiftId: string) {
   const shift = await prisma.shift.findUnique({ where: { id: shiftId }, include: { user: { select: { name: true } }, location: { select: { name: true } } } });
   if (!shift) return null;
-  const orders = await prisma.order.findMany({ where: { shiftId }, include: { payments: true } });
+  const [orders, moves] = await Promise.all([
+    prisma.order.findMany({ where: { shiftId }, include: { payments: true } }),
+    prisma.cashMovement.findMany({ where: { shiftId }, orderBy: { createdAt: "asc" } }),
+  ]);
   const sales = { count: 0, total: 0, discount: 0, serviceFee: 0, cash: 0, card: 0, online: 0 };
   const tips = { total: 0, cash: 0, card: 0 };
   const refunds = { count: 0, total: 0, cash: 0, card: 0, online: 0 };
@@ -95,13 +99,41 @@ export async function shiftSummary(shiftId: string) {
   }
   const opening = Number(shift.openingCash);
   // наличные чаевые лежат в кассе до выдачи официанту, поэтому входят в ожидаемую сумму
-  const expectedCash = opening + sales.cash + tips.cash - refunds.cash;
+  const cashIn = moves.filter((m) => m.type === "IN").reduce((a, m) => a + Number(m.amount), 0);
+  const cashOut = moves.filter((m) => m.type === "OUT").reduce((a, m) => a + Number(m.amount), 0);
+  const expectedCash = calcExpectedCash({ opening, cashSales: sales.cash, cashTips: tips.cash, cashRefunds: refunds.cash, cashIn, cashOut });
   const closing = shift.closingCash == null ? null : Number(shift.closingCash);
   return {
     id: shift.id, status: shift.status, cashier: shift.user.name, location: shift.location.name, locationId: shift.locationId, userId: shift.userId,
     openedAt: shift.openedAt, closedAt: shift.closedAt, opening, closing, expectedCash,
     difference: closing == null ? null : closing - expectedCash, sales, tips, refunds,
+    cashIn, cashOut, movements: moves.map((m) => ({ id: m.id, type: m.type, amount: Number(m.amount), reason: m.reason, at: m.createdAt })),
   };
+}
+
+export const cashMovementSchema = z.object({
+  type: z.enum(["IN", "OUT"], { error: "Выберите: внести или изъять" }),
+  amount: z.preprocess(required, z.coerce.number({ error: "Укажите сумму" }).gt(0, "Сумма должна быть больше нуля").max(1_000_000_000, "Слишком большая сумма")),
+  reason: z.string().trim().min(3, "Укажите причину").max(200, "Слишком длинная причина"),
+});
+
+/** Внесение или изъятие наличных в открытой смене. Изъять больше, чем в кассе по системе, нельзя. */
+export async function addCashMovement(input: unknown, user: Actor) {
+  const d = cashMovementSchema.parse(input);
+  const amount = r2(d.amount);
+  const shift = await getOpenShift(user.id);
+  if (!shift) throw new ApiError(400, "Откройте смену, чтобы вносить и изымать наличные");
+  await prisma.$transaction(async (tx) => {
+    // две операции подряд не должны вместе забрать больше, чем лежит в кассе
+    await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Shift" WHERE "id" = ${shift.id} FOR UPDATE`);
+    if (d.type === "OUT") {
+      const sum = await shiftSummary(shift.id);
+      if (!sum) throw new ApiError(404, "Смена не найдена");
+      if (!canWithdraw(sum.expectedCash, amount)) throw new ApiError(400, `В кассе по системе только ${new Intl.NumberFormat("ru-RU").format(Math.round(sum.expectedCash))} UZS`);
+    }
+    await tx.cashMovement.create({ data: { shiftId: shift.id, userId: user.id, type: d.type, amount, reason: d.reason } });
+  }, { timeout: 20000, maxWait: 10000 });
+  await safeAudit({ userId: user.id, action: "CASH_MOVEMENT", entity: "Shift", entityId: shift.id, newValue: { type: d.type, amount, reason: d.reason } });
 }
 
 export async function getShiftReport(shiftId: string, user: Actor) {
@@ -124,7 +156,7 @@ export async function closeShift(input: unknown, user: Actor) {
   const r = await prisma.shift.updateMany({ where: { id: shift.id, status: "OPEN" }, data: { status: "CLOSED", closedAt: new Date(), closingCash: d.closingCash } });
   if (r.count === 0) throw new ApiError(400, "Смена уже закрыта");
   await safeAudit({ userId: user.id, action: "SHIFT_CLOSED", entity: "Shift", entityId: shift.id,
-    newValue: { closingCash: d.closingCash, expectedCash: before?.expectedCash, difference: before ? d.closingCash - before.expectedCash : null, sales: before?.sales, tips: before?.tips, refunds: before?.refunds } });
+    newValue: { closingCash: d.closingCash, expectedCash: before?.expectedCash, difference: before ? d.closingCash - before.expectedCash : null, sales: before?.sales, tips: before?.tips, refunds: before?.refunds, cashIn: before?.cashIn, cashOut: before?.cashOut } });
   return shift.id;
 }
 

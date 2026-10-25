@@ -51,3 +51,28 @@ export function CloseShiftForm({ action, expected }: { action: (prev: OpState, f
     </form>
   );
 }
+
+export function CashMovementForm({ action, reasons }: { action: (prev: OpState, fd: FormData) => Promise<OpState>; reasons: string[] }) {
+  const [state, formAction, pending] = useActionState(action, undefined);
+  return (
+    <form action={formAction} className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
+      <div>
+        <h2 className="text-lg font-bold">Внести или изъять наличные</h2>
+        <p className="text-sm text-neutral-500">Размен, инкассация, оплата поставщику из кассы. Сумма сразу попадёт в расчёт «ожидается в кассе» и в отчёт смены.</p>
+      </div>
+      <div className="flex gap-3">
+        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-4 py-3 has-[:checked]:border-green-700 has-[:checked]:bg-lime-50"><input type="radio" name="type" value="IN" defaultChecked /> Внести</label>
+        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-4 py-3 has-[:checked]:border-red-600 has-[:checked]:bg-red-50"><input type="radio" name="type" value="OUT" /> Изъять</label>
+      </div>
+      <label className="block text-sm"><span className="mb-1 block text-neutral-600">Сумма, UZS</span>
+        <input name="amount" type="number" min="0" step="any" required inputMode="decimal" className={input} />
+      </label>
+      <label className="block text-sm"><span className="mb-1 block text-neutral-600">Причина</span>
+        <input name="reason" list="cash-reasons" required minLength={3} maxLength={200} placeholder="Например, Размен" className={input} />
+        <datalist id="cash-reasons">{reasons.map((r) => <option key={r} value={r} />)}</datalist>
+      </label>
+      {state?.error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
+      <button disabled={pending} className="rounded-xl bg-neutral-900 px-6 py-3 font-semibold text-white hover:bg-neutral-700 disabled:opacity-60">{pending ? "Записываем…" : "Записать"}</button>
+    </form>
+  );
+}

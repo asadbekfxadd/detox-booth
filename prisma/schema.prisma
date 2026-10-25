@@ -139,6 +139,11 @@ enum ShiftStatus {
   CLOSED
 }
 
+enum CashMovementType {
+  IN
+  OUT
+}
+
 model Location {
   id String @id @default(cuid())
   name String
@@ -647,6 +652,41 @@ model Shift {
   openedAt DateTime @default(now())
   closedAt DateTime?
   orders Order[]
+  cashMovements CashMovement[]
+}
+
+/// Внесение и изъятие наличных в смене (размен, инкассация, оплата поставщику из кассы). Входит в «ожидается в кассе»
+model CashMovement {
+  id String @id @default(cuid())
+  shiftId String
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  userId String
+  type CashMovementType
+  amount Decimal @db.Decimal(12,2)
+  reason String
+  createdAt DateTime @default(now())
+  @@index([shiftId])
+}
+
+/// Отменённая позиция заказа стола. Сама позиция удаляется из заказа, здесь остаётся след: что, сколько, почему, кто и кто подтвердил
+model VoidedItem {
+  id String @id @default(cuid())
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  locationId String
+  productId String?
+  name String
+  quantity Int
+  unitPrice Decimal @db.Decimal(12,2)
+  reason String
+  userId String
+  /// Менеджер, подтвердивший отмену (может совпадать с userId, если у сотрудника есть право отмены)
+  approvedById String?
+  /// Позиция уже ушла на кухню: продукты по ней списаны и не возвращаются
+  afterKitchen Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@index([locationId, createdAt])
+  @@index([orderId])
 }
 
 model Order {
@@ -704,6 +744,7 @@ model Order {
   completedAt DateTime?
   items OrderItem[]
   payments Payment[]
+  voidedItems VoidedItem[]
   @@index([billId])
   @@index([tableId, status])
   @@index([locationId, createdAt])

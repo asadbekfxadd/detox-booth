@@ -3,6 +3,8 @@ import { pageGuard } from "@/lib/guard";
 import { getScope } from "@/lib/location";
 import { parseRange } from "@/services/dashboard";
 import { getStaffReport } from "@/services/reports";
+import { listVoidedItems } from "@/services/void-item";
+import { dateTimeStr } from "@/lib/format";
 import { RangeBar } from "@/components/admin/RangeBar";
 import { money, pct } from "@/lib/format";
 
@@ -15,7 +17,7 @@ export default async function StaffReportPage({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const { locationId } = await getScope();
   const range = parseRange(sp);
-  const rows = await getStaffReport(range, locationId);
+  const [rows, voids] = await Promise.all([getStaffReport(range, locationId), listVoidedItems(range.from, range.to, locationId)]);
   const hot = (r: { discountPct: number }) => r.discountPct > 15;
   return (
     <div className="space-y-6">
@@ -34,6 +36,23 @@ export default async function StaffReportPage({ searchParams }: { searchParams: 
                 <td className="p-2 text-right">{money(r.tips)}</td>
                 <td className="p-2 text-right">{r.cancelled}</td>
                 <td className={`p-2 text-right ${r.refunded > 0 ? "text-red-700" : ""}`}>{r.refunded ? `${r.refunded} · ${money(r.refundedSum)}` : "—"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="overflow-x-auto rounded-2xl bg-white p-5 shadow-sm">
+        <h2 className="font-semibold">Отменённые позиции</h2>
+        <p className="mb-3 text-xs text-neutral-500">Блюда, убранные из заказа стола. «После кухни» значит, что заказ уже был отправлен и продукты списаны, а отмену подтвердил менеджер.</p>
+        {voids.length === 0 ? <p className="text-sm text-neutral-500">За период позиции не отменяли.</p> : (
+          <table className="w-full text-sm">
+            <thead><tr><th className={th}>Когда</th><th className={th}>Заказ</th><th className={th}>Блюдо</th><th className={`${th} text-right`}>Сумма</th><th className={th}>Причина</th><th className={th}>Кто отменил</th><th className={th}>Подтвердил</th></tr></thead>
+            <tbody>{voids.map((v) => (
+              <tr key={v.id} className="border-t border-neutral-100">
+                <td className="p-2 whitespace-nowrap">{dateTimeStr(v.at)}</td><td className="p-2">№{v.orderNumber}</td>
+                <td className="p-2 font-semibold">{v.quantity} × {v.name}{v.afterKitchen && <span className="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs font-normal text-red-800">после кухни</span>}</td>
+                <td className="p-2 text-right">{money(v.sum)}</td><td className="p-2">{v.reason}</td><td className="p-2">{v.by}</td><td className="p-2">{v.approvedBy ?? "—"}</td>
               </tr>
             ))}</tbody>
           </table>

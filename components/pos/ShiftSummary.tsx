@@ -43,12 +43,20 @@ export function ShiftSummaryView({ s }: { s: S }) {
         <Row k="Сумма возвратов" v={money(s.refunds.total)} />
         <Row k="Из них наличными" v={money(s.refunds.cash)} />
       </div>
+      {s.movements.length > 0 && (
+        <div className="rounded-2xl bg-white p-6 shadow-sm">
+          <h3 className="mb-2 font-bold">Внесения и изъятия</h3>
+          {s.movements.map((m) => <Row key={m.id} k={`${dateTimeStr(m.at)} · ${m.reason}`} v={`${m.type === "IN" ? "+" : "−"}${money(m.amount)}`} cls={m.type === "OUT" ? "text-red-700" : ""} />)}
+        </div>
+      )}
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <h3 className="mb-2 font-bold">Касса (наличные)</h3>
         <Row k="На начало смены" v={money(s.opening)} />
         <Row k="+ наличные продажи" v={money(s.sales.cash)} />
         {s.tips.cash > 0 && <Row k="+ наличные чаевые" v={money(s.tips.cash)} />}
         <Row k="− наличные возвраты" v={money(s.refunds.cash)} />
+        {s.cashIn > 0 && <Row k="+ внесено в кассу" v={money(s.cashIn)} />}
+        {s.cashOut > 0 && <Row k="− изъято из кассы" v={money(s.cashOut)} />}
         <Row k="Ожидается в кассе" v={money(s.expectedCash)} bold />
         {s.closing != null && <Row k="Фактически" v={money(s.closing)} bold />}
         {s.difference != null && (

@@ -4,7 +4,7 @@ export const ACTION_LABEL: Record<string, string> = {
   LOGIN_FAILED: "Неудачная попытка входа",
   ORDER_STATUS_CHANGED: "Смена статуса заказа", ORDER_CANCELLED: "Отмена заказа", ORDER_REFUNDED: "Возврат заказа",
   POS_ORDER_CREATED: "Продажа на кассе", WEB_ORDER_CREATED: "Заказ с сайта", PAYMENT_CONFIRMED: "Подтверждена оплата", PAYMENT_FAILED: "Оплата не прошла", PAYMENT_REFUNDED: "Возврат оплаты",
-  MANUAL_DISCOUNT: "Ручная скидка", SHIFT_OPENED: "Открыта смена", SHIFT_CLOSED: "Закрыта смена",
+  MANUAL_DISCOUNT: "Ручная скидка", SHIFT_OPENED: "Открыта смена", CASH_MOVEMENT: "Внесение/изъятие наличных", ORDER_ITEM_VOIDED: "Отмена позиции заказа", SHIFT_CLOSED: "Закрыта смена",
   PRODUCT_CREATED: "Продукт создан", PRODUCT_UPDATED: "Продукт изменён", PRODUCT_PRICE_CHANGED: "Изменена цена",
   PRODUCT_ARCHIVED: "Продукт в архиве", PRODUCT_RESTORED: "Продукт восстановлен", PRODUCT_DELETED: "Продукт удалён",
   PRODUCT_AVAILABILITY: "Доступность продукта",

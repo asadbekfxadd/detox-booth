@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
 import { closeBill } from "@/services/tables";
 import { advanceOrder } from "@/services/orders";
+import { voidOrderItem } from "@/services/void-item";
 
 const back = (tableId: string, error?: string) => redirect(`/pos/tables/${tableId}${error ? `?error=${encodeURIComponent(error)}` : ""}`);
 
@@ -32,6 +33,20 @@ export async function serveOrderAction(fd: FormData): Promise<void> {
   try {
     const u = await requireUser("orders.manage");
     await advanceOrder({ id: String(fd.get("orderId") ?? ""), to: "COMPLETED" }, u);
+  } catch (e) { return back(tableId, toMessage(e)); }
+  revalidatePath(`/pos/tables/${tableId}`);
+  back(tableId);
+}
+
+/** Отменить позицию в заказе стола (после отправки на кухню нужен менеджер). */
+export async function voidItemAction(fd: FormData): Promise<void> {
+  const tableId = String(fd.get("tableId") ?? "");
+  try {
+    const u = await requireUser("pos.use");
+    await voidOrderItem({
+      orderItemId: String(fd.get("orderItemId") ?? ""), quantity: fd.get("quantity") ?? "", reason: String(fd.get("reason") ?? ""),
+      approverEmail: String(fd.get("approverEmail") ?? ""), approverPassword: String(fd.get("approverPassword") ?? ""),
+    }, u);
   } catch (e) { return back(tableId, toMessage(e)); }
   revalidatePath(`/pos/tables/${tableId}`);
   back(tableId);

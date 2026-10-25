@@ -9,7 +9,9 @@ import { groupByCourse, heldOrders } from "@/lib/waiter";
 import { sum, dateTimeStr } from "@/lib/format";
 import { AutoRefresh } from "@/components/site/AutoRefresh";
 import { WaiterHeader } from "@/components/waiter/WaiterHeader";
-import { fireAction, cancelHeldAction, serveAction, requestBillAction, moveTableAction } from "@/app/waiter/actions";
+import { fireAction, cancelHeldAction, serveAction, requestBillAction, moveTableAction, voidItemAction } from "@/app/waiter/actions";
+import { VoidItemForm } from "@/components/pos/VoidItemForm";
+import { needsManagerApproval } from "@/lib/void-item";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +64,10 @@ export default async function WaiterTablePage({ params, searchParams }: { params
                   </div>
                   <ul className="space-y-0.5 text-sm">
                     {o.items.map((i) => (
-                      <li key={i.id} className="flex justify-between gap-3"><span>{i.quantity} × {i.name}{i.options.length > 0 && <span className="text-neutral-500"> ({i.options.join(", ")})</span>}</span><span>{sum(i.lineTotal)}</span></li>
+                      <li key={i.id}>
+                        <div className="flex justify-between gap-3"><span>{i.quantity} × {i.name}{i.options.length > 0 && <span className="text-neutral-500"> ({i.options.join(", ")})</span>}</span><span>{sum(i.lineTotal)}</span></div>
+                        {!o.paid && <VoidItemForm big action={voidItemAction} tableId={table.id} item={i} needsApproval={needsManagerApproval(o, can(user.role, "orders.cancel"))} />}
+                      </li>
                     ))}
                   </ul>
                   {o.note && <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-900">«{o.note}»</p>}
