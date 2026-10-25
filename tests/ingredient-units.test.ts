@@ -37,3 +37,23 @@ describe("ingredient units", () => {
     expect(portionsFrom(-5, 10)).toBe(0);
   });
 });
+
+import { conversionFactor } from "@/lib/ingredient-units";
+describe("перевод единиц", () => {
+  it("шт → г по весу штуки, г → шт обратно", () => {
+    expect(conversionFactor("PC", "G", { perPiece: 150 })).toBe(150);
+    expect(conversionFactor("G", "PC", { perPiece: 150 })).toBeCloseTo(1 / 150, 10);
+    expect(() => conversionFactor("PC", "G")).toThrow(/штуке/);
+  });
+  it("вес и объём по плотности; одно семейство без параметров", () => {
+    expect(conversionFactor("G", "ML")).toBe(1);
+    expect(conversionFactor("G", "ML", { density: 1.2 })).toBeCloseTo(1.2, 10);
+    expect(conversionFactor("ML", "G", { density: 2 })).toBe(0.5);
+    expect(conversionFactor("G", "G")).toBe(1);
+  });
+  it("старые кг и л хранились крупно", () => {
+    expect(conversionFactor("KG", "G")).toBe(1000);
+    expect(conversionFactor("L", "ML")).toBe(1000);
+    expect(conversionFactor("KG", "PC", { perPiece: 500 })).toBe(2);
+  });
+});
