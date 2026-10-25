@@ -11,7 +11,7 @@ export const ACTION_LABEL: Record<string, string> = {
   CATEGORY_CREATED: "Категория создана", CATEGORY_UPDATED: "Категория изменена", CATEGORY_DELETED: "Категория удалена",
   STOCK_IN: "Приход на склад", STOCK_IN_BULK: "Приход на склад списком", STOCK_RESET: "Остатки склада обнулены", STOCK_TRANSFER: "Перемещение между точками", INVENTORY_COUNT: "Инвентаризация", WRITEOFF_CREATED: "Списание",
   SUPPLIER_CREATED: "Поставщик добавлен", SUPPLIER_UPDATED: "Поставщик изменён", SUPPLIER_DELETED: "Поставщик удалён",
-  PURCHASE_CREATED: "Закупка создана", PURCHASE_STATUS_CHANGED: "Статус закупки", PURCHASE_RECEIVED: "Закупка принята",
+  PURCHASE_CREATED: "Закупка создана", PURCHASE_STATUS_CHANGED: "Статус закупки", PURCHASE_RECEIVED: "Закупка принята", PURCHASE_AUTO_DRAFTED: "Автозаказ: черновики закупок",
   CUSTOMER_CREATED: "Клиент добавлен", CUSTOMER_UPDATED: "Клиент изменён", LOYALTY_ADJUSTED: "Корректировка баллов",
   PROMO_CREATED: "Промокод создан", PROMO_TOGGLED: "Промокод вкл/выкл", PROMO_DELETED: "Промокод удалён",
   RECIPE_CHANGED: "Рецепт изменён", PREP_SAVED: "Заготовка сохранена", PREP_DELETED: "Рецепт заготовки удалён", PRODUCTION_DONE: "Акт приготовления",

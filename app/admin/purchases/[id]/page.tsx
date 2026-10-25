@@ -6,6 +6,8 @@ import { getPurchase } from "@/services/purchases";
 import { money, qty, unitLabel, dateStr } from "@/lib/format";
 import { ActionButton } from "@/components/admin/ActionButton";
 import { ReceiveForm } from "@/components/admin/PurchaseForm";
+import { CopyText } from "@/components/admin/CopyText";
+import { orderText } from "@/lib/auto-order";
 import { STATUS_LABEL, STATUS_CLS } from "@/lib/purchase-status";
 import { orderPurchaseAction, cancelPurchaseAction, receivePurchaseAction } from "../actions";
 
@@ -31,6 +33,9 @@ export default async function PurchasePage({ params, searchParams }: { params: P
         {p.receivedAt && <span>Принята: <b>{dateStr(p.receivedAt)}</b></span>}
         <span className="ml-auto text-lg font-bold">{money(p.total)}</span>
       </div>
+
+      {open && <CopyText label={`Текст заказа для поставщика${p.supplierPhone ? ` (${p.supplierPhone})` : ""}`}
+        text={orderText({ supplier: p.supplier, location: p.location, lines: p.items.map((i) => ({ name: i.name, qty: fmtStock(i.unit, i.quantity) })) })} />}
 
       {open ? (
         <ReceiveForm action={receivePurchaseAction} purchaseId={p.id}
