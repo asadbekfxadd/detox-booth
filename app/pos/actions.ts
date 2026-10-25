@@ -5,7 +5,7 @@ import { signOut } from "@/auth";
 import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
 import {
-  openShift, closeShift, quote, createPosOrder, refundOrder, recentOrders, searchCustomers, createQuickCustomer,
+  openShift, closeShift, addCashMovement, quote, createPosOrder, refundOrder, recentOrders, searchCustomers, createQuickCustomer,
   type CustomerLite, type OrderResult, type Quote, type RecentOrder,
 } from "@/services/pos";
 import type { OpState } from "@/components/admin/ops";
@@ -27,6 +27,15 @@ export async function closeShiftAction(_p: OpState, fd: FormData): Promise<OpSta
     id = await closeShift({ closingCash: s(fd, "closingCash").replace(",", ".") }, u);
   } catch (e) { return { error: toMessage(e) }; }
   redirect(`/pos/shift/${id}`);
+}
+
+export async function cashMovementAction(_p: OpState, fd: FormData): Promise<OpState> {
+  try {
+    const u = await requireUser("pos.use");
+    await addCashMovement({ type: s(fd, "type"), amount: s(fd, "amount").replace(",", ".").replace(/\s/g, ""), reason: s(fd, "reason") }, u);
+  } catch (e) { return { error: toMessage(e) }; }
+  revalidatePath("/pos/shift");
+  redirect("/pos/shift?cash=ok");
 }
 
 export async function logoutAction() {

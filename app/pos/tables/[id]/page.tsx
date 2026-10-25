@@ -6,7 +6,10 @@ import { getStaffTable } from "@/services/tables";
 import { STATUS_LABEL, STATUS_CLS } from "@/lib/order-status";
 import { sum, dateTimeStr } from "@/lib/format";
 import { AutoRefresh } from "@/components/site/AutoRefresh";
-import { serveOrderAction } from "../actions";
+import { serveOrderAction, voidItemAction } from "../actions";
+import { VoidItemForm } from "@/components/pos/VoidItemForm";
+import { needsManagerApproval } from "@/lib/void-item";
+import { can } from "@/lib/rbac";
 import { BillPayForm } from "@/components/pos/BillPayForm";
 import { unpaidOrders } from "@/lib/table-bill";
 
@@ -46,7 +49,10 @@ export default async function PosTablePage({ params, searchParams }: { params: P
                 </div>
                 <ul className="space-y-0.5 text-sm">
                   {o.items.map((i) => (
-                    <li key={i.id} className="flex justify-between gap-3"><span>{i.quantity} × {i.name}{i.options.length > 0 && <span className="text-neutral-500"> ({i.options.join(", ")})</span>}</span><span>{sum(i.lineTotal)}</span></li>
+                    <li key={i.id}>
+                      <div className="flex justify-between gap-3"><span>{i.quantity} × {i.name}{i.options.length > 0 && <span className="text-neutral-500"> ({i.options.join(", ")})</span>}</span><span>{sum(i.lineTotal)}</span></div>
+                      {!o.paid && o.status !== "CANCELLED" && <VoidItemForm action={voidItemAction} tableId={table.id} item={i} needsApproval={needsManagerApproval(o, can(user.role, "orders.cancel"))} />}
+                    </li>
                   ))}
                 </ul>
                 {o.note && <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-900">«{o.note}»</p>}

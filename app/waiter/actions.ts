@@ -5,6 +5,7 @@ import { signOut } from "@/auth";
 import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
 import { advanceOrder } from "@/services/orders";
+import { voidOrderItem } from "@/services/void-item";
 import { createWaiterOrder, fireHeld, cancelHeldOrder, requestBillStaff, moveTable } from "@/services/waiter";
 
 export type WaiterOrderResult = { ok: true; number: number; tableId: string } | { ok: false; error: string };
@@ -74,4 +75,17 @@ export async function moveTableAction(fd: FormData): Promise<void> {
   } catch (e) { return back(fromTableId, toMessage(e)); }
   revalidatePath("/waiter");
   back(to, undefined, "Стол перенесён");
+}
+
+/** Отменить позицию в заказе стола (после отправки на кухню нужен менеджер). */
+export async function voidItemAction(fd: FormData): Promise<void> {
+  const tableId = s(fd, "tableId");
+  let msg = "";
+  try {
+    const u = await requireUser("waiter.use");
+    const r = await voidOrderItem({ orderItemId: s(fd, "orderItemId"), quantity: fd.get("quantity") ?? "", reason: s(fd, "reason"), approverEmail: s(fd, "approverEmail"), approverPassword: s(fd, "approverPassword") }, u);
+    msg = r.cancelled ? `Позиция «${r.name}» отменена, заказ №${r.number} отменён целиком` : `Позиция «${r.name}» отменена`;
+  } catch (e) { return back(tableId, toMessage(e)); }
+  revalidatePath("/waiter");
+  back(tableId, undefined, msg);
 }
