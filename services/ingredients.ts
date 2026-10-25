@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
-import { BASE_UNITS, toBase, toBig } from "@/lib/ingredient-units";
+import { BASE_UNITS, conversionFactor, toBase, toBig } from "@/lib/ingredient-units";
 
 /**
  * Цена и минимальный остаток вводятся в крупной единице (за 1 кг / 1 л / 1 шт),
@@ -156,7 +156,7 @@ export async function getIngredient(id: string) {
   return {
     id: i.id, sku: i.sku, name: i.name, category: i.category, unit: i.unit,
     price: Number(i.avgCost) * toBase(i.unit, 1), minStock: toBig(i.unit, Number(i.minStock)),
-    shelfLifeDays: i.shelfLifeDays, supplierId: i.supplierId, locked: u.inUse,
+    shelfLifeDays: i.shelfLifeDays, supplierId: i.supplierId, locked: u.inUse, pieceWeightG: i.pieceWeightG == null ? null : Number(i.pieceWeightG),
     stocks: i.stocks.map((s) => ({ location: s.location.name, quantity: Number(s.quantity) })),
     usedIn: i.recipeItems.map((r) => ({ productId: r.recipe.product.id, name: r.recipe.product.name, quantity: Number(r.quantity) })),
   };
@@ -167,3 +167,58 @@ export const categorySuggestions = async () => {
   const base = ["Фрукты", "Ягоды", "Овощи", "Зелень", "Молочное", "Напитки и сиропы", "Топпинги", "Сыпучее", "Упаковка"];
   return [...new Set([...rows.map((r) => r.category), ...base])];
 };
+
+export const convertSchema = z.object({
+  id: z.string().min(1),
+  unit: z.enum(BASE_UNITS, { error: "Выберите новую единицу" }),
+  perPiece: z.coerce.number().min(0.001, "Вес штуки должен быть больше 0").max(1_000_000).optional(),
+  density: z.coerce.number().min(0.001, "Плотность должна быть больше 0").max(1000).optional(),
+});
+
+/**
+ * Переводит ингредиент в другую единицу (шт → кг и т. д.) вместе со всем учётом: остатками, партиями, рецептами, приходами,
+ * списаниями и движениями. Суммы в деньгах не меняются, меняется только единица и цена за неё.
+ */
+export async function convertIngredientUnit(input: unknown, userId: string) {
+  const d = convertSchema.parse(input);
+  const ing = await prisma.ingredient.findUnique({ where: { id: d.id } });
+  if (!ing) throw new ApiError(404, "Ингредиент не найден");
+  if (ing.unit === d.unit) throw new ApiError(400, "Ингредиент уже считается в этой единице");
+  const mix = await prisma.setting.findUnique({ where: { key: "mix.sizes" } });
+  if (mix && JSON.stringify(mix.value).includes(JSON.stringify(ing.id)) && (ing.unit === "PC" || d.unit === "PC"))
+    throw new ApiError(400, "Этот ингредиент указан как стакан в «Своём миксе»: единицу менять нельзя.");
+  let f: number;
+  try { f = conversionFactor(ing.unit, d.unit, { perPiece: d.perPiece, density: d.density }); } catch (e) { throw new ApiError(400, (e as Error).message); }
+  if (!(f > 0) || !Number.isFinite(f)) throw new ApiError(400, "Не получилось посчитать пересчёт: проверьте числа");
+  const fs = new Prisma.Decimal(f).toSignificantDigits(15).toString();
+  const before = await prisma.stockItem.aggregate({ where: { ingredientId: ing.id }, _sum: { quantity: true } });
+
+  await prisma.$transaction(async (tx) => {
+    const id = ing.id;
+    await tx.$executeRaw`UPDATE "StockItem" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "Batch" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3), "unitCost" = ROUND("unitCost" / ${fs}::numeric, 2) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "RecipeItem" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "RecipeSizeItem" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "PurchaseItem" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3), "unitCost" = ROUND("unitCost" / ${fs}::numeric, 2) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "WriteOff" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "InventoryTransaction" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3), "unitCost" = ROUND("unitCost" / ${fs}::numeric, 2) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "ModifierOption" SET "extraQty" = ROUND("extraQty" * ${fs}::numeric, 3) WHERE "extraIngredientId" = ${id} AND "extraQty" IS NOT NULL`;
+    const F = new Prisma.Decimal(fs);
+    await tx.ingredient.update({
+      where: { id },
+      data: {
+        unit: d.unit, minStock: ing.minStock.times(F).toDecimalPlaces(3), maxStock: ing.maxStock.times(F).toDecimalPlaces(3),
+        avgCost: ing.avgCost.div(F).toDecimalPlaces(2),
+        // вес штуки нужен «Своему миксу» только для ингредиентов в штуках
+        pieceWeightG: d.unit === "PC" && ing.unit !== "PC" && d.perPiece ? new Prisma.Decimal(d.perPiece) : null,
+      },
+    });
+  });
+  const after = await prisma.stockItem.aggregate({ where: { ingredientId: ing.id }, _sum: { quantity: true } });
+  await audit({
+    userId, action: "INGREDIENT_UNIT_CHANGED", entity: "Ingredient", entityId: ing.id,
+    oldValue: { name: ing.name, unit: ing.unit, stock: Number(before._sum.quantity ?? 0) },
+    newValue: { unit: d.unit, factor: f, perPiece: d.perPiece ?? null, density: d.density ?? null, stock: Number(after._sum.quantity ?? 0) },
+  });
+  return { name: ing.name, factor: f };
+}

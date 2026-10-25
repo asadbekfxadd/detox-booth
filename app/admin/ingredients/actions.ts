@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
-import { createIngredient, updateIngredient, deleteIngredient, ingredientFromForm } from "@/services/ingredients";
+import { createIngredient, updateIngredient, deleteIngredient, convertIngredientUnit, ingredientFromForm } from "@/services/ingredients";
 import type { OpState } from "@/components/admin/ops";
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? "");
@@ -25,6 +25,18 @@ export async function updateIngredientAction(_p: OpState, fd: FormData): Promise
   revalidatePath("/admin/ingredients");
   revalidatePath("/admin/recipes");
   redirect("/admin/ingredients?ok=updated");
+}
+
+export async function convertIngredientUnitAction(_p: OpState, fd: FormData): Promise<OpState> {
+  let id = "";
+  try {
+    const u = await requireUser("inventory.edit");
+    const g = (k: string) => String(fd.get(k) ?? "").trim();
+    id = g("id");
+    await convertIngredientUnit({ id, unit: g("unit"), perPiece: g("perPiece") || undefined, density: g("density") || undefined }, u.id);
+  } catch (e) { return { error: toMessage(e) }; }
+  for (const p of ["/admin/ingredients", "/admin/inventory", "/admin/recipes", "/admin/products"]) revalidatePath(p);
+  redirect(`/admin/ingredients/${id}?ok=converted`);
 }
 
 export async function deleteIngredientAction(_p: OpState, fd: FormData): Promise<OpState> {

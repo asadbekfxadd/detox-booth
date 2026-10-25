@@ -44,7 +44,7 @@ export function IngredientForm({ action, submitLabel, defaults = EMPTY, categori
           )}
         </Field>
         <p className="text-xs text-neutral-500">
-          {defaults.locked ? "Единицу нельзя менять: по ингредиенту уже есть рецепты, приходы или списания." : choice?.hint}
+          {defaults.locked ? "Единицу здесь не меняем, потому что есть рецепты, приходы или списания. Чтобы перейти, например, с шт на кг, используйте блок «Перевести в другую единицу» ниже: всё пересчитается." : choice?.hint}
           {" "}В рецепте количество на порцию пишется в {unit === "G" ? "граммах" : unit === "ML" ? "миллилитрах" : "штуках"}.
         </p>
       </div>

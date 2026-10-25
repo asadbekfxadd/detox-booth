@@ -6,11 +6,13 @@ import { getIngredient, categorySuggestions } from "@/services/ingredients";
 import { IngredientForm } from "@/components/admin/IngredientForm";
 import { ActionButton } from "@/components/admin/ActionButton";
 import { fmtQty, fmtStock, portionsFrom } from "@/lib/ingredient-units";
-import { updateIngredientAction, deleteIngredientAction } from "../actions";
+import { ConvertUnit } from "@/components/admin/ConvertUnit";
+import { updateIngredientAction, deleteIngredientAction, convertIngredientUnitAction } from "../actions";
 
-export default async function IngredientPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function IngredientPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string }> }) {
   await pageGuard("inventory.edit");
   const { id } = await params;
+  const { ok } = await searchParams;
   const [ing, categories, suppliers] = await Promise.all([
     getIngredient(id), categorySuggestions(), prisma.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
@@ -23,10 +25,12 @@ export default async function IngredientPage({ params }: { params: Promise<{ id:
         <p className="text-sm text-neutral-500">{ing.sku} · на складе: <b className="text-neutral-800">{fmtStock(ing.unit, total)}</b>
           {" "}· <Link href="/admin/inventory/receive" className="text-green-800 underline">Оформить приход</Link></p>
       </div>
+      {ok === "converted" && <p className="rounded-xl bg-lime-100 px-4 py-3 text-sm text-green-900">Единица изменена, остатки и рецепты пересчитаны. Проверьте цену за новую единицу ниже.</p>}
       <IngredientForm
         action={updateIngredientAction} submitLabel="Сохранить" categories={categories} suppliers={suppliers}
         defaults={{ id: ing.id, name: ing.name, category: ing.category, unit: ing.unit, price: ing.price, minStock: ing.minStock, shelfLifeDays: ing.shelfLifeDays, supplierId: ing.supplierId, locked: ing.locked }}
       />
+      <ConvertUnit action={convertIngredientUnitAction} id={ing.id} unit={ing.unit} total={total} pieceWeightG={ing.pieceWeightG} />
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <p className="mb-2 text-sm font-semibold">Используется в рецептах ({ing.usedIn.length})</p>
         {ing.usedIn.length === 0

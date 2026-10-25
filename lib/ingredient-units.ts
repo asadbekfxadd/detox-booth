@@ -47,3 +47,29 @@ export function fmtStock(u: string, base: number): string {
   const { factor, label } = bigUnit(u);
   return `${nf3.format(base / factor)} ${label}`;
 }
+
+/** Сколько граммов (мл) в одной хранимой единице: старые кг и л хранились крупно. */
+const CANON: Record<string, number> = { G: 1, KG: 1000, ML: 1, L: 1000, PC: 1 };
+const FAMILY: Record<string, "mass" | "vol" | "pc"> = { G: "mass", KG: "mass", ML: "vol", L: "vol", PC: "pc" };
+
+/**
+ * Во сколько раз умножить количество при смене единицы (остаток, рецепты, партии), а цену за единицу разделить.
+ * perPiece: сколько г (или мл) в одной штуке, нужно при переходе с шт или на шт.
+ * density: сколько мл в одном г при переходе между весом и объёмом (вода и соки = 1).
+ */
+export function conversionFactor(from: string, to: string, opts: { perPiece?: number; density?: number } = {}): number {
+  const a = FAMILY[from], b = FAMILY[to];
+  if (!a || !b) throw new Error("Неизвестная единица");
+  let f = CANON[from];
+  if (a !== b) {
+    const pp = opts.perPiece ?? 0, d = opts.density ?? 1;
+    if (a === "pc" || b === "pc") {
+      if (!(pp > 0)) throw new Error("Укажите, сколько граммов в одной штуке");
+      f = a === "pc" ? f * pp : f / pp;
+    } else {
+      if (!(d > 0)) throw new Error("Укажите, сколько мл в одном грамме");
+      f = a === "mass" ? f * d : f / d;
+    }
+  }
+  return f / (CANON[to] ?? 1);
+}
