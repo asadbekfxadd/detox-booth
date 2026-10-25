@@ -27,15 +27,15 @@ const qty = z.coerce.number({ error: "Укажите количество" }).po
 const optDate = z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.date({ error: "Некорректная дата" }).nullable());
 const stamp = () => new Date().toISOString().slice(0, 10).replace(/-/g, "") + "-" + Math.random().toString(36).slice(2, 5).toUpperCase();
 
-async function mustIngredient(tx: Tx, id: string) {
+export async function mustIngredient(tx: Tx, id: string) {
   const i = await tx.ingredient.findUnique({ where: { id } });
   if (!i) throw new ApiError(404, "Ингредиент не найден");
   return i;
 }
-async function mustLocation(tx: Tx, id: string) {
+export async function mustLocation(tx: Tx, id: string) {
   if (!(await tx.location.findUnique({ where: { id } }))) throw new ApiError(404, "Точка не найдена");
 }
-async function changeStock(tx: Tx, locationId: string, ingredientId: string, delta: Prisma.Decimal) {
+export async function changeStock(tx: Tx, locationId: string, ingredientId: string, delta: Prisma.Decimal) {
   const s = await tx.stockItem.upsert({
     where: { locationId_ingredientId: { locationId, ingredientId } },
     create: { locationId, ingredientId, quantity: delta },
@@ -43,13 +43,13 @@ async function changeStock(tx: Tx, locationId: string, ingredientId: string, del
   });
   return s.quantity;
 }
-async function maybeLowStock(tx: Tx, locationId: string, ing: { name: string; unit: string; minStock: Prisma.Decimal }, now: Prisma.Decimal) {
+export async function maybeLowStock(tx: Tx, locationId: string, ing: { name: string; unit: string; minStock: Prisma.Decimal }, now: Prisma.Decimal) {
   if (now.gte(ing.minStock)) return;
   const exists = await tx.notification.findFirst({ where: { locationId, type: "LOW_STOCK", isRead: false, OR: [{ message: { startsWith: lowStockPrefix(ing.name) } }, { message: { startsWith: legacyLowStockPrefix(ing.name) } }] } });
   if (!exists) await tx.notification.create({ data: { locationId, type: "LOW_STOCK", message: lowStockMessage(ing.name, ing.unit, Number(now), Number(ing.minStock)) } });
 }
 /** FEFO: сначала партии с ближайшим сроком годности. */
-async function fefoTake(tx: Tx, locationId: string, ingredientId: string, need: Prisma.Decimal, allowExpired: boolean) {
+export async function fefoTake(tx: Tx, locationId: string, ingredientId: string, need: Prisma.Decimal, allowExpired: boolean) {
   const batches = await tx.batch.findMany({
     where: { locationId, ingredientId, quantity: { gt: 0 }, ...(allowExpired ? {} : { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }) },
     orderBy: [{ expiresAt: { sort: "asc", nulls: "last" } }, { receivedAt: "asc" }],

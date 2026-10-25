@@ -14,7 +14,7 @@ export const ACTION_LABEL: Record<string, string> = {
   PURCHASE_CREATED: "Закупка создана", PURCHASE_STATUS_CHANGED: "Статус закупки", PURCHASE_RECEIVED: "Закупка принята",
   CUSTOMER_CREATED: "Клиент добавлен", CUSTOMER_UPDATED: "Клиент изменён", LOYALTY_ADJUSTED: "Корректировка баллов",
   PROMO_CREATED: "Промокод создан", PROMO_TOGGLED: "Промокод вкл/выкл", PROMO_DELETED: "Промокод удалён",
-  RECIPE_CHANGED: "Рецепт изменён",
+  RECIPE_CHANGED: "Рецепт изменён", PREP_SAVED: "Заготовка сохранена", PREP_DELETED: "Рецепт заготовки удалён", PRODUCTION_DONE: "Акт приготовления",
   INGREDIENT_CREATED: "Ингредиент добавлен", INGREDIENT_UPDATED: "Ингредиент изменён", INGREDIENT_UNIT_CHANGED: "Единица ингредиента изменена", INGREDIENT_DELETED: "Ингредиент удалён",
   SETTINGS_CHANGED: "Изменены настройки", BRAND_CHANGED: "Изменён бренд и оформление сайта", LOCATION_UPDATED: "Изменены адрес или телефон точки",
   PROMOTION_CREATED: "Акция создана", PROMOTION_TOGGLED: "Акция вкл/выкл", PROMOTION_DELETED: "Акция удалена",
