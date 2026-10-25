@@ -6,8 +6,9 @@ import { quickCreateIngredientAction } from "@/app/admin/ingredients/actions";
 import { money, pct } from "@/lib/format";
 import { UNIT_CHOICES, bigUnit, fmtStock, portionsFrom, smallLabel } from "@/lib/ingredient-units";
 import { mlOf, pickReference, sizeRatio } from "@/lib/recipe-size";
+import { grossQty, normYield } from "@/lib/yield";
 
-type Ing = { id: string; name: string; unit: string; cost: number | null; stock: number };
+type Ing = { id: string; name: string; unit: string; cost: number | null; stock: number; yieldPct: number };
 type Item = { ingredientId: string; quantity: number };
 type SizeIn = { id: string; name: string; price: number; items: Item[] };
 /** Размер (колонка таблицы): optionId есть у уже сохранённых, у новых null */
@@ -48,6 +49,8 @@ export function RecipeEditor({ ingredients, initial, sizes, product, action }: {
   const [busy, startCreate] = useTransition();
   // цена каждого ингредиента за 1 кг/л/шт: можно менять прямо здесь
   const [prices, setPrices] = useState<Record<string, string>>(() => Object.fromEntries(ingredients.filter((i) => i.cost != null).map((i) => [i.id, String(Math.round(i.cost! * bigUnit(i.unit).factor * 100) / 100)])));
+  // выход годного (брутто → нетто), %: тоже правится прямо здесь
+  const [yields, setYields] = useState<Record<string, string>>(() => Object.fromEntries(ingredients.map((i) => [i.id, String(i.yieldPct)])));
   const byId = new Map(list.map((i) => [i.id, i]));
   const free = list.filter((i) => !rows.some((r) => r.ingredientId === i.id));
   const showCost = list.some((i) => i.cost != null);
@@ -57,7 +60,12 @@ export function RecipeEditor({ ingredients, initial, sizes, product, action }: {
   const qty = (r: Row, key: string) => num(r.q[key]);
   const emptyQ = () => Object.fromEntries(cols.map((c) => [c.key, ""]));
   /** Цена одной базовой единицы (за 1 г, мл, шт) с учётом того, что вписано в таблице */
-  const unitCost = (id: string) => { const ing = byId.get(id); if (!ing || ing.cost == null) return 0; const v = prices[id]; return v === undefined || v === "" ? ing.cost : num(v) / bigUnit(ing.unit).factor; };
+  const yieldOf = (id: string) => normYield(yields[id] === undefined || yields[id] === "" ? byId.get(id)?.yieldPct : yields[id]);
+  /** Сколько взять со склада, чтобы в порции оказалось net годного */
+  const gross = (id: string, net: number) => grossQty(net, yieldOf(id));
+  /** Цена одной базовой единицы ГОДНОГО (за 1 г, мл, шт в стакане): цена закупки с учётом потерь при обработке */
+  const unitCost = (id: string) => { const ing = byId.get(id); if (!ing || ing.cost == null) return 0; const v = prices[id]; const base = v === undefined || v === "" ? ing.cost : num(v) / bigUnit(ing.unit).factor; return (base * 100) / yieldOf(id); };
+  const changedYields = list.filter((i) => yields[i.id] !== undefined && yields[i.id] !== "" && Math.abs(yieldOf(i.id) - i.yieldPct) > 0.004).map((i) => ({ ingredientId: i.id, yieldPct: yieldOf(i.id) }));
   const changedPrices = list.filter((i) => i.cost != null && prices[i.id] !== undefined && prices[i.id] !== "" && Math.abs(num(prices[i.id]) - Math.round(i.cost * bigUnit(i.unit).factor * 100) / 100) > 0.004)
     .map((i) => ({ ingredientId: i.id, price: num(prices[i.id]) }));
 
@@ -66,8 +74,8 @@ export function RecipeEditor({ ingredients, initial, sizes, product, action }: {
   const summary = cols.map((c) => {
     const filled = rows.filter((r) => qty(r, c.key) > 0);
     const cost = filled.reduce((a, r) => a + unitCost(r.ingredientId) * qty(r, c.key), 0);
-    const portions = filled.length ? Math.min(...filled.map((r) => portionsFrom(byId.get(r.ingredientId)?.stock ?? 0, qty(r, c.key)))) : null;
-    const short = filled.filter((r) => (byId.get(r.ingredientId)?.stock ?? 0) < qty(r, c.key)).map((r) => byId.get(r.ingredientId)?.name ?? "?");
+    const portions = filled.length ? Math.min(...filled.map((r) => portionsFrom(byId.get(r.ingredientId)?.stock ?? 0, gross(r.ingredientId, qty(r, c.key))))) : null;
+    const short = filled.filter((r) => (byId.get(r.ingredientId)?.stock ?? 0) < gross(r.ingredientId, qty(r, c.key))).map((r) => byId.get(r.ingredientId)?.name ?? "?");
     return { col: c, count: filled.length, cost, price: num(c.price), portions, short };
   });
   const anyFilled = summary.some((x) => x.count > 0);
@@ -103,6 +111,7 @@ export function RecipeEditor({ ingredients, initial, sizes, product, action }: {
       if ("error" in res) { setCreateError(res.error); return; }
       const created = res.ingredient;
       setList((l) => [...l, created]);
+      setYields((y) => ({ ...y, [created.id]: String(created.yieldPct) }));
       if (created.cost != null) setPrices((p) => ({ ...p, [created.id]: String(Math.round(created.cost! * bigUnit(created.unit).factor * 100) / 100) }));
       setRows((rs) => [...rs, { ingredientId: created.id, q: emptyQ() }]);
       setDraft({ name: "", unit: draft.unit, price: "" });
@@ -121,6 +130,7 @@ export function RecipeEditor({ ingredients, initial, sizes, product, action }: {
         ? <input type="hidden" name="sizes" value={JSON.stringify(sortedCols.map((c) => ({ optionId: c.optionId, name: c.name, price: num(c.price), items: payload(c) })))} />
         : <><input type="hidden" name="items" value={JSON.stringify(payload(cols[0]))} /><input type="hidden" name="price" value={cols[0].price} /></>}
       {changedPrices.length > 0 && <input type="hidden" name="prices" value={JSON.stringify(changedPrices)} />}
+      {changedYields.length > 0 && <input type="hidden" name="yields" value={JSON.stringify(changedYields)} />}
 
       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
         <label className="block text-sm"><span className="mb-1 block text-neutral-600">Название продукта</span>
@@ -147,7 +157,7 @@ export function RecipeEditor({ ingredients, initial, sizes, product, action }: {
       </div>
 
       <p className="text-sm text-neutral-600">
-        Сколько каждого ингредиента уходит на <b>одну порцию{sized ? " каждого размера" : ""}</b>: именно это списывается со склада при продаже и входит в себестоимость.
+        Сколько каждого ингредиента уходит на <b>одну порцию{sized ? " каждого размера" : ""}</b>: сколько попадёт в стакан (нетто). Если при обработке есть потери (из 1000 г апельсина выходит 450 мл сока), впишите «Выход» ингредиента: со склада спишется больше, а себестоимость посчитается от закупленного.
         {showCost && <> Цену ингредиента за кг/л/шт тоже можно менять прямо здесь.</>} Если ингредиент размеру не нужен, оставьте поле пустым.
       </p>
 
@@ -170,11 +180,12 @@ export function RecipeEditor({ ingredients, initial, sizes, product, action }: {
                 ) : "На порцию"}
               </th>
             ))}
+            <th className="text-right align-bottom" title="Сколько годного получается из закупленного. 100 — без потерь">Выход, %</th>
             {showCost && <th className="text-right align-bottom">Цена за 1 кг/л/шт, UZS</th>}
             <th className="text-right align-bottom">На складе</th><th />
           </tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={cols.length + 4} className="py-6 text-center text-neutral-500">Рецепт пуст. Добавьте ингредиенты ниже.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={cols.length + 5} className="py-6 text-center text-neutral-500">Рецепт пуст. Добавьте ингредиенты ниже.</td></tr>}
             {rows.map((r, idx) => {
               const ing = byId.get(r.ingredientId);
               return (
@@ -187,8 +198,16 @@ export function RecipeEditor({ ingredients, initial, sizes, product, action }: {
                           onChange={(e) => setRows(rows.map((x, i) => (i === idx ? { ...x, q: { ...x.q, [c.key]: e.target.value } } : x)))} />
                         <span className="text-neutral-500">{smallLabel(ing?.unit ?? "")}</span>
                       </div>
+                      {yieldOf(r.ingredientId) < 100 && qty(r, c.key) > 0 && <p className="mt-0.5 text-xs text-amber-800">со склада: {Math.round(gross(r.ingredientId, qty(r, c.key)) * 10) / 10} {smallLabel(ing?.unit ?? "")}</p>}
                     </td>
                   ))}
+                  <td className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <input type="number" min="1" max="100" step="any" value={yields[r.ingredientId] ?? "100"} className={`${input} w-20 text-right`} aria-label={`${ing?.name}: выход годного, %`}
+                        onChange={(e) => setYields({ ...yields, [r.ingredientId]: e.target.value })} />
+                      <span className="text-xs text-neutral-500">%</span>
+                    </div>
+                  </td>
                   {showCost && (
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-1">

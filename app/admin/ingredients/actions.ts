@@ -48,7 +48,7 @@ export async function deleteIngredientAction(_p: OpState, fd: FormData): Promise
   redirect("/admin/ingredients?ok=deleted");
 }
 
-export type QuickIngredient = { id: string; name: string; unit: string; cost: number | null; stock: number };
+export type QuickIngredient = { id: string; name: string; unit: string; cost: number | null; stock: number; yieldPct: number };
 
 /** Быстрое создание прямо из рецепта: название, единица и (необязательно) цена за кг/л/шт. Остальное можно дополнить позже. */
 export async function quickCreateIngredientAction(input: { name: string; unit: string; price: string }): Promise<{ ingredient: QuickIngredient } | { error: string }> {
@@ -59,6 +59,6 @@ export async function quickCreateIngredientAction(input: { name: string; unit: s
       price: String(input.price ?? "").trim() || "0", minStock: "0", shelfLifeDays: null, supplierId: null,
     }, u.id);
     revalidatePath("/admin/ingredients");
-    return { ingredient: { id: ing.id, name: ing.name, unit: ing.unit, cost: Number(ing.avgCost), stock: 0 } };
+    return { ingredient: { id: ing.id, name: ing.name, unit: ing.unit, cost: Number(ing.avgCost), stock: 0, yieldPct: Number(ing.yieldPct) } };
   } catch (e) { return { error: toMessage(e) }; }
 }

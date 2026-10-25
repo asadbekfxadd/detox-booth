@@ -5,7 +5,7 @@ import { UNIT_CHOICES, bigUnit } from "@/lib/ingredient-units";
 
 export type IngredientDefaults = {
   id?: string; name: string; category: string; unit: string; price: number; minStock: number;
-  shelfLifeDays: number | null; supplierId: string | null; locked: boolean;
+  shelfLifeDays: number | null; supplierId: string | null; locked: boolean; yieldPct?: number;
 };
 
 const EMPTY: IngredientDefaults = { name: "", category: "", unit: "G", price: 0, minStock: 0, shelfLifeDays: null, supplierId: null, locked: false };
@@ -61,6 +61,16 @@ export function IngredientForm({ action, submitLabel, defaults = EMPTY, categori
         </Field>
       </div>
       <p className="-mt-2 text-xs text-neutral-500">Цена нужна для себестоимости; при каждом приходе она пересчитывается по средней. Когда остаток станет ниже минимального, продукт подсветится красным и придёт уведомление «Мало на складе».</p>
+
+      <div className="space-y-2">
+        <Field label="Выход годного после обработки, %">
+          <input name="yieldPct" type="number" min="1" max="100" step="any" defaultValue={defaults.yieldPct ?? 100} className={`${fieldClass} md:w-48`} />
+        </Field>
+        <p className="text-xs text-neutral-500">
+          Сколько годного получается из закупленного. Из 1000 г апельсина выходит 450 мл сока: пишите 45. В рецепте вы указываете то, что попало в стакан,
+          а со склада спишется больше: 225 мл сока = 500 г апельсина. Себестоимость тоже считается с потерями. Нет потерь: оставьте 100.
+        </p>
+      </div>
 
       <Field label="Поставщик (необязательно)">
         <select name="supplierId" defaultValue={defaults.supplierId ?? ""} className={fieldClass}>

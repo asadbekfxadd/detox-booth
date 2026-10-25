@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
 import { parseVideo } from "@/lib/video";
 import { MIX_PRODUCT_SLUG } from "@/lib/mix";
+import { netUnitCost } from "@/lib/yield";
 
 const optNum = (max: number, int = false) =>
   z.preprocess((v) => (v === "" || v == null ? null : v), (int ? z.coerce.number().int() : z.coerce.number()).min(0).max(max).nullable());
@@ -50,7 +51,7 @@ export async function listProducts(f: { q?: string; categoryId?: string; status?
   });
   return rows.map((p) => ({
     id: p.id, name: p.name, category: p.category.name, price: Number(p.price), image: p.image,
-    cost: withCost && p.recipe ? p.recipe.items.reduce((a, i) => a + Number(i.quantity) * Number(i.ingredient.avgCost), 0) : null,
+    cost: withCost && p.recipe ? p.recipe.items.reduce((a, i) => a + Number(i.quantity) * netUnitCost(Number(i.ingredient.avgCost), i.ingredient.yieldPct), 0) : null,
     isAvailable: p.isAvailable, isArchived: p.isArchived, orders: p._count.orderItems,
   }));
 }

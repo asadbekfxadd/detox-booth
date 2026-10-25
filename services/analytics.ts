@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Range } from "@/services/dashboard";
 import { REASON_LABEL } from "@/services/finance";
+import { netUnitCost } from "@/lib/yield";
 
 const TZ = 5 * 3600000;
 const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
@@ -31,10 +32,10 @@ export async function getAnalytics(r: Range, locationId: string | null) {
   // себестоимость рецептов (по текущей средней цене ингредиентов)
   const productIds = [...new Set(done.flatMap((o) => o.items.map((i) => i.productId)))];
   const recipes = productIds.length ? await prisma.recipeItem.findMany({
-    where: { recipe: { productId: { in: productIds } } }, select: { quantity: true, recipe: { select: { productId: true } }, ingredient: { select: { avgCost: true } } },
+    where: { recipe: { productId: { in: productIds } } }, select: { quantity: true, recipe: { select: { productId: true } }, ingredient: { select: { avgCost: true, yieldPct: true } } },
   }) : [];
   const unitCost = new Map<string, number>();
-  for (const ri of recipes) unitCost.set(ri.recipe.productId, (unitCost.get(ri.recipe.productId) ?? 0) + Number(ri.quantity) * Number(ri.ingredient.avgCost));
+  for (const ri of recipes) unitCost.set(ri.recipe.productId, (unitCost.get(ri.recipe.productId) ?? 0) + Number(ri.quantity) * netUnitCost(Number(ri.ingredient.avgCost), ri.ingredient.yieldPct));
 
   const revenue = done.reduce((a, o) => a + Number(o.total), 0);
   const prods = new Map<string, { name: string; category: string; qty: number; revenue: number }>();

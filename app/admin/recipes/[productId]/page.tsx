@@ -35,7 +35,7 @@ export default async function RecipePage({ params, searchParams }: { params: Pro
         initial={recipe.items}
         sizes={recipe.sizes}
         action={saveRecipeAction.bind(null, productId)}
-        ingredients={ingredients.map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: showCost ? Number(i.avgCost) : null, stock: stock.get(i.id) ?? 0 }))}
+        ingredients={ingredients.map((i) => ({ id: i.id, name: i.name, unit: i.unit, cost: showCost ? Number(i.avgCost) : null, stock: stock.get(i.id) ?? 0, yieldPct: Number(i.yieldPct) }))}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
+import { netUnitCost } from "@/lib/yield";
 import { getSettingValues } from "@/services/settings";
 import { costProduct, drinksBasis, equipmentPerDrink, monthlyExpenses, monthlyShares, type CostEquipment } from "@/lib/costing";
 
@@ -49,7 +50,7 @@ export async function getCosting() {
   const rows = products.map((p) => {
     const b = costProduct({
       id: p.id, name: p.name, categoryId: p.categoryId, categoryName: p.category.name, price: Number(p.price),
-      ingredients: (p.recipe?.items ?? []).map((i) => ({ name: i.ingredient.name, quantity: Number(i.quantity), avgCost: Number(i.ingredient.avgCost), category: i.ingredient.category })),
+      ingredients: (p.recipe?.items ?? []).map((i) => ({ name: i.ingredient.name, quantity: Number(i.quantity), avgCost: netUnitCost(Number(i.ingredient.avgCost), i.ingredient.yieldPct), category: i.ingredient.category })),
     }, activeEq, cfg);
     return { id: p.id, name: p.name, category: p.category.name, price: Number(p.price), ...b };
   });

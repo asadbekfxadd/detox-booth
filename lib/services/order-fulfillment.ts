@@ -5,6 +5,7 @@ import { referralBonusTx } from "@/lib/services/loyalty";
 import { lockStock } from "@/lib/stock-lock";
 import { mixNeedsFromModifiers } from "@/lib/mix";
 import { pickSizeRows } from "@/lib/recipe-size";
+import { applyYield } from "@/services/availability";
 import { lowStockMessage, lowStockPrefix, legacyLowStockPrefix } from "@/lib/notify";
 
 type Tx = Prisma.TransactionClient;
@@ -26,8 +27,8 @@ export async function deductInventoryTx(tx: Tx, orderId: string, userId?: string
   // после блокировки перечитываем флаг: параллельная транзакция могла уже списать этот заказ
   if ((await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { inventoryDeducted: true } })).inventoryDeducted) return order;
 
-  const need = new Map<string, Prisma.Decimal>();
-  const add = (id: string, q: Prisma.Decimal) => need.set(id, (need.get(id) ?? D(0)).plus(q));
+  const netNeed = new Map<string, Prisma.Decimal>();
+  const add = (id: string, q: Prisma.Decimal) => netNeed.set(id, (netNeed.get(id) ?? D(0)).plus(q));
 
   for (const item of order.items) {
     const mods = Array.isArray(item.modifiers) ? (item.modifiers as unknown as Partial<ChosenOption>[]) : [];
@@ -44,6 +45,8 @@ export async function deductInventoryTx(tx: Tx, orderId: string, userId?: string
     for (const n of mixNeedsFromModifiers(item.modifiers)) add(n.ingredientId, D(n.qty).times(item.quantity));
   }
 
+  // в рецепте нетто, со склада уходит брутто (с учётом потерь при обработке)
+  const need = await applyYield(tx, netNeed);
   let cogs = D(0);
   for (const [ingredientId, qty] of need) {
     let left = qty;
