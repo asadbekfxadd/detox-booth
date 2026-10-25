@@ -97,7 +97,7 @@ export async function getPurchase(id: string, user: Actor) {
   if (!p) return null;
   if (!canSwitchLocation(user.role) && user.locationId !== p.locationId) return null;
   return {
-    id: p.id, status: p.status, supplier: p.supplier.name, location: p.location.name, total: Number(p.total), createdAt: p.createdAt, receivedAt: p.receivedAt,
+    id: p.id, status: p.status, supplier: p.supplier.name, supplierPhone: p.supplier.phone, location: p.location.name, total: Number(p.total), createdAt: p.createdAt, receivedAt: p.receivedAt,
     items: p.items.map((i) => ({ id: i.id, name: i.ingredient.name, unit: i.ingredient.unit, quantity: Number(i.quantity), unitCost: Number(i.unitCost), expiresAt: i.expiresAt })),
   };
 }

@@ -7,7 +7,7 @@ import { money, dateStr } from "@/lib/format";
 import { STATUS_LABEL, STATUS_CLS } from "@/lib/purchase-status";
 
 
-export default async function PurchasesPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function PurchasesPage({ searchParams }: { searchParams: Promise<{ status?: string; ok?: string; n?: string }> }) {
   await pageGuard("purchases.manage");
   const sp = await searchParams;
   const { locationId } = await getScope();
@@ -17,10 +17,12 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Закупки</h1>
         <div className="flex gap-2">
+          <Link href="/admin/purchases/auto" className="rounded-xl border border-green-700/30 bg-white px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-50">Автозаказ</Link>
           <Link href="/admin/suppliers" className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm hover:bg-neutral-50">Поставщики</Link>
           <Link href="/admin/purchases/new" className="rounded-xl bg-green-700 px-5 py-2 text-sm font-semibold text-white hover:bg-green-800">+ Новая закупка</Link>
         </div>
       </div>
+      {sp.ok === "auto" && <p className="rounded-lg bg-lime-100 px-4 py-2 text-sm text-green-900">Создано черновиков: {Number(sp.n)}. Откройте каждый, проверьте и нажмите «Оформить заказ».</p>}
       <FilterForm key={JSON.stringify(sp)} className="flex gap-2">
         <select name="status" defaultValue={sp.status ?? "all"} className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm">
           <option value="all">Все статусы</option>
