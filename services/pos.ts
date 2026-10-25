@@ -14,6 +14,7 @@ import { createCustomerTx } from "@/lib/services/loyalty";
 import { lockStock } from "@/lib/stock-lock";
 import { ensureMixProduct, resolveMix, getMixCatalog, type MixCatalog } from "@/services/mix";
 import { MIX_PRODUCT_NAME, mixInputSchema } from "@/lib/mix";
+import { grossQty } from "@/lib/yield";
 import { promotionsForCart, codeBlockedBy, recordUses, type Applied, type CartLine } from "@/services/promotions";
 
 type Tx = Prisma.TransactionClient;
@@ -133,7 +134,7 @@ export async function getCatalog(locationId: string): Promise<PosCatalog> {
     prisma.category.findMany({ orderBy: { sort: "asc" } }),
     prisma.product.findMany({
       where: { isArchived: false },
-      include: { recipe: { include: { items: true } }, modifiers: { include: { options: { orderBy: [{ priceDelta: "asc" }, { name: "asc" }] } } } },
+      include: { recipe: { include: { items: { include: { ingredient: { select: { yieldPct: true } } } } } }, modifiers: { include: { options: { orderBy: [{ priceDelta: "asc" }, { name: "asc" }] } } } },
       orderBy: { name: "asc" },
     }),
     usableStock(prisma, locationId),
@@ -141,7 +142,7 @@ export async function getCatalog(locationId: string): Promise<PosCatalog> {
   const list: CatalogProduct[] = products.map((p) => {
     const items = p.recipe?.items ?? [];
     const portions = items.length
-      ? Math.max(0, Math.min(...items.map((i) => Math.floor(Number(stock.get(i.ingredientId) ?? 0) / Number(i.quantity)))))
+      ? Math.max(0, Math.min(...items.map((i) => Math.floor(Number(stock.get(i.ingredientId) ?? 0) / grossQty(Number(i.quantity), i.ingredient.yieldPct)))))
       : null;
     return {
       id: p.id, name: p.name, price: Number(p.price), categoryId: p.categoryId, image: p.image, isAvailable: p.isAvailable, portions,

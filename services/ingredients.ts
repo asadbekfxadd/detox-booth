@@ -17,6 +17,8 @@ export const ingredientSchema = z.object({
   minStock: z.coerce.number({ error: "Минимальный остаток должен быть числом" }).min(0, "Остаток не может быть отрицательным").max(1_000_000, "Слишком большой остаток"),
   shelfLifeDays: z.number().int("Срок — целое число дней").min(1, "Срок должен быть от 1 дня").max(3650, "Слишком большой срок").nullable(),
   supplierId: z.string().min(1).nullable(),
+  /** Выход годного после обработки, %: из 1000 г апельсина 450 мл сока = 45. 100 — без потерь */
+  yieldPct: z.coerce.number({ error: "Выход должен быть числом" }).min(1, "Выход от 1 до 100 %").max(100, "Выход не может быть больше 100 %").default(100),
 });
 export type IngredientInput = z.infer<typeof ingredientSchema>;
 
@@ -28,6 +30,7 @@ export function ingredientFromForm(fd: FormData): unknown {
     price: s("price") || "0", minStock: s("minStock") || "0",
     shelfLifeDays: s("shelfLifeDays") ? Number(s("shelfLifeDays")) : null,
     supplierId: s("supplierId") || null,
+    yieldPct: s("yieldPct") || "100",
   };
 }
 
@@ -56,7 +59,7 @@ export async function createIngredient(input: unknown, userId: string) {
           sku: await nextSku(), name: d.name, category: d.category, unit: d.unit,
           minStock: D(minBase), maxStock: D(minBase * 4),
           avgCost: D(d.price / toBase(d.unit, 1)).toDecimalPlaces(2),
-          shelfLifeDays: d.shelfLifeDays, supplierId: d.supplierId,
+          shelfLifeDays: d.shelfLifeDays, supplierId: d.supplierId, yieldPct: D(d.yieldPct),
         },
       });
       await audit({ userId, action: "INGREDIENT_CREATED", entity: "Ingredient", entityId: ing.id, newValue: { name: d.name, unit: d.unit, price: d.price } });
@@ -108,13 +111,13 @@ export async function updateIngredient(id: string, input: unknown, userId: strin
       name: d.name, category: d.category, unit, minStock: D(minBase),
       maxStock: D(Math.max(Number(old.maxStock), minBase)),
       avgCost: D(d.price / toBase(unit, 1)).toDecimalPlaces(2),
-      shelfLifeDays: d.shelfLifeDays, supplierId: d.supplierId,
+      shelfLifeDays: d.shelfLifeDays, supplierId: d.supplierId, yieldPct: D(d.yieldPct),
     },
   });
   await audit({
     userId, action: "INGREDIENT_UPDATED", entity: "Ingredient", entityId: id,
-    oldValue: { name: old.name, unit: old.unit, price: toBig(old.unit, Number(old.avgCost) * toBase(old.unit, 1)), minStock: toBig(old.unit, Number(old.minStock)) },
-    newValue: { name: d.name, unit, price: d.price, minStock: d.minStock },
+    oldValue: { name: old.name, unit: old.unit, price: toBig(old.unit, Number(old.avgCost) * toBase(old.unit, 1)), minStock: toBig(old.unit, Number(old.minStock)), yieldPct: Number(old.yieldPct) },
+    newValue: { name: d.name, unit, price: d.price, minStock: d.minStock, yieldPct: d.yieldPct },
   });
 }
 
@@ -156,7 +159,7 @@ export async function getIngredient(id: string) {
   return {
     id: i.id, sku: i.sku, name: i.name, category: i.category, unit: i.unit,
     price: Number(i.avgCost) * toBase(i.unit, 1), minStock: toBig(i.unit, Number(i.minStock)),
-    shelfLifeDays: i.shelfLifeDays, supplierId: i.supplierId, locked: u.inUse, pieceWeightG: i.pieceWeightG == null ? null : Number(i.pieceWeightG),
+    shelfLifeDays: i.shelfLifeDays, supplierId: i.supplierId, locked: u.inUse, pieceWeightG: i.pieceWeightG == null ? null : Number(i.pieceWeightG), yieldPct: Number(i.yieldPct),
     stocks: i.stocks.map((s) => ({ location: s.location.name, quantity: Number(s.quantity) })),
     usedIn: i.recipeItems.map((r) => ({ productId: r.recipe.product.id, name: r.recipe.product.name, quantity: Number(r.quantity) })),
   };

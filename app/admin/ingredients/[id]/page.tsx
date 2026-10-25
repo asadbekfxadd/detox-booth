@@ -6,6 +6,7 @@ import { getIngredient, categorySuggestions } from "@/services/ingredients";
 import { IngredientForm } from "@/components/admin/IngredientForm";
 import { ActionButton } from "@/components/admin/ActionButton";
 import { fmtQty, fmtStock, portionsFrom } from "@/lib/ingredient-units";
+import { grossQty } from "@/lib/yield";
 import { ConvertUnit } from "@/components/admin/ConvertUnit";
 import { updateIngredientAction, deleteIngredientAction, convertIngredientUnitAction } from "../actions";
 
@@ -28,7 +29,7 @@ export default async function IngredientPage({ params, searchParams }: { params:
       {ok === "converted" && <p className="rounded-xl bg-lime-100 px-4 py-3 text-sm text-green-900">Единица изменена, остатки и рецепты пересчитаны. Проверьте цену за новую единицу ниже.</p>}
       <IngredientForm
         action={updateIngredientAction} submitLabel="Сохранить" categories={categories} suppliers={suppliers}
-        defaults={{ id: ing.id, name: ing.name, category: ing.category, unit: ing.unit, price: ing.price, minStock: ing.minStock, shelfLifeDays: ing.shelfLifeDays, supplierId: ing.supplierId, locked: ing.locked }}
+        defaults={{ id: ing.id, name: ing.name, category: ing.category, unit: ing.unit, price: ing.price, minStock: ing.minStock, shelfLifeDays: ing.shelfLifeDays, supplierId: ing.supplierId, locked: ing.locked, yieldPct: ing.yieldPct }}
       />
       <ConvertUnit action={convertIngredientUnitAction} id={ing.id} unit={ing.unit} total={total} pieceWeightG={ing.pieceWeightG} />
       <div className="rounded-2xl bg-white p-6 shadow-sm">
@@ -40,7 +41,7 @@ export default async function IngredientPage({ params, searchParams }: { params:
               {ing.usedIn.map((u) => (
                 <li key={u.productId} className="flex items-center justify-between gap-3 py-2">
                   <Link href={`/admin/recipes/${u.productId}`} className="font-medium text-green-800 underline">{u.name}</Link>
-                  <span className="text-neutral-600">{fmtQty(ing.unit, u.quantity)} на порцию · хватит на {portionsFrom(total, u.quantity)}</span>
+                  <span className="text-neutral-600">{fmtQty(ing.unit, u.quantity)} на порцию · хватит на {portionsFrom(total, grossQty(u.quantity, ing.yieldPct))}</span>
                 </li>
               ))}
             </ul>

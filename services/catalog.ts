@@ -7,6 +7,7 @@ import { usableStock, assertInStock } from "@/services/availability";
 import { ensureMixProduct, resolveMix } from "@/services/mix";
 import { MIX_PRODUCT_NAME, mixInputSchema, type MixInput } from "@/lib/mix";
 import { toMessage } from "@/lib/errors";
+import { grossQty } from "@/lib/yield";
 import { promotionsForCart, type Applied, type Hint } from "@/services/promotions";
 import { pairStats } from "@/services/upsell";
 import { buildAdvice, type Advice, type MenuLite, type UpsellPick } from "@/lib/upsell";
@@ -31,7 +32,7 @@ export type PublicProduct = {
 
 const productInclude = {
   category: true,
-  recipe: { include: { items: { include: { ingredient: { select: { name: true, category: true } } } } } },
+  recipe: { include: { items: { include: { ingredient: { select: { name: true, category: true, yieldPct: true } } } } } },
   modifiers: { include: { options: { orderBy: [{ priceDelta: "asc" }, { name: "asc" }] } } },
 } satisfies Prisma.ProductInclude;
 type Row = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
@@ -46,7 +47,7 @@ function toPublic(p: Row, stock: Map<string, Prisma.Decimal>, rules: HappyRule[]
   const items = p.recipe?.items ?? [];
   const comingSoon = needRecipe && items.length === 0;
   const portions = items.length
-    ? Math.max(0, Math.min(...items.map((i) => Math.floor(Number(stock.get(i.ingredientId) ?? 0) / Number(i.quantity)))))
+    ? Math.max(0, Math.min(...items.map((i) => Math.floor(Number(stock.get(i.ingredientId) ?? 0) / grossQty(Number(i.quantity), i.ingredient.yieldPct)))))
     : null;
   const modifiers = p.modifiers.map((m) => ({
     id: m.id, name: m.name, multiple: m.multiple, required: m.required,

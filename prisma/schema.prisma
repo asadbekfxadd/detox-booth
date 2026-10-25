@@ -443,6 +443,8 @@ model Ingredient {
   mixSurcharge Decimal @default(0) @db.Decimal(12,2)
   /// «Свой микс»: сколько граммов весит одна штука (нужно только для ингредиентов в штуках)
   pieceWeightG Decimal? @db.Decimal(8,2)
+  /// Выход годного после обработки, %: из 1000 г апельсина получается 450 мл сока = 45. В рецепте пишут то, что попало в стакан (нетто), со склада списывается больше (брутто)
+  yieldPct Decimal @default(100) @db.Decimal(5,2)
   supplierId String?
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   recipeItems RecipeItem[]

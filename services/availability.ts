@@ -55,8 +55,24 @@ export async function computeNeeds(db: Db, items: CartItem[]) {
   return need;
 }
 
+/**
+ * Из нетто (что попадёт в стакан) в брутто (что взять со склада): делим на выход ингредиента.
+ * Из 1000 г апельсина выходит 450 мл сока (выход 45%): на 225 мл сока уйдёт 500 г.
+ */
+export async function applyYield(db: Db, need: Map<string, Prisma.Decimal>) {
+  if (!need.size) return need;
+  const rows = await db.ingredient.findMany({ where: { id: { in: [...need.keys()] } }, select: { id: true, yieldPct: true } });
+  const out = new Map(need);
+  for (const r of rows) {
+    const net = need.get(r.id);
+    if (net && r.yieldPct.gt(0) && r.yieldPct.lt(100)) out.set(r.id, net.times(100).div(r.yieldPct).toDecimalPlaces(3));
+  }
+  return out;
+}
+
 export async function assertInStock(db: Db, locationId: string, items: CartItem[]) {
-  const [need, stock] = await Promise.all([computeNeeds(db, items), usableStock(db, locationId)]);
+  const [net, stock] = await Promise.all([computeNeeds(db, items), usableStock(db, locationId)]);
+  const need = await applyYield(db, net);
   const short = [...need].filter(([id, q]) => (stock.get(id) ?? D(0)).lt(q)).map(([id]) => id);
   if (!short.length) return;
   const ings = await db.ingredient.findMany({ where: { id: { in: short } }, select: { name: true } });
