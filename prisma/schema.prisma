@@ -81,6 +81,10 @@ enum TxType {
   TRANSFER_IN
   TRANSFER_OUT
   COUNT
+  /// Акт приготовления: сырьё ушло в заготовку
+  PRODUCTION_OUT
+  /// Акт приготовления: заготовка появилась на складе
+  PRODUCTION_IN
 }
 
 enum WriteOffReason {
@@ -151,6 +155,7 @@ model Location {
   orders Order[]
   stocks StockItem[]
   batches Batch[]
+  productionActs ProductionAct[]
   shifts Shift[]
   purchases PurchaseOrder[]
   writeOffs WriteOff[]
@@ -449,6 +454,11 @@ model Ingredient {
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   recipeItems RecipeItem[]
   recipeSizeItems RecipeSizeItem[]
+  /// Если это заготовка (полуфабрикат): из чего она делается
+  prepRecipe PrepRecipe?
+  prepItems PrepRecipeItem[]
+  productionActs ProductionAct[]
+  productionItems ProductionActItem[]
   stocks StockItem[]
   batches Batch[]
   purchaseItems PurchaseItem[]
@@ -487,6 +497,58 @@ model RecipeSizeItem {
   quantity Decimal @db.Decimal(12,3)
   @@unique([optionId, ingredientId])
   @@index([recipeId])
+}
+
+/// Рецепт заготовки (полуфабриката): из этих ингредиентов получается outputQty заготовки.
+/// Количества сырья — сколько брать со склада (брутто), потери уже заложены в outputQty.
+model PrepRecipe {
+  id String @id @default(cuid())
+  ingredientId String @unique
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  /// Сколько заготовки получается (в г, мл или шт склада)
+  outputQty Decimal @db.Decimal(12,3)
+  items PrepRecipeItem[]
+  updatedAt DateTime @updatedAt
+}
+model PrepRecipeItem {
+  id String @id @default(cuid())
+  prepId String
+  prep PrepRecipe @relation(fields: [prepId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity Decimal @db.Decimal(12,3)
+  @@unique([prepId, ingredientId])
+}
+
+/// Акт приготовления: сырьё списано, заготовка оприходована по фактической себестоимости
+model ProductionAct {
+  id String @id @default(cuid())
+  number Int @default(autoincrement())
+  locationId String
+  location Location @relation(fields: [locationId], references: [id])
+  ingredientId String
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  /// Сколько собирались получить (по нему списано сырьё)
+  plannedQty Decimal @db.Decimal(12,3)
+  /// Сколько получилось на самом деле (оприходовано)
+  outputQty Decimal @db.Decimal(12,3)
+  totalCost Decimal @db.Decimal(14,2)
+  note String?
+  userId String?
+  createdAt DateTime @default(now())
+  items ProductionActItem[]
+  @@index([locationId, createdAt])
+  @@index([ingredientId])
+}
+model ProductionActItem {
+  id String @id @default(cuid())
+  actId String
+  act ProductionAct @relation(fields: [actId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity Decimal @db.Decimal(12,3)
+  cost Decimal @db.Decimal(14,2)
+  @@index([actId])
 }
 
 model StockItem {

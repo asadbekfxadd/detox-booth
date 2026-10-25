@@ -6,6 +6,8 @@ export const WAREHOUSE_TABS: (WarehouseTab & { perm: "inventory.view" | "purchas
   { label: "Закупки", href: "/admin/purchases", perm: "purchases.manage", match: ["/admin/purchases"] },
   { label: "Поставщики", href: "/admin/suppliers", perm: "purchases.manage", match: ["/admin/suppliers"] },
   { label: "Списания", href: "/admin/writeoffs", perm: "writeoffs.create", match: ["/admin/writeoffs"] },
+  { label: "Заготовки", href: "/admin/prep", perm: "inventory.view", match: ["/admin/prep"] },
+  { label: "Оборотная ведомость", href: "/admin/inventory/turnover", perm: "inventory.view", match: ["/admin/inventory/turnover"] },
   { label: "Партии и сроки", href: "/admin/inventory/batches", perm: "inventory.view", match: ["/admin/inventory/batches"] },
   { label: "Расхождения", href: "/admin/inventory/variance", perm: "inventory.view", match: ["/admin/inventory/variance"] },
 ];

@@ -84,15 +84,17 @@ export async function createIngredientQuick(input: unknown, userId: string) {
 
 /** Ингредиент уже участвует в учёте: менять единицу и удалять нельзя. */
 async function usage(id: string) {
-  const [recipes, purchases, txs, writeOffs, batches, sized] = await Promise.all([
+  const [recipes, purchases, txs, writeOffs, batches, sized, preps] = await Promise.all([
     prisma.recipeItem.count({ where: { ingredientId: id } }),
     prisma.purchaseItem.count({ where: { ingredientId: id } }),
     prisma.inventoryTransaction.count({ where: { ingredientId: id } }),
     prisma.writeOff.count({ where: { ingredientId: id } }),
     prisma.batch.count({ where: { ingredientId: id } }),
     prisma.recipeSizeItem.count({ where: { ingredientId: id } }),
+    // заготовки: сам ингредиент-заготовка, его акты и вхождение в чужие заготовки
+    Promise.all([prisma.prepRecipe.count({ where: { ingredientId: id } }), prisma.prepRecipeItem.count({ where: { ingredientId: id } }), prisma.productionAct.count({ where: { ingredientId: id } }), prisma.productionActItem.count({ where: { ingredientId: id } })]).then((c) => c.reduce((a, b) => a + b, 0)),
   ]);
-  return { recipes, inUse: recipes + sized + purchases + txs + writeOffs + batches > 0 };
+  return { recipes, inUse: recipes + sized + purchases + txs + writeOffs + batches + preps > 0 };
 }
 
 export async function updateIngredient(id: string, input: unknown, userId: string) {
@@ -205,6 +207,10 @@ export async function convertIngredientUnit(input: unknown, userId: string) {
     await tx.$executeRaw`UPDATE "PurchaseItem" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3), "unitCost" = ROUND("unitCost" / ${fs}::numeric, 2) WHERE "ingredientId" = ${id}`;
     await tx.$executeRaw`UPDATE "WriteOff" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
     await tx.$executeRaw`UPDATE "InventoryTransaction" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3), "unitCost" = ROUND("unitCost" / ${fs}::numeric, 2) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "PrepRecipe" SET "outputQty" = ROUND("outputQty" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "PrepRecipeItem" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "ProductionAct" SET "plannedQty" = ROUND("plannedQty" * ${fs}::numeric, 3), "outputQty" = ROUND("outputQty" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
+    await tx.$executeRaw`UPDATE "ProductionActItem" SET "quantity" = ROUND("quantity" * ${fs}::numeric, 3) WHERE "ingredientId" = ${id}`;
     await tx.$executeRaw`UPDATE "ModifierOption" SET "extraQty" = ROUND("extraQty" * ${fs}::numeric, 3) WHERE "extraIngredientId" = ${id} AND "extraQty" IS NOT NULL`;
     const F = new Prisma.Decimal(fs);
     await tx.ingredient.update({
