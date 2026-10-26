@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { canSwitchLocation } from "@/lib/rbac";
 import { assertInStock } from "@/services/availability";
+import { notifyStatus } from "@/services/telegram";
 import { deductInventoryTx, awardPointsTx, restockOrderTx } from "@/lib/services/order-fulfillment";
 import { ACTIVE, NEXT } from "@/lib/order-status";
 import { lockStock } from "@/lib/stock-lock";
@@ -157,6 +158,7 @@ export async function advanceOrder(input: unknown, user: Actor) {
     return { from: o.status };
   }, { timeout: 20000, maxWait: 10000 });
   await safeAudit({ userId: user.id, action: "ORDER_STATUS_CHANGED", entity: "Order", entityId: d.id, oldValue: { status: from }, newValue: { status: d.to } });
+  notifyStatus(d.id, d.to);
 }
 
 /**
@@ -218,6 +220,7 @@ export async function cancelOrder(input: unknown, user: Actor) {
     return { from: o.status, restocked, wasDeducted: o.inventoryDeducted };
   }, { timeout: 20000, maxWait: 10000 });
   await safeAudit({ userId: user.id, action: "ORDER_CANCELLED", entity: "Order", entityId: d.id, oldValue: { status: res.from }, newValue: { status: "CANCELLED", reason: d.reason, restocked: res.restocked } });
+  notifyStatus(d.id, "CANCELLED");
   return res;
 }
 

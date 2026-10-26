@@ -7,6 +7,7 @@ import { canSwitchLocation } from "@/lib/rbac";
 import { ACTIVE } from "@/lib/order-status";
 import { deliveryStage, collectFromCustomer, type ZoneLike } from "@/lib/delivery";
 import { advanceOrder } from "@/services/orders";
+import { notifyOrder } from "@/services/telegram";
 
 type Actor = { id: string; role: Role; locationId: string | null };
 
@@ -179,6 +180,7 @@ export async function pickUpOrder(orderId: string, user: Actor) {
   const r = await prisma.order.updateMany({ where: { id: orderId, courierId: user.id, status: "READY", pickedUpAt: null }, data: { pickedUpAt: new Date() } });
   if (r.count === 0) throw new ApiError(400, "Заказ ещё не готов или уже у вас в пути");
   await safeAudit({ userId: user.id, action: "DELIVERY_PICKED_UP", entity: "Order", entityId: orderId });
+  void notifyOrder(orderId, "ON_THE_WAY");
 }
 
 /** Доставил: заказ завершается, наличные и карта при получении отмечаются оплаченными. */

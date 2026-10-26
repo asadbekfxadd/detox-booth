@@ -18,11 +18,22 @@ const printSecurity = security.map((h) =>
   : h.key === "Content-Security-Policy" ? { ...h, value: h.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") }
   : h);
 
+// Сайт открывается в Telegram Mini App: в версии Telegram для браузера он встроен во фрейм с адресов telegram.org.
+// Разрешаем встраивание только им и только страницам клиентского сайта; кабинет, касса и остальное по-прежнему закрыты.
+const TELEGRAM_FRAMES = "frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org https://*.telegram.org";
+const siteSecurity = security
+  .filter((h) => h.key !== "X-Frame-Options") // этот заголовок не умеет перечислять несколько адресов, роль берёт CSP frame-ancestors
+  .map((h) => (h.key === "Content-Security-Policy" ? { ...h, value: h.value.replace("frame-ancestors 'none'", TELEGRAM_FRAMES) } : h));
+const STAFF = ["admin", "pos", "waiter", "kitchen", "courier", "login", "api", "after-login", "forbidden"];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
     return [
-      { source: "/((?!print/).*)", headers: security },
+      // клиентский сайт: можно встраивать в Telegram
+      { source: `/((?!(?:${STAFF.join("|")}|print)(?:/|$)).*)`, headers: siteSecurity },
+      // кабинет, касса, кухня и т.д.: встраивание запрещено
+      ...STAFF.map((p) => ({ source: `/${p}/:path*`, headers: security })),
       { source: "/print/:path*", headers: printSecurity },
     ];
   },

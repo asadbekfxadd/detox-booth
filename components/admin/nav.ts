@@ -27,5 +27,6 @@ export const NAV: NavItem[] = [
   { group: "Бизнес", label: "Журнал действий", href: "/admin/audit", perm: "audit.view" },
   { group: "Бизнес", label: "Столы и QR", href: "/admin/tables", perm: "settings.edit" },
   { group: "Бизнес", label: "Бренд и сайт", href: "/admin/brand", perm: "settings.edit" },
+  { group: "Бизнес", label: "Telegram-бот", href: "/admin/telegram", perm: "settings.edit" },
   { group: "Бизнес", label: "Настройки", href: "/admin/settings", perm: "settings.edit" },
 ];

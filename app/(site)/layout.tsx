@@ -14,6 +14,7 @@ import { getMixSizes } from "@/services/mix";
 import { getCurrentTable } from "@/lib/site-table";
 import { leaveTableAction } from "./actions";
 import { MandarinLoader } from "@/components/site/mandarin/MandarinLoader";
+import { TelegramApp } from "@/components/site/TelegramApp";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const [{ locations, current }, table, brand, cats, booking, mixSizes, deals] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories(), bookingConfig(), getMixSizes(), Promise.all([prisma.promotion.count({ where: { isActive: true, onSite: true } }), prisma.happyHour.count({ where: { isActive: true } })]).then(([a, b]) => a + b > 0)]);
   return (
     <div className="site flex min-h-screen flex-col">
+      <TelegramApp />
       <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream">
         {brand.ticker.length > 0 && <Marquee items={brand.ticker} className="bg-forest-deep py-2 text-white" />}
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
