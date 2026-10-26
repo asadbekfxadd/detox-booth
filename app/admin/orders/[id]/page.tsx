@@ -1,3 +1,4 @@
+import { coordMapsUrl } from "@/lib/geo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { pageGuard } from "@/lib/guard";
@@ -53,6 +54,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <h2 className="font-bold">Клиент</h2>
           {o.customer ? <p><b>{o.customer.name}</b><br />{o.customer.phone}</p> : <p className="text-neutral-500">Не указан</p>}
           {o.address && <p>Адрес: {o.address}</p>}
+          {o.geo && <p><a href={coordMapsUrl(o.geo.lat, o.geo.lng)} target="_blank" rel="noreferrer" className="font-semibold text-green-800 underline">Место клиента на карте</a> <span className="text-neutral-500">(приблизительно)</span></p>}
+          {o.tg && <p className="text-neutral-600">Telegram{o.tg.username ? `: @${o.tg.username}` : ""}</p>}
           {o.note && <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-900">Комментарий: {o.note}</p>}
           {o.pointsEarned > 0 && <p className="text-green-800">Начислено баллов: {o.pointsEarned}</p>}
         </div>

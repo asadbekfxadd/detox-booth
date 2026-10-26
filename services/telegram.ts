@@ -5,7 +5,8 @@ import { siteUrl } from "@/lib/site-url";
 import { getBrand } from "@/services/brand";
 import { normalizePhone, type Actor } from "@/services/pos";
 import { botToken, telegramConfigured, tgCall, verifyInitData, webhookSecret, type TgUser } from "@/lib/telegram";
-import { greeting, helpText, kindForStatus, locationsMessage, orderMessage, ordersMessage, thanksPhone, unknownText, type OrderKind } from "@/lib/telegram-messages";
+import { nearestLocation, roundCoord, validCoord, kmLabel } from "@/lib/geo";
+import { greeting, helpText, nearText, thanksGeo, kindForStatus, locationsMessage, orderMessage, ordersMessage, thanksPhone, unknownText, type OrderKind } from "@/lib/telegram-messages";
 
 // ───────────── Mini App: кто открыл приложение ─────────────
 
@@ -24,15 +25,42 @@ async function saveUser(u: { id: string; firstName: string; lastName?: string | 
 }
 
 /** Имя и телефон для формы заказа: подтверждённый Telegram номер, иначе данные прошлого заказа этого пользователя. */
-export async function tgPrefill(initData: unknown): Promise<{ name: string; phone: string } | null> {
+export type TgPrefill = { name: string; phone: string; /** телефон подтверждён Telegram */ hasPhone: boolean; hasGeo: boolean };
+export async function tgPrefill(initData: unknown): Promise<TgPrefill | null> {
   const u = tgIdentity(initData);
   if (!u) return null;
   await saveUser(u).catch(() => undefined);
   const [row, last] = await Promise.all([
-    prisma.telegramUser.findUnique({ where: { id: u.id }, select: { phone: true } }),
+    prisma.telegramUser.findUnique({ where: { id: u.id }, select: { phone: true, lat: true } }),
     prisma.order.findFirst({ where: { telegramId: u.id, customerId: { not: null } }, orderBy: { createdAt: "desc" }, select: { customer: { select: { name: true, phone: true } } } }),
   ]);
-  return { name: last?.customer?.name ?? [u.firstName, u.lastName].filter(Boolean).join(" "), phone: row?.phone ?? last?.customer?.phone ?? "" };
+  return { name: last?.customer?.name ?? [u.firstName, u.lastName].filter(Boolean).join(" "), phone: row?.phone ?? last?.customer?.phone ?? "", hasPhone: !!row?.phone, hasGeo: row?.lat != null };
+}
+
+export type NearestInfo = { id: string; name: string; km: number; label: string } | null;
+
+/** Запомнить геопозицию (округлённую) и найти ближайшую активную точку с координатами. */
+async function saveGeo(telegramId: string, lat: unknown, lng: unknown): Promise<{ saved: boolean; nearest: NearestInfo }> {
+  if (!validCoord(lat, lng)) return { saved: false, nearest: null };
+  const at = { lat: roundCoord(lat), lng: roundCoord(lng as number) };
+  await prisma.telegramUser.update({ where: { id: telegramId }, data: { lat: at.lat, lng: at.lng, locatedAt: new Date() } });
+  const locs = await prisma.location.findMany({ where: { isActive: true }, select: { id: true, name: true, lat: true, lng: true } });
+  const n = nearestLocation(locs, at);
+  return { saved: true, nearest: n ? { id: n.loc.id, name: n.loc.name, km: n.km, label: kmLabel(n.km) } : null };
+}
+
+/** Геопозиция из Mini App: пользователь подтверждён подписью Telegram */
+export async function tgSaveLocation(initData: unknown, lat: unknown, lng: unknown): Promise<{ saved: boolean; nearest: NearestInfo } | null> {
+  const u = tgIdentity(initData);
+  if (!u) return null;
+  await saveUser(u);
+  return saveGeo(u.id, lat, lng);
+}
+
+/** Координаты для заказа на доставку: берём сохранённые у подтверждённого пользователя, а не присланные браузером. */
+export async function tgDeliveryPoint(telegramId: string): Promise<{ lat: number; lng: number } | null> {
+  const r = await prisma.telegramUser.findUnique({ where: { id: telegramId }, select: { lat: true, lng: true } });
+  return r?.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : null;
 }
 
 // ───────────── Бот: отправка и обработка сообщений ─────────────
@@ -46,20 +74,20 @@ async function send(chatId: string, text: string, extra: Record<string, unknown>
   return r;
 }
 
-const replyKeyboard = (hasPhone: boolean) => ({
-  reply_markup: {
-    resize_keyboard: true, is_persistent: true,
-    keyboard: [
-      [openApp("/menu", "🍹 Меню"), { text: "📦 Мои заказы" }],
-      hasPhone ? [{ text: "📍 Точки" }] : [{ text: "📍 Точки" }, { text: "📱 Поделиться номером", request_contact: true }],
-    ],
-  },
-});
+const replyKeyboard = (hasPhone: boolean, hasGeo: boolean) => {
+  const ask = [...(hasPhone ? [] : [{ text: "📱 Поделиться номером", request_contact: true }]), ...(hasGeo ? [] : [{ text: "🧭 Где я", request_location: true }])];
+  return {
+    reply_markup: {
+      resize_keyboard: true, is_persistent: true,
+      keyboard: [[openApp("/menu", "🍹 Меню"), { text: "📦 Мои заказы" }], [{ text: "📍 Точки" }], ...(ask.length ? [ask] : [])],
+    },
+  };
+};
 const menuButton = { reply_markup: { inline_keyboard: [[openApp("/menu", "Открыть меню")]] } };
 
 type TgMessage = {
   chat: { id: number; type: string }; from?: { id: number; is_bot?: boolean; first_name?: string; last_name?: string; username?: string; language_code?: string };
-  text?: string; contact?: { phone_number: string; user_id?: number };
+  text?: string; contact?: { phone_number: string; user_id?: number }; location?: { latitude: number; longitude: number };
 };
 export type TgUpdate = { message?: TgMessage; my_chat_member?: { chat: { id: number; type: string }; new_chat_member?: { status?: string } } };
 
@@ -86,16 +114,24 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
     // принимаем только свой номер: Telegram сверяет user_id, чужой контакт можно переслать вручную
     const phone = m.contact.user_id === m.from.id ? normalizePhone(m.contact.phone_number.startsWith("+") ? m.contact.phone_number : `+${m.contact.phone_number}`) : null;
     if (!phone) { await send(chatId, "Нужен именно ваш номер: нажмите кнопку «Поделиться номером»."); return; }
-    await prisma.telegramUser.update({ where: { id: me.id }, data: { phone } });
-    await send(chatId, thanksPhone, replyKeyboard(true));
+    const row = await prisma.telegramUser.update({ where: { id: me.id }, data: { phone }, select: { lat: true } });
+    await send(chatId, thanksPhone, replyKeyboard(true, row.lat != null));
+    return;
+  }
+
+  if (m.location) {
+    const g = await saveGeo(me.id, m.location.latitude, m.location.longitude);
+    const row = await prisma.telegramUser.findUnique({ where: { id: me.id }, select: { phone: true } });
+    await send(chatId, g.saved ? `${thanksGeo}${g.nearest ? `\n${nearText(g.nearest.name, g.nearest.label)}` : ""}` : "Не удалось определить место, попробуйте ещё раз.", { ...replyKeyboard(!!row?.phone, g.saved) });
     return;
   }
 
   const text = (m.text ?? "").trim();
   const cmd = text.startsWith("/") ? text.slice(1).split(/[\s@]/)[0].toLowerCase() : text.replace(/^[^\p{L}]+/u, "").toLowerCase();
-  const hasPhone = !!(await prisma.telegramUser.findUnique({ where: { id: me.id }, select: { phone: true } }))?.phone;
+  const prof = await prisma.telegramUser.findUnique({ where: { id: me.id }, select: { phone: true, lat: true } });
+  const hasPhone = !!prof?.phone, hasGeo = prof?.lat != null;
 
-  if (cmd === "start") { await send(chatId, greeting((await getBrand()).name, me.firstName), replyKeyboard(hasPhone)); await send(chatId, "Меню и заказ в один клик:", menuButton); return; }
+  if (cmd === "start") { await send(chatId, greeting((await getBrand()).name, me.firstName), replyKeyboard(hasPhone, hasGeo)); await send(chatId, "Меню и заказ в один клик:", menuButton); return; }
   if (cmd === "menu") { await send(chatId, "Всё меню здесь:", menuButton); return; }
   if (cmd === "orders" || cmd === "мои заказы") {
     const rows = await ordersFor(me.id);
@@ -108,7 +144,7 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
     await send(chatId, locationsMessage(list), menuButton);
     return;
   }
-  if (cmd === "help") { await send(chatId, helpText, replyKeyboard(hasPhone)); return; }
+  if (cmd === "help") { await send(chatId, helpText, replyKeyboard(hasPhone, hasGeo)); return; }
   await send(chatId, unknownText, menuButton);
 }
 

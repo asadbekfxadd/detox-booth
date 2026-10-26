@@ -12,7 +12,7 @@ import { priceItems, discountWithPromotions, normalizePhone, cartSchema } from "
 import { recordUses, type Applied } from "@/services/promotions";
 import { quoteDelivery } from "@/lib/delivery";
 import { mixFromModifiers } from "@/lib/mix";
-import { notifyOrder } from "@/services/telegram";
+import { notifyOrder, tgDeliveryPoint } from "@/services/telegram";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const WEB_ACTOR = { id: "web", role: "BARISTA" as Role, locationId: null }; // ручных скидок на сайте нет
@@ -76,6 +76,8 @@ export const checkoutSchema = quoteSchema.extend({
   /** ISO-время получения; нет — «как можно скорее» */
   scheduledFor: z.string().max(40).nullable().optional(),
   note: z.string().trim().max(300, "Комментарий слишком длинный").optional(),
+  /** Показать курьеру место на карте: берём геопозицию, сохранённую в Telegram (не из запроса) */
+  useGeo: z.boolean().optional(),
 });
 
 /** tg — пользователь Telegram (из проверенных данных Mini App): заказ привяжется к его чату, чтобы бот писал о статусе. */
@@ -95,6 +97,7 @@ export async function createWebOrder(input: unknown, locationId: string | null, 
     scheduledFor = chk.at;
   }
   if (!(await prisma.location.findFirst({ where: { id: locationId, isActive: true } }))) throw new ApiError(400, "Эта точка сейчас не принимает заказы");
+  const geo = d.useGeo && d.fulfillment === "DELIVERY" && tg ? await tgDeliveryPoint(tg.id) : null;
 
   let customer = await prisma.customer.findUnique({ where: { phone } });
   if (!customer) {
@@ -130,7 +133,7 @@ export async function createWebOrder(input: unknown, locationId: string | null, 
       data: {
         locationId, customerId: customer.id, source: "WEB", fulfillment: d.fulfillment, status: "NEW", telegramId: tg?.id ?? null,
         subtotal, discount: disc.discount, deliveryFee, deliveryZoneId: dl.zoneId, total, promoCode: disc.promoCode,
-        address: d.fulfillment === "DELIVERY" ? d.address : null, scheduledFor, note: d.note || null,
+        address: d.fulfillment === "DELIVERY" ? d.address : null, deliveryLat: geo?.lat ?? null, deliveryLng: geo?.lng ?? null, scheduledFor, note: d.note || null,
         items: { create: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice, modifiers: l.modifiers })) },
         payments: { create: { method: d.method, status: "PENDING", amount: total, provider: provider?.id ?? null } },
       },

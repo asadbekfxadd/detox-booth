@@ -2,6 +2,7 @@ import { pageGuard } from "@/lib/guard";
 import { getBrand } from "@/services/brand";
 import { courierBoard, type DeliveryRow } from "@/services/delivery";
 import { STAGE_LABEL, mapsUrl, telHref } from "@/lib/delivery";
+import { coordMapsUrl } from "@/lib/geo";
 import { sum, dateTimeStr } from "@/lib/format";
 import { METHOD_LABEL } from "@/lib/order-status";
 import { AutoRefresh } from "@/components/site/AutoRefresh";
@@ -22,6 +23,7 @@ function Card({ o, mine }: { o: DeliveryRow; mine: boolean }) {
       <p className="text-lg font-semibold">{o.address}</p>
       {o.zone && <p className="text-sm text-neutral-600">Зона: {o.zone}</p>}
       <div className="grid grid-cols-2 gap-2">
+        {o.geo && <a href={coordMapsUrl(o.geo.lat, o.geo.lng)} target="_blank" rel="noreferrer" className="col-span-2 flex min-h-12 items-center justify-center rounded-xl bg-neutral-900 font-semibold text-white">Где клиент (по геопозиции)</a>}
         {o.address && <a href={mapsUrl(o.address)} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-center rounded-xl border border-neutral-300 font-semibold">На карте</a>}
         {o.phone && <a href={telHref(o.phone)} className="flex min-h-12 items-center justify-center rounded-xl border border-neutral-300 font-semibold">Позвонить</a>}
       </div>

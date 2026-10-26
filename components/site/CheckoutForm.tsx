@@ -50,6 +50,8 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
   const [busy, setBusy] = useState(false);
   const [when, setWhen] = useState("asap");
   const [note, setNote] = useState("");
+  const [hasGeo, setHasGeo] = useState(false);
+  const [useGeo, setUseGeo] = useState(true);
   const { slots, nowIso } = useMemo(() => { const n = nowMs(); return { slots: mounted ? buildSlots(n, leadMin) : [], nowIso: new Date(n).toISOString() }; }, [mounted, leadMin]);
   const lock = useRef(false);
 
@@ -63,7 +65,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
     // в Telegram подставляем имя и подтверждённый номер (то, что человек уже ввёл сам, не затираем)
     getInitData().then((d) => d ? tgPrefillAction(d) : null).then((p) => {
       if (!alive || !p) return;
-      setName((cur) => cur || p.name); setPhone((cur) => cur || p.phone);
+      setName((cur) => cur || p.name); setPhone((cur) => cur || p.phone); setHasGeo(p.hasGeo);
     });
     return () => { alive = false; };
   }, []);
@@ -96,7 +98,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
     try {
-      const r = await placeOrderAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, name, phone, address, method, provider: method === "ONLINE" ? providerId || undefined : undefined, referrerPhone: referrer || undefined, scheduledFor: when === "asap" ? null : when, note: note || undefined }, await getInitData());
+      const r = await placeOrderAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, name, phone, address, method, provider: method === "ONLINE" ? providerId || undefined : undefined, referrerPhone: referrer || undefined, scheduledFor: when === "asap" ? null : when, note: note || undefined, useGeo: hasGeo && useGeo }, await getInitData());
       if ("error" in r) { setError(r.error); return; }
       try { localStorage.setItem(LS, JSON.stringify({ name, phone })); } catch { /* необязательно */ }
       rememberOrder(r.orderId);
@@ -145,6 +147,9 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
             </select>
           )}
           {fulfillment === "DELIVERY" && <textarea className={field} aria-label="Адрес доставки" rows={2} placeholder="Адрес доставки: улица, дом, ориентир" value={address} onChange={(e) => setAddress(e.target.value)} required minLength={6} maxLength={200} />}
+          {fulfillment === "DELIVERY" && hasGeo && (
+            <label className="flex items-start gap-2 text-sm text-forest/80"><input type="checkbox" className="mt-1" checked={useGeo} onChange={(e) => setUseGeo(e.target.checked)} />Показать курьеру, где я нахожусь (приблизительно, на карте). Адрес всё равно напишите.</label>
+          )}
         </section>
 
         <section className="space-y-3 rounded-2xl bg-white p-5 pop">

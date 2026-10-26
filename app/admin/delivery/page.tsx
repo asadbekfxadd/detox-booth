@@ -4,6 +4,7 @@ import { can } from "@/lib/rbac";
 import { getScope } from "@/lib/location";
 import { dispatchBoard, type DeliveryRow } from "@/services/delivery";
 import { STAGE_LABEL, mapsUrl } from "@/lib/delivery";
+import { coordMapsUrl } from "@/lib/geo";
 import { sum, dateTimeStr } from "@/lib/format";
 import { AutoRefresh } from "@/components/site/AutoRefresh";
 import { AssignCourier } from "@/components/admin/AssignCourier";
@@ -24,7 +25,7 @@ function Card({ o, couriers }: { o: DeliveryRow; couriers: Couriers }) {
         <span className="text-xs text-neutral-500">{dateTimeStr(o.createdAt)}</span>
       </div>
       {o.scheduledFor && <p className="inline-block rounded bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-900">К {dateTimeStr(o.scheduledFor)}</p>}
-      <p className="font-semibold">{o.address} {o.address && <a href={mapsUrl(o.address)} target="_blank" rel="noreferrer" className="text-xs font-normal text-green-800 underline">карта</a>}</p>
+      <p className="font-semibold">{o.address} {o.address && <a href={mapsUrl(o.address)} target="_blank" rel="noreferrer" className="text-xs font-normal text-green-800 underline">карта</a>}{o.geo && <> <a href={coordMapsUrl(o.geo.lat, o.geo.lng)} target="_blank" rel="noreferrer" className="text-xs font-normal text-green-800 underline">где клиент</a></>}</p>
       <p className="text-neutral-600">{o.customer}{o.phone ? ` · ${o.phone}` : ""}{o.zone ? ` · ${o.zone}` : ""}</p>
       <p className="text-neutral-600">{o.summary}</p>
       <p className="font-semibold">{sum(o.total)} <span className="font-normal text-neutral-500">{o.collect.amount > 0 ? "· получить с клиента" : o.paidOnline ? "· оплачено" : ""}</span></p>

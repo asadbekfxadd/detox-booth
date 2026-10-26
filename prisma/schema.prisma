@@ -677,6 +677,10 @@ model TelegramUser {
   username String?
   languageCode String?
   phone String?
+  /// Примерная геопозиция (округлена до ~100 м), которой человек сам поделился. Нужна, чтобы предложить ближайшую точку и дать курьеру ориентир
+  lat Float?
+  lng Float?
+  locatedAt DateTime?
   /// Пользователь заблокировал бота: уведомления ему не отправляем
   blocked Boolean @default(false)
   createdAt DateTime @default(now())
@@ -759,6 +763,9 @@ model Order {
   completedAt DateTime?
   /// Заказ оформлен из Telegram Mini App: сюда бот пишет о статусе заказа
   telegramId String?
+  /// Примерная точка доставки по геопозиции клиента (если он разрешил): ориентир для курьера, адрес остаётся главным
+  deliveryLat Float?
+  deliveryLng Float?
   items OrderItem[]
   payments Payment[]
   voidedItems VoidedItem[]
