@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export async function generateViewport(): Promise<Viewport> {
   const b = await getBrand();
-  return { themeColor: brandPalette(b)?.["--color-cream"] ?? "#fffdf8" };
+  return { themeColor: brandPalette(b)?.["--color-cream"] ?? "#fffdf8", viewportFit: "cover" };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

@@ -8,7 +8,8 @@ import { nowMs } from "@/lib/time";
 import { buildSlots } from "@/lib/slots";
 import { rememberOrder } from "@/lib/order-history";
 import { sum } from "@/lib/format";
-import { checkoutQuoteAction, placeOrderAction, quoteCartAction } from "@/app/(site)/actions";
+import { checkoutQuoteAction, placeOrderAction, quoteCartAction, tgPrefillAction } from "@/app/(site)/actions";
+import { getInitData } from "@/lib/tg-client";
 import type { WebQuote } from "@/services/web-orders";
 import type { ZoneLike } from "@/lib/delivery";
 import type { QuotedLine } from "@/services/catalog";
@@ -59,6 +60,11 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
       if (!alive) return;
       try { const s = JSON.parse(localStorage.getItem(LS) ?? "null"); if (s) { setName(s.name ?? ""); setPhone(s.phone ?? ""); } } catch { /* необязательно */ }
     });
+    // в Telegram подставляем имя и подтверждённый номер (то, что человек уже ввёл сам, не затираем)
+    getInitData().then((d) => d ? tgPrefillAction(d) : null).then((p) => {
+      if (!alive || !p) return;
+      setName((cur) => cur || p.name); setPhone((cur) => cur || p.phone);
+    });
     return () => { alive = false; };
   }, []);
 
@@ -90,7 +96,7 @@ export function CheckoutForm({ locationName, locationId, leadMin = 15, providers
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(null);
     try {
-      const r = await placeOrderAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, name, phone, address, method, provider: method === "ONLINE" ? providerId || undefined : undefined, referrerPhone: referrer || undefined, scheduledFor: when === "asap" ? null : when, note: note || undefined });
+      const r = await placeOrderAction({ items: lines, promoCode: promo, fulfillment, zoneId: zone, name, phone, address, method, provider: method === "ONLINE" ? providerId || undefined : undefined, referrerPhone: referrer || undefined, scheduledFor: when === "asap" ? null : when, note: note || undefined }, await getInitData());
       if ("error" in r) { setError(r.error); return; }
       try { localStorage.setItem(LS, JSON.stringify({ name, phone })); } catch { /* необязательно */ }
       rememberOrder(r.orderId);

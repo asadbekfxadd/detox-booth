@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { myOrdersAction } from "@/app/(site)/actions";
 import type { OrderBrief } from "@/services/web-orders";
 import { readOrderIds } from "@/lib/order-history";
+import { getInitData } from "@/lib/tg-client";
 import { dateTimeStr, sum } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/order-status";
 import { RepeatOrder } from "./RepeatOrder";
@@ -16,8 +17,9 @@ export function OrdersList() {
     let alive = true;
     (async () => {
       const ids = readOrderIds();
-      if (ids.length === 0) { if (alive) setOrders([]); return; }
-      const r = await myOrdersAction(ids);
+      const tg = await getInitData();
+      if (ids.length === 0 && !tg) { if (alive) setOrders([]); return; }
+      const r = await myOrdersAction(ids, tg);
       if (!alive) return;
       if ("error" in r) setError(r.error); else setOrders(r.orders);
     })();

@@ -668,6 +668,21 @@ model CashMovement {
   @@index([shiftId])
 }
 
+/// Пользователь Telegram, открывший бота или Mini App. Номер телефона подтверждён самим Telegram (кнопка «Поделиться номером»)
+model TelegramUser {
+  /// id пользователя в Telegram (он же id личного чата с ботом)
+  id String @id
+  firstName String
+  lastName String?
+  username String?
+  languageCode String?
+  phone String?
+  /// Пользователь заблокировал бота: уведомления ему не отправляем
+  blocked Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// Отменённая позиция заказа стола. Сама позиция удаляется из заказа, здесь остаётся след: что, сколько, почему, кто и кто подтвердил
 model VoidedItem {
   id String @id @default(cuid())
@@ -742,9 +757,12 @@ model Order {
   bill TableBill? @relation(fields: [billId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   completedAt DateTime?
+  /// Заказ оформлен из Telegram Mini App: сюда бот пишет о статусе заказа
+  telegramId String?
   items OrderItem[]
   payments Payment[]
   voidedItems VoidedItem[]
+  @@index([telegramId])
   @@index([billId])
   @@index([tableId, status])
   @@index([locationId, createdAt])

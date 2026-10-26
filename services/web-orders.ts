@@ -12,6 +12,7 @@ import { priceItems, discountWithPromotions, normalizePhone, cartSchema } from "
 import { recordUses, type Applied } from "@/services/promotions";
 import { quoteDelivery } from "@/lib/delivery";
 import { mixFromModifiers } from "@/lib/mix";
+import { notifyOrder } from "@/services/telegram";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const WEB_ACTOR = { id: "web", role: "BARISTA" as Role, locationId: null }; // ручных скидок на сайте нет
@@ -77,7 +78,8 @@ export const checkoutSchema = quoteSchema.extend({
   note: z.string().trim().max(300, "Комментарий слишком длинный").optional(),
 });
 
-export async function createWebOrder(input: unknown, locationId: string | null) {
+/** tg — пользователь Telegram (из проверенных данных Mini App): заказ привяжется к его чату, чтобы бот писал о статусе. */
+export async function createWebOrder(input: unknown, locationId: string | null, tg: { id: string } | null = null) {
   const d = checkoutSchema.parse(input);
   if (!locationId) throw new ApiError(400, "Выберите точку");
   const phone = normalizePhone(d.phone);
@@ -126,7 +128,7 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
     }
     const created = await tx.order.create({
       data: {
-        locationId, customerId: customer.id, source: "WEB", fulfillment: d.fulfillment, status: "NEW",
+        locationId, customerId: customer.id, source: "WEB", fulfillment: d.fulfillment, status: "NEW", telegramId: tg?.id ?? null,
         subtotal, discount: disc.discount, deliveryFee, deliveryZoneId: dl.zoneId, total, promoCode: disc.promoCode,
         address: d.fulfillment === "DELIVERY" ? d.address : null, scheduledFor, note: d.note || null,
         items: { create: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice, modifiers: l.modifiers })) },
@@ -151,6 +153,7 @@ export async function createWebOrder(input: unknown, locationId: string | null) 
     }
   }
   await safeAudit({ action: "WEB_ORDER_CREATED", entity: "Order", entityId: order.id, newValue: { number: order.number, total: Number(order.total), fulfillment: d.fulfillment, method: d.method, promo: order.promoCode } });
+  if (tg) void notifyOrder(order.id, "created");
   return { orderId: order.id, number: order.number, payUrl };
 }
 
@@ -179,16 +182,18 @@ export async function getPublicOrder(id: string) {
 }
 
 /** Краткая история заказов по списку id из браузера клиента. Неверные id пропускаются, максимум 10. */
-export async function getOrdersBrief(ids: unknown) {
+export async function getOrdersBrief(ids: unknown, telegramId: string | null = null) {
   const list = (Array.isArray(ids) ? ids : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9]{20,40}$/i.test(x)).slice(0, 10);
-  if (list.length === 0) return [];
+  if (list.length === 0 && !telegramId) return [];
+  // в Telegram история хранится на сервере: заказы видны на любом устройстве, где открыт бот
   const rows = await prisma.order.findMany({
-    where: { id: { in: list }, source: "WEB" },
+    where: { source: "WEB", OR: [{ id: { in: list } }, ...(telegramId ? [{ telegramId }] : [])] },
+    orderBy: { createdAt: "desc" }, take: 20,
     include: { location: { select: { name: true } }, items: { include: { product: { select: { name: true } } } } },
   });
-  const order = new Map(list.map((id, i) => [id, i]));
   return rows
-    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 10)
     .map((o) => ({
       id: o.id, number: o.number, status: o.status, createdAt: o.createdAt, total: Number(o.total), location: o.location.name,
       summary: o.items.map((i) => `${i.quantity}× ${i.product.name}`).join(", "),

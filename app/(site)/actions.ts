@@ -7,6 +7,7 @@ import { getSiteLocation, SITE_LOC_COOKIE } from "@/lib/site";
 import { quoteCart, type CartQuote } from "@/services/catalog";
 import { quoteWeb, createWebOrder, getOrdersBrief, type OrderBrief, type WebQuote } from "@/services/web-orders";
 import { toMessage } from "@/lib/errors";
+import { tgIdentity, tgPrefill } from "@/services/telegram";
 import { clientIp } from "@/lib/client-ip";
 import { hit } from "@/lib/rate-limit";
 import { getCurrentTable } from "@/lib/site-table";
@@ -34,19 +35,19 @@ export async function checkoutQuoteAction(input: unknown): Promise<{ quote: WebQ
   } catch (e) { return { error: toMessage(e) }; }
 }
 
-export async function placeOrderAction(input: unknown): Promise<{ orderId: string; payUrl: string | null } | { error: string }> {
+export async function placeOrderAction(input: unknown, initData?: string | null): Promise<{ orderId: string; payUrl: string | null } | { error: string }> {
   try {
     // защита от массовых фейковых заказов: не больше 8 заказов за 10 минут с одного адреса
     const lim = hit(`order:ip:${await clientIp()}`, 8, 10 * 60_000);
     if (!lim.ok) return { error: `Слишком много заказов с вашего устройства. Повторите через ${Math.ceil(lim.retryAfterSec / 60)} мин.` };
     const { current } = await getSiteLocation();
-    const r = await createWebOrder(input, current?.id ?? null);
+    const r = await createWebOrder(input, current?.id ?? null, tgIdentity(initData));
     return { orderId: r.orderId, payUrl: r.payUrl };
   } catch (e) { return { error: toMessage(e) }; }
 }
 
-export async function myOrdersAction(ids: unknown): Promise<{ orders: OrderBrief[] } | { error: string }> {
-  try { return { orders: await getOrdersBrief(ids) }; }
+export async function myOrdersAction(ids: unknown, initData?: string | null): Promise<{ orders: OrderBrief[] } | { error: string }> {
+  try { return { orders: await getOrdersBrief(ids, tgIdentity(initData)?.id ?? null) }; }
   catch (e) { return { error: toMessage(e) }; }
 }
 
@@ -103,4 +104,9 @@ export async function bookTableAction(input: unknown): Promise<{ id: string } | 
 export async function cancelBookingAction(id: string): Promise<{ ok: true } | { error: string }> {
   try { await cancelByGuest(String(id)); return { ok: true }; }
   catch (e) { return { error: toMessage(e) }; }
+}
+
+/** Имя и телефон для формы заказа из Telegram. Вне Telegram или с неверной подписью вернёт null. */
+export async function tgPrefillAction(initData: string | null): Promise<{ name: string; phone: string } | null> {
+  try { return await tgPrefill(initData); } catch { return null; }
 }

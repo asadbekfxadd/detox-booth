@@ -40,6 +40,8 @@ body {
 html:has(.site), body:has(.site) { background: var(--color-cream); }
 
 .site { background: var(--color-cream); color: var(--color-forest); position: relative; }
+/* Telegram Mini App: нижний край экрана с «чёлкой» и панелью жестов */
+html.tg .site { padding-bottom: env(safe-area-inset-bottom); }
 .site h1, .site h2 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; line-height: 1.04; }
 .site h3, .site .display { font-family: var(--font-display); letter-spacing: -0.015em; }
 .site .script { font-family: var(--font-script); font-weight: 700; letter-spacing: 0; text-transform: none; }
