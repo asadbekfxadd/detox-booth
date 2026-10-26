@@ -7,7 +7,7 @@ import { getSiteLocation, SITE_LOC_COOKIE } from "@/lib/site";
 import { quoteCart, type CartQuote } from "@/services/catalog";
 import { quoteWeb, createWebOrder, getOrdersBrief, type OrderBrief, type WebQuote } from "@/services/web-orders";
 import { toMessage } from "@/lib/errors";
-import { tgIdentity, tgPrefill } from "@/services/telegram";
+import { tgIdentity, tgPrefill, tgSaveLocation, type TgPrefill, type NearestInfo } from "@/services/telegram";
 import { clientIp } from "@/lib/client-ip";
 import { hit } from "@/lib/rate-limit";
 import { getCurrentTable } from "@/lib/site-table";
@@ -107,6 +107,18 @@ export async function cancelBookingAction(id: string): Promise<{ ok: true } | { 
 }
 
 /** Имя и телефон для формы заказа из Telegram. Вне Telegram или с неверной подписью вернёт null. */
-export async function tgPrefillAction(initData: string | null): Promise<{ name: string; phone: string } | null> {
+export async function tgPrefillAction(initData: string | null): Promise<TgPrefill | null> {
   try { return await tgPrefill(initData); } catch { return null; }
+}
+
+/** Геопозиция из Mini App: сохраняем (округлив до ~100 м) и подсказываем ближайшую точку. */
+export async function tgSaveLocationAction(initData: string | null, lat: number, lng: number): Promise<{ nearest: NearestInfo } | { error: string }> {
+  try {
+    const lim = hit(`tg-geo:${await clientIp()}`, 20, 10 * 60_000);
+    if (!lim.ok) return { error: "Слишком часто. Попробуйте чуть позже." };
+    const r = await tgSaveLocation(initData, lat, lng);
+    if (!r) return { error: "Не удалось подтвердить Telegram. Откройте приложение заново из бота." };
+    if (!r.saved) return { error: "Не удалось определить место. Попробуйте ещё раз." };
+    return { nearest: r.nearest };
+  } catch (e) { return { error: toMessage(e) }; }
 }

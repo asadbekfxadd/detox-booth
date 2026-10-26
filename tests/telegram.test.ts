@@ -98,3 +98,38 @@ describe("сообщения бота", () => {
   });
   it("escapeHtml", () => expect(escapeHtml("<a>&")).toBe("&lt;a&gt;&amp;"));
 });
+
+import { validCoord, roundCoord, distanceKm, nearestLocation, kmLabel, coordMapsUrl } from "@/lib/geo";
+
+describe("геопозиция", () => {
+  const A = { id: "a", lat: 41.2756, lng: 69.2034 }, B = { id: "b", lat: 41.3111, lng: 69.2797 }, C = { id: "c", lat: null, lng: null };
+  it("проверка координат", () => {
+    expect(validCoord(41.3, 69.2)).toBe(true);
+    expect(validCoord(0, 0)).toBe(false);
+    expect(validCoord(91, 10)).toBe(false);
+    expect(validCoord(10, 181)).toBe(false);
+    expect(validCoord(NaN, 10)).toBe(false);
+    expect(validCoord("41" as unknown, 69)).toBe(false);
+  });
+  it("округление до ~100 м", () => {
+    expect(roundCoord(41.275649)).toBe(41.276);
+    expect(roundCoord(69.20341)).toBe(69.203);
+  });
+  it("расстояние: Ташкент — несколько км, и нулевое", () => {
+    const d = distanceKm(A, B);
+    expect(d).toBeGreaterThan(6); expect(d).toBeLessThan(9);
+    expect(distanceKm(A, A)).toBe(0);
+  });
+  it("ближайшая точка; без координат пропускаем; далеко — не предлагаем", () => {
+    expect(nearestLocation([A, B, C], { lat: 41.31, lng: 69.27 })?.loc.id).toBe("b");
+    expect(nearestLocation([C], { lat: 41.31, lng: 69.27 })).toBeNull();
+    expect(nearestLocation([A, B], { lat: 55.75, lng: 37.6 })).toBeNull();
+  });
+  it("подпись расстояния и ссылка на карту", () => {
+    expect(kmLabel(0.04)).toBe("100 м");
+    expect(kmLabel(0.46)).toBe("500 м");
+    expect(kmLabel(2.34)).toBe("2,3 км");
+    expect(kmLabel(14.6)).toBe("15 км");
+    expect(coordMapsUrl(41.31, 69.27)).toBe("https://yandex.com/maps/?pt=69.27,41.31&z=17&l=map");
+  });
+});

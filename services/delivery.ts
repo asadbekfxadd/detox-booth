@@ -87,7 +87,7 @@ function shape(o: Row) {
   const total = Number(o.total);
   const pays = o.payments.map((p) => ({ method: p.method as string, status: p.status as string, amount: Number(p.amount) }));
   return {
-    id: o.id, number: o.number, status: o.status as string, createdAt: o.createdAt, scheduledFor: o.scheduledFor, address: o.address, note: o.note, total,
+    id: o.id, number: o.number, status: o.status as string, createdAt: o.createdAt, scheduledFor: o.scheduledFor, address: o.address, geo: o.deliveryLat != null && o.deliveryLng != null ? { lat: o.deliveryLat, lng: o.deliveryLng } : null, note: o.note, total,
     customer: o.customer?.name ?? null, phone: o.customer?.phone ?? null, zone: o.deliveryZone?.name ?? null,
     courierId: o.courierId, courierName: o.courier?.name ?? null, pickedUpAt: o.pickedUpAt,
     stage: deliveryStage({ status: o.status, courierId: o.courierId, pickedUpAt: o.pickedUpAt }),

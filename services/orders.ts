@@ -109,7 +109,7 @@ export async function getOrder(id: string, user: Actor) {
   const logs = await prisma.auditLog.findMany({ where: { entity: "Order", entityId: id }, orderBy: { createdAt: "asc" }, include: { user: { select: { name: true } } } });
   return {
     id: o.id, number: o.number, status: o.status, source: o.source, fulfillment: o.fulfillment, location: o.location.name, locationId: o.locationId,
-    createdAt: o.createdAt, completedAt: o.completedAt, scheduledFor: o.scheduledFor, note: o.note, address: o.address, cashier: o.cashier?.name ?? null,
+    createdAt: o.createdAt, completedAt: o.completedAt, scheduledFor: o.scheduledFor, note: o.note, address: o.address, geo: o.deliveryLat != null && o.deliveryLng != null ? { lat: o.deliveryLat, lng: o.deliveryLng } : null, tg: o.telegramId ? await prisma.telegramUser.findUnique({ where: { id: o.telegramId }, select: { username: true } }) : undefined, cashier: o.cashier?.name ?? null,
     customer: o.customer ? { id: o.customer.id, name: o.customer.name, phone: o.customer.phone } : null,
     subtotal: Number(o.subtotal), discount: Number(o.discount), deliveryFee: Number(o.deliveryFee), total: Number(o.total), cogs: Number(o.cogs),
     promoCode: o.promoCode, pointsEarned: o.pointsEarned, pointsSpent: o.pointsSpent, inventoryDeducted: o.inventoryDeducted,
