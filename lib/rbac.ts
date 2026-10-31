@@ -39,6 +39,7 @@ export const ROUTE_PERMISSIONS: [string, Permission][] = [
   ["/admin/products", "products.edit"],
   ["/admin/recipes", "recipes.edit"],
   ["/admin/mix", "products.edit"],
+  ["/admin/tv", "products.edit"],
   ["/admin/ingredients", "inventory.edit"],
   ["/admin/inventory", "inventory.view"],
   ["/admin/prep", "inventory.view"],
