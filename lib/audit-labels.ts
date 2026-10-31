@@ -7,7 +7,7 @@ export const ACTION_LABEL: Record<string, string> = {
   MANUAL_DISCOUNT: "Ручная скидка", SHIFT_OPENED: "Открыта смена", CASH_MOVEMENT: "Внесение/изъятие наличных", TELEGRAM_CONNECTED: "Telegram-бот подключён", TELEGRAM_DISCONNECTED: "Telegram-бот отключён", ORDER_ITEM_VOIDED: "Отмена позиции заказа", SHIFT_CLOSED: "Закрыта смена",
   PRODUCT_CREATED: "Продукт создан", PRODUCT_UPDATED: "Продукт изменён", PRODUCT_PRICE_CHANGED: "Изменена цена",
   PRODUCT_ARCHIVED: "Продукт в архиве", PRODUCT_RESTORED: "Продукт восстановлен", PRODUCT_DELETED: "Продукт удалён",
-  PRODUCT_AVAILABILITY: "Доступность продукта",
+  PRODUCT_AVAILABILITY: "Доступность продукта", PRODUCT_PHOTOS_APPLIED: "Подобраны фото напиткам",
   CATEGORY_CREATED: "Категория создана", CATEGORY_UPDATED: "Категория изменена", CATEGORY_DELETED: "Категория удалена",
   STOCK_IN: "Приход на склад", STOCK_IN_BULK: "Приход на склад списком", STOCK_RESET: "Остатки склада обнулены", STOCK_TRANSFER: "Перемещение между точками", INVENTORY_COUNT: "Инвентаризация", WRITEOFF_CREATED: "Списание",
   SUPPLIER_CREATED: "Поставщик добавлен", SUPPLIER_UPDATED: "Поставщик изменён", SUPPLIER_DELETED: "Поставщик удалён",

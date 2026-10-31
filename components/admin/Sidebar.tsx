@@ -14,14 +14,15 @@ const isActive = (path: string, i: Item) => path === i.href || path.startsWith(i
 export function Sidebar({ items, brandName }: { items: Item[]; brandName: string }) {
   const path = usePathname();
   const groups = [...new Set(items.map((i) => i.group))];
-  const [open, setOpen] = useState(false);
+  // панель открыта только на той странице, где её открыли: после перехода закрывается сама
+  const [openedAt, setOpenedAt] = useState<string | null>(null);
+  const open = openedAt === path;
+  const setOpen = (v: boolean) => setOpenedAt(v ? path : null);
   const current = items.find((i) => isActive(path, i));
 
-  // после перехода по пункту панель закрывается
-  useEffect(() => { setOpen(false); }, [path]);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenedAt(null); };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";

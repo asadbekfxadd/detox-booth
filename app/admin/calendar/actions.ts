@@ -10,7 +10,7 @@ const s = (fd: FormData, k: string) => String(fd.get(k) ?? "");
 const back = (day: string, ok: string) => `/admin/calendar?month=${day.slice(0, 7)}&day=${day}&ok=${ok}#day-panel`;
 
 export async function addDailySalesAction(_p: OpState, fd: FormData): Promise<OpState> {
-  let day = s(fd, "day");
+  const day = s(fd, "day");
   try {
     const u = await requireUser("finance.edit");
     await addDailySales({ day, locationId: s(fd, "locationId"), amount: s(fd, "amount").replace(/\s/g, "").replace(",", "."), method: s(fd, "method"), ordersCount: s(fd, "ordersCount"), note: s(fd, "note") }, u);
