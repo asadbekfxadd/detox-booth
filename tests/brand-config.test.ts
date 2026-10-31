@@ -76,3 +76,29 @@ describe("brand config", () => {
     expect(brandFromStored({ name: "Cafe Nur" }, BLANK_BRAND).homeStyle).toBe("classic");
   });
 });
+
+describe("видео в первом экране", () => {
+  const base = { name: "Тест", primary: "#0d4a27", accent: "#ff8a00" };
+  it("по умолчанию видео нет", () => expect(parseBrand(base).heroVideos).toEqual([]));
+  it("строки «ссылка | подпись»: файл, свой путь, YouTube", () => {
+    const b = parseBrand({ ...base, heroVideos: "https://cdn.example.com/mango.mp4 | Манго-смузи\n/videos/juice.webm\n\nhttps://youtu.be/dQw4w9WgXcQ" });
+    expect(b.heroVideos).toEqual([
+      { url: "https://cdn.example.com/mango.mp4", title: "Манго-смузи" },
+      { url: "/videos/juice.webm", title: "" },
+      { url: "https://youtu.be/dQw4w9WgXcQ", title: "" },
+    ]);
+  });
+  it("небезопасные и неподходящие ссылки отклоняются понятной ошибкой", () => {
+    for (const u of ["http://cdn.example.com/a.mp4", "javascript:alert(1)", "data:video/mp4;base64,AAAA", "https://example.com/page", "//evil.com/a.mp4", "/videos/../../etc/passwd"])
+      expect(() => parseBrand({ ...base, heroVideos: u })).toThrow(/Видео/);
+  });
+  it("не больше четырёх", () => {
+    const five = Array.from({ length: 5 }, (_, i) => `https://cdn.example.com/${i}.mp4`).join("\n");
+    expect(() => parseBrand({ ...base, heroVideos: five })).toThrow(/не больше 4/);
+  });
+  it("сохранённый бренд читается обратно (массив объектов), старый без видео не ломается", () => {
+    const b = parseBrand({ ...base, heroVideos: "https://cdn.example.com/a.mp4 | Подпись" });
+    expect(brandFromStored(b).heroVideos).toEqual(b.heroVideos);
+    expect(brandFromStored({ name: "Старый", primary: "#0d4a27", accent: "#ff8a00" }).heroVideos).toEqual([]);
+  });
+});

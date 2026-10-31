@@ -62,6 +62,10 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
           <Field label="Заголовок (универсальная главная)"><input name="heroTitle" maxLength={80} defaultValue={b.heroTitle} placeholder="Если пусто, возьмём название" className={fieldClass} /></Field>
           <Field label="Текст под заголовком"><textarea name="heroText" rows={2} maxLength={220} defaultValue={b.heroText} placeholder="Закажите онлайн и заберите готовым" className={fieldClass} /></Field>
           <Field label="Фото на главной (ссылка)"><input name="heroImage" maxLength={300} defaultValue={b.heroImage} placeholder="https://…" className={fieldClass} /></Field>
+          <Field label="Видео «как готовим» в первом экране (до 4, по одной ссылке в строке)">
+            <textarea name="heroVideos" rows={4} defaultValue={b.heroVideos.map((v) => (v.title ? `${v.url} | ${v.title}` : v.url)).join("\n")} placeholder={"https://…/mango.mp4 | Свежий манго-смузи\n/videos/juice.mp4"} className={fieldClass} />
+            <span className="mt-1 block text-xs text-neutral-500">Ролики играют сами, без звука, по очереди. Лучше короткие (5–15 секунд), вертикальные или квадратные, до 5–8 МБ. Прямой файл .mp4 или .webm играет сразу, ссылка на YouTube открывается по нажатию. После « | » можно дописать подпись.</span>
+          </Field>
           <Field label="Бегущая строка вверху сайта (по одной фразе в строке)">
             <textarea name="ticker" rows={5} defaultValue={b.ticker.join("\n")} className={fieldClass} />
           </Field>

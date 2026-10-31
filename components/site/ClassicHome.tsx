@@ -1,3 +1,4 @@
+import { HeroVideo } from "@/components/site/HeroVideo";
 import Link from "next/link";
 import type { Brand } from "@/lib/brand-config";
 import type { PublicProduct } from "@/services/catalog";
@@ -24,7 +25,7 @@ export function ClassicHome({ brand, menu, cats, popular }: {
   return (
     <div>
       <section className="relative isolate overflow-hidden bg-[radial-gradient(70%_80%_at_85%_30%,var(--color-sand)_0%,var(--color-cream)_75%)]">
-        <div className={`mx-auto grid max-w-6xl items-center gap-10 px-4 pb-14 pt-12 sm:pt-16 ${brand.heroImage ? "lg:grid-cols-[1.05fr_1fr]" : ""}`}>
+        <div className={`mx-auto grid max-w-6xl items-center gap-10 px-4 pb-14 pt-12 sm:pt-16 ${brand.heroImage || brand.heroVideos.length > 0 ? "lg:grid-cols-[1.05fr_1fr]" : ""}`}>
           <div>
             {brand.tagline && <p className="script text-3xl text-orange-deep sm:text-4xl">{brand.tagline}</p>}
             <h1 className="mt-2 text-[clamp(2.3rem,5.6vw,4.6rem)] font-black text-forest">{brand.heroTitle || brand.name}</h1>
@@ -34,7 +35,9 @@ export function ClassicHome({ brand, menu, cats, popular }: {
               <Link href="/locations" className="btn btn-ghost">Где нас найти</Link>
             </div>
           </div>
-          {brand.heroImage && (
+          {brand.heroVideos.length > 0 ? (
+            <div className="mx-auto w-full max-w-sm lg:max-w-md"><HeroVideo videos={brand.heroVideos} tall /></div>
+          ) : brand.heroImage && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={brand.heroImage} alt="" className="aspect-[10/8] w-full rounded-[2rem] object-cover shadow-xl" />
           )}
