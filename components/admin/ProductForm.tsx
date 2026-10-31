@@ -31,7 +31,7 @@ export function ProductForm({ categories, initial = {}, action, submitLabel }: {
           </select>
         </Field>
         <Field label="Цена, UZS *"><input name="price" type="number" min={0} step={1} required defaultValue={initial.price} className={input} /></Field>
-        <Field label="Ссылка на фото"><input name="image" type="url" placeholder="https://…" defaultValue={initial.image ?? ""} className={input} /></Field>
+        <Field label="Ссылка на фото"><input name="image" type="text" inputMode="url" placeholder="https://…" defaultValue={initial.image ?? ""} className={input} /></Field>
         <div className="md:col-span-2">
           <Field label="Видео «Как готовим» (необязательно)">
             <input name="videoUrl" type="url" placeholder="Ссылка на YouTube или на файл https://…/video.mp4" defaultValue={initial.videoUrl ?? ""} className={input} />
