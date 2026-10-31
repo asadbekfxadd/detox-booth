@@ -89,7 +89,7 @@ export function categoryWindow<T>(all: T[], current: number, max = 6): { items: 
 
 // ───────────── Фото-меню: все позиции на одном экране ─────────────
 
-export const TV_GRID_PER_PAGE = 9;
+export const TV_GRID_PER_PAGE = 20;
 export const TV_GRID_DEFAULT_SEC = 15;
 export type TvGridPage = { key: string; pageNo: number; pageCount: number; items: TvItem[] };
 
@@ -99,15 +99,20 @@ export function clampGridSec(v: unknown): number {
   return Number.isFinite(n) && n >= 6 ? Math.min(60, Math.round(n)) : TV_GRID_DEFAULT_SEC;
 }
 
-/** Все доступные позиции подряд (категории в порядке меню), по 9 на экран, страницы поровну. */
+/** Все доступные позиции подряд (категории в порядке меню): до 20 на одном экране, больше — страницы поровну. */
 export function buildTvGrid(items: Src[], cats: { id: string; name: string; slug: string }[], perPage = TV_GRID_PER_PAGE): TvGridPage[] {
   const all = buildTvPages(items, cats, Number.MAX_SAFE_INTEGER).flatMap((p) => p.items);
   const chunks = splitEven(all, perPage);
   return chunks.map((list, i) => ({ key: `g${i}`, pageNo: i + 1, pageCount: chunks.length, items: list }));
 }
 
-/** Сетка карточек: колонок 1–3, строк по числу карточек. */
+/** Сетка карточек: чем больше позиций, тем больше колонок (1–5); ряды по числу карточек. */
 export function gridShape(n: number): { cols: number; rows: number } {
-  const cols = n <= 2 ? Math.max(1, n) : n <= 4 ? 2 : 3;
+  const cols = n <= 2 ? Math.max(1, n) : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5;
   return { cols, rows: Math.max(1, Math.ceil(n / cols)) };
+}
+
+/** Во сколько раз уменьшить содержимое карточек, чтобы все позиции поместились на экране. */
+export function gridZoom(n: number): number {
+  return n <= 9 ? 1 : n <= 12 ? 0.82 : n <= 16 ? 0.68 : 0.58;
 }
