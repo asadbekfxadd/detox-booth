@@ -28,7 +28,11 @@ export type Brand = {
   heroTitle: string;
   heroText: string;
   heroImage: string;
+  /** Видео «как готовим» в первом экране: играют по очереди без звука. Прямой файл (.mp4, .webm) или YouTube. */
+  heroVideos: HeroVideo[];
 };
+
+export type HeroVideo = { url: string; title: string };
 
 export const DEFAULT_BRAND: Brand = {
   name: "Vitamin B",
@@ -47,16 +51,44 @@ export const DEFAULT_BRAND: Brand = {
   heroTitle: "",
   heroText: "",
   heroImage: "",
+  heroVideos: [],
 };
 
 /** Нейтральный бренд для нового заведения: без Vitamin B, с универсальной главной и выключенной мандаринкой. */
 export const BLANK_BRAND: Brand = {
   name: "Моё заведение", descriptor: "", tagline: "", seoTitle: "", description: "Закажите онлайн и заберите готовым.", footerText: "",
   logoUrl: "", instagram: "", primary: "#1f3b4d", accent: "#e8a33d", ticker: [], homeStyle: "classic", assistant: false,
-  heroTitle: "", heroText: "", heroImage: "",
+  heroTitle: "", heroText: "", heroImage: "", heroVideos: [],
 };
 
 export class BrandError extends Error {}
+
+export const MAX_HERO_VIDEOS = 4;
+
+/** Ссылка на видео: https-адрес или путь на сайте вида /videos/juice.mp4. Прямой файл или YouTube; остальное не пускаем. */
+export function safeVideoUrl(v: string): string {
+  const s = v.trim();
+  if (!s) return "";
+  if (/^\/(?!\/)[\w\-./%]*\.(mp4|webm|m4v|mov)$/i.test(s)) return s;
+  let u: URL | null = null;
+  try { u = new URL(s); } catch { /* ниже ошибка */ }
+  if (u && u.protocol === "https:" && (/\.(mp4|webm|m4v|mov)$/i.test(u.pathname) || /(^|\.)(youtube\.com|youtube-nocookie\.com|youtu\.be)$/.test(u.hostname))) return u.toString();
+  throw new BrandError(`Видео: «${s.slice(0, 40)}» не подходит. Нужна ссылка https:// на файл .mp4 или .webm, на YouTube, или путь вида /videos/juice.mp4`);
+}
+
+/** Строки «ссылка | подпись» (или уже готовый список) → видео для первого экрана. */
+export function parseHeroVideos(raw: unknown): HeroVideo[] {
+  const rows: unknown[] = Array.isArray(raw) ? raw : String(raw ?? "").split("\n");
+  const out: HeroVideo[] = [];
+  for (const r of rows) {
+    const [url, ...rest] = typeof r === "string" ? r.split("|") : [String((r as HeroVideo)?.url ?? ""), String((r as HeroVideo)?.title ?? "")];
+    const safe = safeVideoUrl(String(url ?? ""));
+    if (!safe) continue;
+    out.push({ url: safe, title: clean(rest.join("|"), 60) });
+  }
+  if (out.length > MAX_HERO_VIDEOS) throw new BrandError(`Видео на главной: не больше ${MAX_HERO_VIDEOS}`);
+  return out;
+}
 
 const clean = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 
@@ -105,6 +137,7 @@ export function parseBrand(raw: Record<string, unknown>): Brand {
     heroTitle: clean(raw.heroTitle, 80),
     heroText: clean(raw.heroText, 220),
     heroImage: safeImageUrl(String(raw.heroImage ?? "")),
+    heroVideos: parseHeroVideos(raw.heroVideos),
   };
 }
 

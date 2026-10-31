@@ -32,3 +32,15 @@ describe("parseVideo", () => {
     expect(parseVideo("https://www.youtube.com/watch?v=evil\"onload")?.kind).toBe("link");
   });
 });
+
+describe("parseVideo: файл на этом же сайте", () => {
+  it("путь /videos/x.mp4 — прямой файл", () => {
+    expect(parseVideo("/videos/mango.mp4")).toEqual({ kind: "file", src: "/videos/mango.mp4" });
+    expect(parseVideo("  /videos/a.webm ")).toEqual({ kind: "file", src: "/videos/a.webm" });
+  });
+  it("чужой хост без https и путь без расширения не принимаются", () => {
+    expect(parseVideo("//evil.com/a.mp4")).toBeNull();
+    expect(parseVideo("/videos/readme")).toBeNull();
+    expect(parseVideo("javascript:alert(1)")).toBeNull();
+  });
+});

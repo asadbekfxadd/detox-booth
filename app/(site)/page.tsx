@@ -11,6 +11,7 @@ import { ProductCard } from "@/components/site/ProductCard";
 import { ProductImage } from "@/components/site/ProductImage";
 import { SpinBadge } from "@/components/site/SpinBadge";
 import { HeroCard, type HeroSlide } from "@/components/site/HeroCard";
+import { HeroVideo } from "@/components/site/HeroVideo";
 import { Lucky } from "@/components/site/Lucky";
 import { Icon, IconBadge, type IconName } from "@/components/site/Icon";
 
@@ -74,10 +75,15 @@ export default async function HomePage() {
             </ul>
           </div>
 
-          <div className="relative">
+          <div className={`relative ${brand.heroVideos.length > 0 ? "order-first lg:order-none" : ""}`}>
             <div aria-hidden className="hf-sun absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)] shadow-[0_40px_90px_-30px_#ff8a00]" />
             <SpinBadge className="absolute -top-4 right-0 z-10 h-28 w-28 rounded-full bg-forest text-white shadow-xl sm:-top-8 sm:h-36 sm:w-36 lg:-right-2" />
-            {heroSlots.every((l) => l.length > 0) ? (
+            {brand.heroVideos.length > 0 ? (
+              <div className={`grid gap-3 pt-8 sm:gap-4 ${heroSlots.slice(1).some((l) => l.length > 0) ? "grid-cols-[1.15fr_1fr]" : "mx-auto max-w-xs grid-cols-1 lg:max-w-sm"}`}>
+                <HeroVideo videos={brand.heroVideos} tall />
+                {heroSlots.slice(1).filter((l) => l.length > 0).map((slides, i) => <HeroCard key={i} slides={slides} index={i + 1} className={i === 1 ? "sm:left-3" : ""} />)}
+              </div>
+            ) : heroSlots.every((l) => l.length > 0) ? (
               <div className="grid grid-cols-[1.15fr_1fr] gap-3 pt-8 sm:gap-4">
                 {heroSlots.map((slides, i) => <HeroCard key={i} slides={slides} index={i} tall={i === 0} className={i === 2 ? "sm:left-3" : ""} />)}
               </div>
