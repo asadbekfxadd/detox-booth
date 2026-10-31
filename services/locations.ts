@@ -7,10 +7,10 @@ import { createEmployee, assignableRoles } from "@/services/employees";
 import { z } from "zod";
 
 type Actor = { id: string; role: Role; locationId: string | null };
-export type LocationContact = { id: string; name: string; address: string | null; phone: string | null; lat: number | null; lng: number | null };
+export type LocationContact = { id: string; name: string; address: string | null; phone: string | null; lat: number | null; lng: number | null; trackStock: boolean };
 
 export const listLocationContacts = (): Promise<LocationContact[]> =>
-  prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, address: true, phone: true, lat: true, lng: true } });
+  prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, address: true, phone: true, lat: true, lng: true, trackStock: true } });
 
 const clean = (v: string | undefined, max: number, label: string) => {
   const s = (v ?? "").replace(/\s+/g, " ").trim();
@@ -19,7 +19,7 @@ const clean = (v: string | undefined, max: number, label: string) => {
 };
 
 /** Адрес, телефон и координаты точек: показываются на сайте и на карте. Пустое значение очищает поле. */
-export async function saveLocationContacts(input: { id: string; address?: string; phone?: string; coords?: string }[], user: Actor) {
+export async function saveLocationContacts(input: { id: string; address?: string; phone?: string; coords?: string; trackStock?: boolean }[], user: Actor) {
   const current = new Map((await listLocationContacts()).map((l) => [l.id, l]));
   let changed = 0;
   for (const row of input) {
@@ -32,10 +32,11 @@ export async function saveLocationContacts(input: { id: string; address?: string
     if (c === undefined) throw new ApiError(400, `«${old.name}»: координаты нужно вписать так: 41.103801, 69.043818`);
     const lat = c?.lat ?? null;
     const lng = c?.lng ?? null;
-    if (address === old.address && phone === old.phone && lat === old.lat && lng === old.lng) continue;
-    await prisma.location.update({ where: { id: old.id }, data: { address, phone, lat, lng } });
+    const trackStock = row.trackStock ?? old.trackStock;
+    if (address === old.address && phone === old.phone && lat === old.lat && lng === old.lng && trackStock === old.trackStock) continue;
+    await prisma.location.update({ where: { id: old.id }, data: { address, phone, lat, lng, trackStock } });
     changed++;
-    await audit({ userId: user.id, action: "LOCATION_UPDATED", entity: "Location", entityId: old.id, oldValue: { address: old.address, phone: old.phone, lat: old.lat, lng: old.lng }, newValue: { address, phone, lat, lng } });
+    await audit({ userId: user.id, action: "LOCATION_UPDATED", entity: "Location", entityId: old.id, oldValue: { address: old.address, phone: old.phone, lat: old.lat, lng: old.lng, trackStock: old.trackStock }, newValue: { address, phone, lat, lng, trackStock } });
   }
   return changed;
 }
@@ -44,6 +45,8 @@ export const newLocationSchema = z.object({
   name: z.string().trim().min(2, "Название точки: минимум 2 символа").max(60, "Название точки: не длиннее 60 символов"),
   address: z.string().optional(), phone: z.string().optional(), coords: z.string().optional(),
   /** Первая учётка менеджера точки (необязательно): все три поля вместе или ни одного */
+  /** false: склад точки не ведётся */
+  trackStock: z.boolean().optional(),
   managerName: z.string().trim().optional(), managerEmail: z.string().trim().optional(), managerPassword: z.string().optional(),
 });
 
@@ -67,8 +70,8 @@ export async function createLocation(input: unknown, user: Actor): Promise<{ id:
     if (await prisma.user.findUnique({ where: { email } })) throw new ApiError(400, "Сотрудник с таким email уже есть");
   }
 
-  const loc = await prisma.location.create({ data: { name: d.name, address, phone, lat: c?.lat ?? null, lng: c?.lng ?? null } });
-  await audit({ userId: user.id, action: "LOCATION_CREATED", entity: "Location", entityId: loc.id, newValue: { name: loc.name, address, phone, lat: c?.lat ?? null, lng: c?.lng ?? null } });
+  const loc = await prisma.location.create({ data: { name: d.name, address, phone, lat: c?.lat ?? null, lng: c?.lng ?? null, trackStock: d.trackStock ?? true } });
+  await audit({ userId: user.id, action: "LOCATION_CREATED", entity: "Location", entityId: loc.id, newValue: { name: loc.name, address, phone, lat: c?.lat ?? null, lng: c?.lng ?? null, trackStock: loc.trackStock } });
   if (withManager) {
     try { await createEmployee(user, { name: d.managerName, email: d.managerEmail, password: d.managerPassword, role: "MANAGER", locationId: loc.id }); }
     catch (e) {

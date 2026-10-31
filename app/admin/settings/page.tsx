@@ -70,6 +70,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <Field label="Адрес"><input name="address" maxLength={200} placeholder="Ташкент, ул. Амира Темура, 15" className={fieldClass} /></Field>
             <Field label="Координаты (необязательно)"><input name="coords" maxLength={40} placeholder="41.103801, 69.043818" className={fieldClass} /></Field>
             <Field label="Телефон"><input name="phone" maxLength={40} placeholder="+998 90 123 45 67" className={fieldClass} /></Field>
+            <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="untracked" className="mt-1" /><span><b>Продавать без учёта склада</b>: всё сразу можно заказать, остатки не ведутся. Позже можно включить учёт склада в этом же разделе.</span></label>
             <fieldset className="space-y-3 rounded-lg bg-neutral-50 p-3">
               <legend className="px-1 text-sm font-bold">Учётка менеджера точки (необязательно)</legend>
               <p className="text-xs text-neutral-500">Заполните все три поля, и менеджер получит вход сразу. Остальных сотрудников можно добавить позже в «Сотрудники».</p>
@@ -94,6 +95,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <input name={`coords:${l.id}`} maxLength={40} defaultValue={l.lat != null && l.lng != null ? `${l.lat}, ${l.lng}` : ""} placeholder="41.103801, 69.043818" className={fieldClass} />
               <span className="mt-1 block text-xs text-neutral-500">В Яндекс или Google Картах нажмите на точку и скопируйте координаты. Широта и долгота через запятую.</span>
             </Field>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" name={`untracked:${l.id}`} defaultChecked={!l.trackStock} className="mt-1" />
+              <span><b>Продавать без учёта склада</b>: все позиции считаются в наличии, заказать можно сразу, без прихода товара. Остатки на этой точке не ведутся и не списываются, себестоимость считается по средней цене закупки.</span>
+            </label>
             <Field label="Телефон"><input name={`phone:${l.id}`} maxLength={40} defaultValue={l.phone ?? ""} placeholder="+998 90 123 45 67" className={fieldClass} /></Field>
           </fieldset>
         ))}
