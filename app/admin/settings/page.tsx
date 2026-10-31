@@ -87,6 +87,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <fieldset key={l.id} className="space-y-3">
             <input type="hidden" name="id" value={l.id} />
             <legend className="mb-1 text-sm font-bold text-green-800">{l.name}</legend>
+            <Field label="Название точки">
+              <input name={`name:${l.id}`} required minLength={2} maxLength={60} defaultValue={l.name} className={fieldClass} />
+              <span className="mt-1 block text-xs text-neutral-500">Видно гостям на сайте, в заказах и отчётах. Старые заказы покажут новое название.</span>
+            </Field>
             <Field label="Адрес">
               <input name={`address:${l.id}`} maxLength={200} defaultValue={l.address ?? ""} placeholder="Например: Ташкент, ул. Амира Темура, 15" className={fieldClass} />
               {!hasMap(l) && <span className="mt-1 block text-xs text-amber-700">Указан только город или адрес пуст: карта на сайте не показывается. Добавьте улицу и дом или координаты.</span>}
