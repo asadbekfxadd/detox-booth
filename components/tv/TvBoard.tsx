@@ -1,14 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { categoryWindow, nextSpot, onTone, tvTone, type TvPage } from "@/lib/tv";
 import { categoryEmoji } from "@/lib/emoji";
-
-type BrandInfo = { word: [string, string]; descriptor: string; logoUrl: string; initial: string; ticker: string[]; tagline: string };
-
-const num = (n: number) => Math.round(n).toLocaleString("ru-RU");
-// пузырьки: положение по ширине, размер (u), секунд на подъём, задержка
-const BUBBLES: [string, number, number, number][] = [["6%", 3, 26, 0], ["14%", 1.8, 19, 7], ["27%", 4.4, 32, 12], ["41%", 2.2, 22, 3], ["55%", 3.4, 28, 16], ["68%", 1.6, 18, 9], ["79%", 4, 34, 5], ["90%", 2.6, 24, 14], ["96%", 1.4, 17, 1]];
+import { num, TvBubbles, TvFooter, TvHeader, useTvLifecycle, type BrandInfo } from "./parts";
 
 /**
  * Меню для телевизора. Фон и акценты окрашиваются в цвет напитка на экране; слева арка с фото и круглая наклейка с ценой,
@@ -16,10 +10,9 @@ const BUBBLES: [string, number, number, number][] = [["6%", 3, 26, 0], ["14%", 1
  * а после последней открывается следующая категория. Данные обновляются сами раз в полторы минуты; экран не гаснет.
  */
 export function TvBoard({ pages, sec, qr, locationName, brand }: { pages: TvPage[]; sec: number; qr: string; locationName: string; brand: BrandInfo }) {
-  const router = useRouter();
   const [spot, setSpot] = useState<[number, number]>([0, 0]);
   const [tick, setTick] = useState(0);
-  const [clock, setClock] = useState("");
+  const clock = useTvLifecycle(pages.length === 0);
   const pagesRef = useRef(pages);
   useEffect(() => { pagesRef.current = pages; }, [pages]);
 
@@ -29,72 +22,22 @@ export function TvBoard({ pages, sec, qr, locationName, brand }: { pages: TvPage
     return () => clearInterval(t);
   }, [sec, pages.length]);
 
-  useEffect(() => {
-    const refresh = () => router.refresh();
-    const t = setInterval(refresh, pages.length === 0 ? 30_000 : 90_000);
-    const vis = () => { if (document.visibilityState === "visible") refresh(); };
-    document.addEventListener("visibilitychange", vis);
-    return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis); };
-  }, [router, pages.length]);
-
-  useEffect(() => {
-    const fmt = () => setClock(new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tashkent" }).format(new Date()));
-    fmt();
-    const t = setInterval(fmt, 15_000);
-    return () => clearInterval(t);
-  }, []);
-
-  useEffect(() => {
-    type Lock = { release: () => Promise<void> };
-    let lock: Lock | null = null;
-    const get = async () => { try { lock = await (navigator as unknown as { wakeLock?: { request: (t: "screen") => Promise<Lock> } }).wakeLock?.request("screen") ?? null; } catch { /* не поддерживается */ } };
-    void get();
-    const vis = () => { if (document.visibilityState === "visible") void get(); };
-    document.addEventListener("visibilitychange", vis);
-    return () => { document.removeEventListener("visibilitychange", vis); void lock?.release().catch(() => {}); };
-  }, []);
-
-  const bubbles = (
-    <div className="tv-bubbles" aria-hidden>
-      {BUBBLES.map(([x, s, d, delay]) => <i key={x} style={{ "--x": x, "--s": s, "--d": `${d}s`, "--delay": `-${delay}s` } as React.CSSProperties} />)}
-    </div>
-  );
-
-  const top = (cats: { slug: string; name: string }[], curCat: number) => {
+  const header = (cats: { slug: string; name: string }[], curCat: number) => {
     const w = categoryWindow(cats, curCat, 4);
     return (
-      <header className="tv-top">
-        <div className="tv-logo">
-          {brand.logoUrl
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={brand.logoUrl} alt="" />
-            : <span className="tv-mono" aria-hidden>{brand.initial}</span>}
-          <span className="tv-word">
-            <b>{brand.word[0]}{brand.word[1] && <> <i>{brand.word[1]}</i></>}</b>
-            {brand.descriptor && <small>{brand.descriptor}</small>}
-          </span>
-        </div>
+      <TvHeader brand={brand} locationName={locationName} clock={clock}>
         <nav className="tv-cats" aria-hidden>
           {w.items.map((c, k) => <span key={c.slug} data-on={w.start + k === curCat ? "" : undefined}>{c.name}</span>)}
         </nav>
-        <div className="tv-meta">
-          {locationName && (
-            <span className="tv-where">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
-              {locationName}
-            </span>
-          )}
-          <span className="tv-clock" suppressHydrationWarning>{clock}</span>
-        </div>
-      </header>
+      </TvHeader>
     );
   };
 
   if (pages.length === 0) {
     return (
       <div className="tv" style={{ "--sec": `${sec}s` } as React.CSSProperties}>
-        {bubbles}
-        {top([], 0)}
+        <TvBubbles />
+        {header([], 0)}
         <div className="tv-empty"><h1>Меню обновляется</h1><p>Совсем скоро всё будет на экране</p></div>
       </div>
     );
@@ -112,8 +55,8 @@ export function TvBoard({ pages, sec, qr, locationName, brand }: { pages: TvPage
 
   return (
     <div className="tv" style={{ "--sec": `${sec}s`, "--tone": tone, "--on": onTone(tone) } as React.CSSProperties}>
-      {bubbles}
-      {top(cats, curCat)}
+      <TvBubbles />
+      {header(cats, curCat)}
       <main className="tv-main">
         <div className="tv-stage" key={`p:${page.key}`}>
           <div className="tv-arch">
@@ -165,20 +108,7 @@ export function TvBoard({ pages, sec, qr, locationName, brand }: { pages: TvPage
         </section>
       </main>
 
-      <footer className="tv-foot">
-        <span className="tv-wave" aria-hidden />
-        {brand.ticker.length > 0
-          ? <div className="tv-ticker" aria-hidden>
-              <div className="tv-ticker-track">
-                {["a", "b"].map((k) => <ul key={k}>{brand.ticker.map((t) => <li key={t}>{t}</li>)}</ul>)}
-              </div>
-            </div>
-          : <p className="tv-tag">{brand.tagline}</p>}
-        <div className="tv-order">
-          <p>Закажите с телефона<span>Наведите камеру на код</span></p>
-          <div className="tv-qr">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={qr} alt="QR-код меню" /></div>
-        </div>
-      </footer>
+      <TvFooter brand={brand} qr={qr} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTvPages, categoryWindow, clampSec, nextSpot, onTone, TV_DEFAULT_SEC, TV_DEFAULT_TONE, tvTone } from "@/lib/tv";
+import { buildTvGrid, buildTvPages, categoryWindow, clampGridSec, clampSec, gridShape, TV_GRID_DEFAULT_SEC, TV_GRID_PER_PAGE, nextSpot, onTone, TV_DEFAULT_SEC, TV_DEFAULT_TONE, tvTone } from "@/lib/tv";
 import { can, ROUTE_PERMISSIONS } from "@/lib/rbac";
 
 const cats = [{ id: "c1", name: "Смузи", slug: "smoothies" }, { id: "c2", name: "Боулы", slug: "bowls" }, { id: "c3", name: "Пусто", slug: "empty" }];
@@ -83,5 +83,49 @@ describe("категории в шапке", () => {
     expect(categoryWindow(a, 0).items).toEqual([0, 1, 2, 3, 4, 5]);
     expect(categoryWindow(a, 4).items).toEqual([1, 2, 3, 4, 5, 6]);
     expect(categoryWindow(a, 8).items).toEqual([3, 4, 5, 6, 7, 8]);
+  });
+});
+
+describe("фото-меню (все позиции сразу)", () => {
+  const many = (c: string, n: number) => Array.from({ length: n }, (_, i) => mk(i + 1, c));
+
+  it("собирает категории подряд, поровну по страницам", () => {
+    const g = buildTvGrid([...many("c1", 7), ...many("c2", 6)], cats);
+    expect(g.map((p) => p.items.length)).toEqual([7, 6]);
+    expect(g.map((p) => p.pageNo)).toEqual([1, 2]);
+    expect(g.every((p) => p.pageCount === 2)).toBe(true);
+    expect(g[0].items[0].categoryName).toBe("Смузи");
+    expect(g[1].items[0].categoryName).toBe("Боулы");
+  });
+
+  it("13 позиций — две страницы 7+6, не 9+4; не больше 9 на экран", () => {
+    const g = buildTvGrid(many("c1", 13), cats);
+    expect(g.map((p) => p.items.length)).toEqual([7, 6]);
+    expect(buildTvGrid(many("c1", 30), cats).every((p) => p.items.length <= TV_GRID_PER_PAGE)).toBe(true);
+  });
+
+  it("не показывает то, что нельзя заказать, и ничего не теряет", () => {
+    const g = buildTvGrid([...many("c1", 3), mk(9, "c1", { available: false }), mk(8, "c2", { comingSoon: true })], cats);
+    expect(g).toHaveLength(1);
+    expect(g[0].items).toHaveLength(3);
+    expect(buildTvGrid([], cats)).toEqual([]);
+  });
+
+  it("сетка: 1–3 колонки, ряды по числу карточек", () => {
+    expect(gridShape(1)).toEqual({ cols: 1, rows: 1 });
+    expect(gridShape(2)).toEqual({ cols: 2, rows: 1 });
+    expect(gridShape(4)).toEqual({ cols: 2, rows: 2 });
+    expect(gridShape(6)).toEqual({ cols: 3, rows: 2 });
+    expect(gridShape(7)).toEqual({ cols: 3, rows: 3 });
+    expect(gridShape(9)).toEqual({ cols: 3, rows: 3 });
+    expect(gridShape(0)).toEqual({ cols: 1, rows: 1 });
+  });
+
+  it("время на страницу: 6–60 секунд, иначе 15", () => {
+    expect(clampGridSec(undefined)).toBe(TV_GRID_DEFAULT_SEC);
+    expect(clampGridSec("abc")).toBe(15);
+    expect(clampGridSec("2")).toBe(15);
+    expect(clampGridSec("20")).toBe(20);
+    expect(clampGridSec("999")).toBe(60);
   });
 });
