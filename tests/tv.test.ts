@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTvPages, clampSec, nextSpot, TV_DEFAULT_SEC } from "@/lib/tv";
+import { buildTvPages, categoryWindow, clampSec, nextSpot, onTone, TV_DEFAULT_SEC, TV_DEFAULT_TONE, tvTone } from "@/lib/tv";
 import { can, ROUTE_PERMISSIONS } from "@/lib/rbac";
 
 const cats = [{ id: "c1", name: "Смузи", slug: "smoothies" }, { id: "c2", name: "Боулы", slug: "bowls" }, { id: "c3", name: "Пусто", slug: "empty" }];
@@ -55,5 +55,33 @@ describe("доступ к настройке ТВ-меню", () => {
     expect(ROUTE_PERMISSIONS.find(([p]) => p === "/admin/tv")?.[1]).toBe("products.edit");
     expect(can("OWNER", "products.edit")).toBe(true);
     expect(can("CASHIER", "products.edit")).toBe(false);
+  });
+});
+
+describe("цвет экрана под напиток", () => {
+  it("русские и английские названия", () => {
+    expect(tvTone("Апельсиновый фреш")).toBe("#ff8a00"); expect(tvTone("Fresh Orange")).toBe("#ff8a00");
+    expect(tvTone("Свёкла")).toBe("#e0204f"); expect(tvTone("Гранатовый фреш")).toBe("#e0204f");
+    expect(tvTone("Green Detox")).toBe("#3fb34f"); expect(tvTone("Яблочный фреш")).toBe("#a6d12f");
+    expect(tvTone("Манго-кокос")).toBe("#ffc400"); expect(tvTone("Морковный фреш")).toBe("#ff6a13");
+  });
+  it("сочетания берут более яркий цвет", () => {
+    expect(tvTone("Клубника-банан")).toBe("#ff4264"); expect(tvTone("Банан и голубика")).toBe("#8a63ff");
+    expect(tvTone("Яблоко и морковь")).toBe("#ff6a13"); expect(tvTone("Яблоко, шпинат")).toBe("#3fb34f");
+  });
+  it("неизвестное: тёплый жёлтый", () => expect(tvTone("Вода")).toBe(TV_DEFAULT_TONE));
+  it("цвет текста: тёмный на светлом, белый на тёмном", () => {
+    expect(onTone("#ffc400")).toBe("#1b1411"); expect(onTone("#ff8a00")).toBe("#1b1411"); expect(onTone("#f2dcaa")).toBe("#1b1411");
+    expect(onTone("#8a63ff")).toBe("#ffffff"); expect(onTone("#e0204f")).toBe("#ffffff"); expect(onTone("кривой")).toBe("#1b1411");
+  });
+});
+
+describe("категории в шапке", () => {
+  const a = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  it("мало категорий: все", () => expect(categoryWindow([1, 2, 3], 1)).toEqual({ items: [1, 2, 3], start: 0 }));
+  it("окно из 6 вокруг текущей и не выходит за края", () => {
+    expect(categoryWindow(a, 0).items).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(categoryWindow(a, 4).items).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(categoryWindow(a, 8).items).toEqual([3, 4, 5, 6, 7, 8]);
   });
 });
