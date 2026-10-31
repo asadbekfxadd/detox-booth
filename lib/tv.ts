@@ -47,3 +47,37 @@ export function nextSpot(pages: { items: unknown[] }[], p: number, i: number): [
   if (i + 1 < (pages[p]?.items.length ?? 0)) return [p, i + 1];
   return [(p + 1) % pages.length, 0];
 }
+
+/** Цвет подсветки экрана под напиток: апельсин оранжевый, гранат красный, детокс зелёный. Названия русские и английские; сочетания идут от более яркого цвета к менее. */
+const TONES: [RegExp, string][] = [
+  [/свекл|свёкл|гранат|beet|pomegran|вишн|cherry/, "#e0204f"],
+  [/клубник|малин|арбуз|strawberr|raspberr|watermelon/, "#ff4264"],
+  [/ягод|голубик|черник|ежевик|смородин|berry|blueberr/, "#8a63ff"],
+  [/морков|carrot/, "#ff6a13"],
+  [/апельсин|мандарин|грейпфрут|orange|tangerin|grapefruit/, "#ff8a00"],
+  [/манго|ананас|банан|лимон|маракуй|куркум|mango|pineapple|banana|lemon|passion|turmeric/, "#ffc400"],
+  [/зелен|зелён|грин|детокс|шпинат|киви|сельдер|огур|мят|green|detox|spinach|kiwi|celery|cucumber|mint/, "#3fb34f"],
+  [/яблок|яблоч|apple/, "#a6d12f"],
+  [/кокос|овсян|гранол|арахис|орех|coconut|oat|granola|peanut|nut/, "#f2dcaa"],
+];
+export const TV_DEFAULT_TONE = "#ffb000";
+export function tvTone(name: string): string {
+  const n = name.toLowerCase();
+  return TONES.find(([re]) => re.test(n))?.[1] ?? TV_DEFAULT_TONE;
+}
+
+/** Цвет текста на плашке этого цвета: тёмный на светлом, светлый на тёмном (по яркости). */
+export function onTone(hex: string): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return "#1b1411";
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return L > 0.3 ? "#1b1411" : "#ffffff";
+}
+
+/** Какие категории показать в шапке: до max штук окном вокруг текущей. */
+export function categoryWindow<T>(all: T[], current: number, max = 6): { items: T[]; start: number } {
+  if (all.length <= max) return { items: all, start: 0 };
+  const start = Math.max(0, Math.min(all.length - max, current - Math.floor(max / 2)));
+  return { items: all.slice(start, start + max), start };
+}
