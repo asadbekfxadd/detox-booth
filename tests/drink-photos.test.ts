@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { productSchema } from "@/services/products";
 import { DRINK_PHOTOS, drinkPhotoByKey, drinkPhotoUrl, isDrinkCategory, isSmoothieCategory, pickDrinkPhoto } from "@/lib/drink-photos";
 
 const key = (name: string, smoothie = false) => pickDrinkPhoto(name, smoothie).photo.key;
@@ -37,15 +40,30 @@ describe("подбор фото напитка по названию", () => {
 });
 
 describe("библиотека фото", () => {
-  it("ключи уникальны, ссылки только на Unsplash по https", () => {
+  it("ключи уникальны, ссылка: свой файл или Unsplash по https", () => {
     expect(new Set(DRINK_PHOTOS.map((p) => p.key)).size).toBe(DRINK_PHOTOS.length);
     for (const p of DRINK_PHOTOS) {
-      expect(drinkPhotoUrl(p)).toMatch(/^https:\/\/images\.unsplash\.com\/photo-\d+-[0-9a-f]+\?/);
+      expect(drinkPhotoUrl(p)).toMatch(p.file ? /^\/drinks\/[a-z0-9-]+\.jpg$/ : /^https:\/\/images\.unsplash\.com\/photo-\d+-[0-9a-f]+\?/);
       expect(p.label.length).toBeGreaterThan(3);
     }
   });
+  it("свои снимки лежат в public/drinks", () => {
+    const own = DRINK_PHOTOS.filter((p) => p.file);
+    expect(own.length).toBe(11);
+    for (const p of own) expect(existsSync(join(process.cwd(), "public", p.file!))).toBe(true);
+  });
+  it("карточка продукта принимает путь своего фото и ссылку, но не мусор", () => {
+    const f = productSchema.shape.image;
+    expect(f.safeParse("/drinks/carrot.jpg").success).toBe(true);
+    expect(f.safeParse("https://images.unsplash.com/photo-1?w=900").success).toBe(true);
+    expect(f.safeParse("").success).toBe(true);
+    expect(f.safeParse("/etc/passwd").success).toBe(false);
+    expect(f.safeParse("/drinks/../secret.jpg").success).toBe(false);
+    expect(f.safeParse("не ссылка").success).toBe(false);
+  });
   it("ключ из библиотеки находится, чужой нет", () => {
-    expect(drinkPhotoByKey("orange")?.id).toBeTruthy();
+    expect(drinkPhotoByKey("orange")?.file).toBe("/drinks/orange.jpg");
+    expect(drinkPhotoByKey("pineapple")?.id).toBeTruthy();
     expect(drinkPhotoByKey("http://evil.com/x.jpg")).toBeNull();
   });
   it("какие категории считаются напитками", () => {

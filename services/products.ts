@@ -17,7 +17,7 @@ export const productSchema = z.object({
   description: z.preprocess(emptyToNull, z.string().trim().max(500, "Описание: максимум 500 символов").nullable().optional()),
   categoryId: z.string().min(1, "Выберите категорию"),
   price: z.coerce.number({ error: "Укажите цену" }).int("Цена — целое число").min(1, "Цена должна быть больше 0").max(10_000_000, "Слишком большая цена"),
-  image: z.preprocess(emptyToNull, z.string().trim().url("Некорректная ссылка на фото").nullable().optional()),
+  image: z.preprocess(emptyToNull, z.string().trim().max(500, "Ссылка на фото слишком длинная").refine((u) => /^\/drinks\/[a-z0-9-]+\.jpg$/.test(u) || z.url().safeParse(u).success, "Некорректная ссылка на фото").nullable().optional()),
   videoUrl: z.preprocess(emptyToNull, z.string().trim().max(500, "Ссылка на видео слишком длинная").url("Некорректная ссылка на видео").refine((u) => parseVideo(u) !== null, "Ссылка на видео должна начинаться с https://").nullable().optional()),
   calories: optNum(5000, true), protein: optNum(500), carbs: optNum(500), fat: optNum(500), volumeMl: optNum(5000, true),
   prepMinutes: z.coerce.number().int().min(0).max(120).default(3),
