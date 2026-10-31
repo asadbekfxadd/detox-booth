@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { ImageField } from "@/components/admin/ImageField";
 import type { FormState } from "@/app/admin/products/actions";
 
 type Initial = Partial<{
@@ -19,6 +20,7 @@ export function ProductForm({ categories, initial = {}, action, submitLabel }: {
   action: (prev: FormState, fd: FormData) => Promise<FormState>; submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
+  const [uploading, setUploading] = useState(false);
   const n = (v: number | null | undefined) => (v ?? "") as number | string;
   return (
     <form action={formAction} className="space-y-6 rounded-2xl bg-white p-6 shadow-sm">
@@ -31,7 +33,7 @@ export function ProductForm({ categories, initial = {}, action, submitLabel }: {
           </select>
         </Field>
         <Field label="Цена, UZS *"><input name="price" type="number" min={0} step={1} required defaultValue={initial.price} className={input} /></Field>
-        <Field label="Ссылка на фото"><input name="image" type="text" inputMode="url" placeholder="https://…" defaultValue={initial.image ?? ""} className={input} /></Field>
+        <div className="md:col-span-2"><span className="mb-1 block text-sm text-neutral-600">Фото</span><ImageField initial={initial.image ?? null} onBusy={setUploading} /></div>
         <div className="md:col-span-2">
           <Field label="Видео «Как готовим» (необязательно)">
             <input name="videoUrl" type="url" placeholder="Ссылка на YouTube или на файл https://…/video.mp4" defaultValue={initial.videoUrl ?? ""} className={input} />
@@ -56,7 +58,7 @@ export function ProductForm({ categories, initial = {}, action, submitLabel }: {
       </div>
       {state?.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
       <div className="flex gap-3">
-        <button disabled={pending} className="rounded-xl bg-green-700 px-6 py-2.5 font-semibold text-white hover:bg-green-800 disabled:opacity-60">{pending ? "Сохраняем…" : submitLabel}</button>
+        <button disabled={pending || uploading} className="rounded-xl bg-green-700 px-6 py-2.5 font-semibold text-white hover:bg-green-800 disabled:opacity-60">{pending ? "Сохраняем…" : uploading ? "Ждём загрузку фото…" : submitLabel}</button>
         <Link href="/admin/products" className="rounded-xl border border-neutral-200 px-6 py-2.5">Отмена</Link>
       </div>
     </form>
