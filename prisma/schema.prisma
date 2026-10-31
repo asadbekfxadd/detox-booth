@@ -938,3 +938,13 @@ model TableBill {
   @@index([tableId, status])
   @@index([locationId, status])
 }
+
+/// Загруженные фото (продукты и др.): хранятся в базе, чтобы не пропадать при деплое. Отдаёт /media/<id>.
+model MediaFile {
+  id String @id @default(cuid())
+  mime String
+  data Bytes
+  size Int
+  userId String?
+  createdAt DateTime @default(now())
+}
