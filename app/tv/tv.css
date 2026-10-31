@@ -1,0 +1,90 @@
+/* ТВ-меню. Все размеры в единицах --u: 1u = 1% ширины экрана 16:9, поэтому вёрстка одинакова на любом телевизоре. */
+html:has(.tv), body:has(.tv) { background: #072d17; overflow: hidden; }
+
+.tv {
+  --u: min(1vw, 1.7778vh);
+  position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden;
+  padding: calc(var(--u) * 2.4) calc(var(--u) * 3) calc(var(--u) * 2);
+  cursor: none; user-select: none;
+  color: var(--color-sand); font-family: var(--font-sans); font-size: calc(var(--u) * 1.6);
+  background:
+    radial-gradient(110% 80% at 88% -10%, color-mix(in srgb, var(--color-leaf) 30%, transparent), transparent 60%),
+    radial-gradient(80% 60% at -5% 105%, color-mix(in srgb, var(--color-orange) 16%, transparent), transparent 62%),
+    var(--color-forest-deep);
+}
+
+/* верх: знак слева, точка и время справа */
+.tv-top { display: flex; align-items: center; justify-content: space-between; height: calc(var(--u) * 5); }
+.tv-logo { display: flex; align-items: center; gap: calc(var(--u) * 1.2); }
+.tv-logo img { height: calc(var(--u) * 4.8); width: auto; }
+.tv-mono { display: grid; place-items: center; width: calc(var(--u) * 4.4); height: calc(var(--u) * 4.4); border-radius: calc(var(--u) * 1.1); background: var(--color-orange); color: var(--color-forest-deep); font-weight: 900; font-size: calc(var(--u) * 2.4); }
+.tv-word { display: flex; flex-direction: column; line-height: 1; white-space: nowrap; }
+.tv-word b { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u) * 2.5); letter-spacing: -0.01em; color: #fff; }
+.tv-word b i { font-style: normal; color: var(--color-orange); }
+.tv-word small { margin-top: calc(var(--u) * 0.5); font-size: calc(var(--u) * 0.9); font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; opacity: 0.7; }
+.tv-meta { display: flex; align-items: center; gap: calc(var(--u) * 2.2); }
+.tv-where { display: flex; align-items: center; gap: calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.7); font-weight: 700; }
+.tv-where svg { width: calc(var(--u) * 1.8); height: calc(var(--u) * 1.8); color: var(--color-orange); }
+.tv-clock { font-size: calc(var(--u) * 2.4); font-weight: 700; font-variant-numeric: tabular-nums; min-width: calc(var(--u) * 6); text-align: right; }
+
+/* середина: фото выбранной позиции и список */
+.tv-main { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(var(--u) * 35) 1fr; gap: calc(var(--u) * 3.5); margin-top: calc(var(--u) * 2); }
+
+.tv-photo { position: relative; border-radius: calc(var(--u) * 2.6); overflow: hidden; background: var(--color-forest); box-shadow: 0 calc(var(--u) * 2.4) calc(var(--u) * 5) calc(var(--u) * -1.6) rgba(0, 0, 0, 0.6); animation: tv-fade 0.8s ease both; }
+.tv-photo > img, .tv-photo > .tv-emoji { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; opacity: 0; transform: scale(1); transition: opacity 0.9s ease, transform calc(var(--sec) * 1.5) ease-out; }
+.tv-photo > [data-on] { opacity: 1; transform: scale(1.07); }
+.tv-emoji { display: grid; place-items: center; font-size: calc(var(--u) * 13); background: linear-gradient(160deg, var(--color-forest), var(--color-forest-deep)); }
+.tv-photo::after { content: ""; position: absolute; inset: 40% 0 0; background: linear-gradient(to top, rgba(4, 28, 14, 0.94), rgba(4, 28, 14, 0)); pointer-events: none; }
+.tv-badge { position: absolute; z-index: 2; top: calc(var(--u) * 1.6); left: calc(var(--u) * 1.6); padding: calc(var(--u) * 0.5) calc(var(--u) * 1.3); border-radius: 99px; background: var(--color-orange); color: var(--color-forest-deep); font-weight: 900; font-size: calc(var(--u) * 1.9); }
+.tv-cap { position: absolute; z-index: 2; left: calc(var(--u) * 2.2); right: calc(var(--u) * 2.2); bottom: calc(var(--u) * 2.2); animation: tv-pop 0.7s ease both; }
+.tv-cap h2 { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u) * 2.9); line-height: 1.05; color: #fff; text-wrap: balance; }
+.tv-cap p { margin-top: calc(var(--u) * 0.7); font-size: calc(var(--u) * 1.5); line-height: 1.3; opacity: 0.92; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tv-chips { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 0.6); margin-top: calc(var(--u) * 1); }
+.tv-chips span { padding: calc(var(--u) * 0.35) calc(var(--u) * 1); border-radius: 99px; background: rgba(255, 255, 255, 0.16); font-size: calc(var(--u) * 1.2); font-weight: 600; }
+
+.tv-list { display: flex; flex-direction: column; min-height: 0; animation: tv-in 0.7s ease both; }
+.tv-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: calc(var(--u) * 1.3); }
+.tv-cat { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; line-height: 1; font-size: calc(var(--u) * 5.2); color: #fff; }
+.tv-dots { display: flex; gap: calc(var(--u) * 0.7); padding-bottom: calc(var(--u) * 0.9); }
+.tv-dots i { width: calc(var(--u) * 1.1); height: calc(var(--u) * 1.1); border-radius: 50%; background: var(--color-sand); opacity: 0.3; }
+.tv-dots i[data-on] { background: var(--color-orange); opacity: 1; }
+/* строки одинаковой высоты: при 6 позициях заполняют список, при двух не растягиваются на весь экран */
+.tv-rows { flex: 1 1 0; min-height: 0; max-height: calc(var(--n) * var(--u) * 6.4); display: grid; grid-template-rows: repeat(var(--n), minmax(0, 1fr)); gap: calc(var(--u) * 0.4); }
+
+.tv-row { position: relative; display: flex; align-items: center; padding: 0 calc(var(--u) * 2); border-radius: calc(var(--u) * 1.6); overflow: hidden; opacity: 0.68; transition: opacity 0.5s ease; }
+.tv-row[data-on] { opacity: 1; }
+/* заливка строки соком слева направо за время показа позиции */
+.tv-fill { position: absolute; inset: 0; transform: scaleX(0); transform-origin: left; background: linear-gradient(90deg, color-mix(in srgb, var(--color-sun) 36%, transparent), color-mix(in srgb, var(--color-orange) 24%, transparent)); border-right: calc(var(--u) * 0.3) solid var(--color-sun); border-radius: inherit; }
+.tv-row[data-on] .tv-fill { animation: tv-fill var(--sec) linear forwards; }
+.tv-line { position: relative; width: 100%; display: flex; align-items: baseline; gap: calc(var(--u) * 1.2); }
+.tv-name { font-size: calc(var(--u) * 2.5); font-weight: 700; line-height: 1.1; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tv-vol { font-size: calc(var(--u) * 1.3); font-weight: 500; opacity: 0.65; white-space: nowrap; }
+.tv-leader { flex: 1; min-width: calc(var(--u) * 2); height: 0; border-bottom: calc(var(--u) * 0.25) dotted color-mix(in srgb, var(--color-sand) 38%, transparent); }
+.tv-price { display: flex; align-items: baseline; gap: calc(var(--u) * 0.5); white-space: nowrap; font-weight: 800; font-size: calc(var(--u) * 2.8); font-variant-numeric: tabular-nums; color: var(--color-sun); }
+.tv-price small { font-size: calc(var(--u) * 1.3); font-weight: 600; opacity: 0.8; }
+.tv-price s { font-size: calc(var(--u) * 1.4); font-weight: 500; color: var(--color-sand); opacity: 0.55; margin-right: calc(var(--u) * 0.6); }
+
+/* низ: бегущая строка и QR */
+.tv-foot { display: flex; align-items: center; gap: calc(var(--u) * 3); height: calc(var(--u) * 8); margin-top: calc(var(--u) * 2); }
+.tv-ticker { flex: 1; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.tv-ticker-track { display: flex; width: max-content; animation: tv-ticker 70s linear infinite; }
+.tv-ticker-track ul { display: flex; align-items: center; }
+.tv-ticker-track li { display: flex; align-items: center; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; font-size: calc(var(--u) * 1.5); white-space: nowrap; }
+.tv-ticker-track li::after { content: ""; width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); margin: 0 calc(var(--u) * 2.2); background: var(--color-orange); border-radius: 0 100% 0 100%; }
+.tv-tag { flex: 1; font-family: var(--font-script); font-weight: 700; font-size: calc(var(--u) * 4); color: var(--color-sun); }
+.tv-order { display: flex; align-items: center; gap: calc(var(--u) * 1.6); }
+.tv-order p { text-align: right; font-weight: 800; font-size: calc(var(--u) * 1.7); line-height: 1.15; color: #fff; }
+.tv-order p span { display: block; margin-top: calc(var(--u) * 0.3); font-size: calc(var(--u) * 1.2); font-weight: 500; opacity: 0.7; }
+.tv-qr { padding: calc(var(--u) * 0.7); background: #fff; border-radius: calc(var(--u) * 1.3); }
+.tv-qr img { display: block; width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); }
+
+.tv-empty { margin: auto; text-align: center; }
+.tv-empty h1 { font-family: var(--font-display); font-weight: 800; font-size: calc(var(--u) * 5); color: #fff; }
+.tv-empty p { margin-top: calc(var(--u) * 1); font-size: calc(var(--u) * 2.2); opacity: 0.75; }
+
+@keyframes tv-fill { to { transform: scaleX(1); } }
+@keyframes tv-in { from { opacity: 0; transform: translateY(calc(var(--u) * 1.4)); } }
+@keyframes tv-pop { from { opacity: 0; transform: translateY(calc(var(--u) * 0.9)); } }
+@keyframes tv-fade { from { opacity: 0; } }
+@keyframes tv-ticker { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .tv-ticker-track { animation-duration: 240s; } .tv-photo > [data-on] { transform: none; } }

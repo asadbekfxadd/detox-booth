@@ -15,6 +15,7 @@ export const NAV: NavItem[] = [
   { group: "Меню", label: "Категории", href: "/admin/categories", perm: "products.edit" },
   { group: "Меню", label: "Рецепты", href: "/admin/recipes", perm: "recipes.edit" },
   { group: "Меню", label: "Свой микс", href: "/admin/mix", perm: "products.edit" },
+  { group: "Меню", label: "ТВ-меню", href: "/admin/tv", perm: "products.edit" },
   { group: "Меню", label: "Калькуляция", href: "/admin/costing", perm: "finance.view" },
   { group: "Склад", label: "Склад", href: "/admin/inventory", perm: "inventory.view", match: ["/admin/ingredients", "/admin/purchases", "/admin/suppliers", "/admin/writeoffs"] },
   { group: "Клиенты", label: "Клиенты", href: "/admin/customers", perm: "customers.view" },
