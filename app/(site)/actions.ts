@@ -9,6 +9,7 @@ import { quoteWeb, createWebOrder, getOrdersBrief, type OrderBrief, type WebQuot
 import { toMessage } from "@/lib/errors";
 import { tgIdentity, tgPrefill, tgSaveLocation, type TgPrefill, type NearestInfo } from "@/services/telegram";
 import { clientIp } from "@/lib/client-ip";
+import { nearestForVisitor, type SiteNearest } from "@/lib/site-locate";
 import { hit } from "@/lib/rate-limit";
 import { getCurrentTable } from "@/lib/site-table";
 import { createTableOrder, requestBill } from "@/services/tables";
@@ -19,6 +20,18 @@ export async function setSiteLocation(id: string) {
   const ok = await prisma.location.findFirst({ where: { id, isActive: true }, select: { id: true } });
   if (!ok) return;
   (await cookies()).set(SITE_LOC_COOKIE, id, { path: "/", maxAge: 60 * 60 * 24 * 180, sameSite: "lax" });
+}
+
+/** Определение точки по месту посетителя: ближайшая запоминается как выбранная (cookie). Само место нигде не сохраняется. */
+export async function locateMeAction(lat: number, lng: number): Promise<{ nearest: SiteNearest | null } | { error: string }> {
+  try {
+    const lim = hit(`site-geo:${await clientIp()}`, 30, 10 * 60_000);
+    if (!lim.ok) return { error: "Слишком часто. Попробуйте чуть позже." };
+    const locations = await prisma.location.findMany({ where: { isActive: true }, select: { id: true, name: true, lat: true, lng: true } });
+    const nearest = nearestForVisitor(locations, lat, lng);
+    if (nearest) (await cookies()).set(SITE_LOC_COOKIE, nearest.id, { path: "/", maxAge: 60 * 60 * 24 * 180, sameSite: "lax" });
+    return { nearest };
+  } catch (e) { return { error: toMessage(e) }; }
 }
 
 export async function quoteCartAction(items: unknown): Promise<{ quote: CartQuote } | { error: string }> {

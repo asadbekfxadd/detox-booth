@@ -13,6 +13,8 @@ export const getSiteLocation = cache(async () => {
   const table = jar.get(TABLE_COOKIE)?.value ? await getTableByToken(jar.get(TABLE_COOKIE)?.value) : null;
   const c = table?.locationId ?? jar.get(SITE_LOC_COOKIE)?.value;
   const locations = await prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, address: true, phone: true, lat: true, lng: true } });
-  const current = locations.find((l) => l.id === c) ?? locations[0] ?? null;
-  return { locations, current };
+  const picked = locations.find((l) => l.id === c) ?? null;
+  const current = picked ?? locations[0] ?? null;
+  // chosen: точка выбрана человеком, стола или определением места; иначе показана первая по умолчанию
+  return { locations, current, chosen: picked != null };
 });

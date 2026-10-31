@@ -16,13 +16,15 @@ import { leaveTableAction } from "./actions";
 import { MandarinLoader } from "@/components/site/mandarin/MandarinLoader";
 import { TelegramApp } from "@/components/site/TelegramApp";
 import { TelegramWelcome } from "@/components/site/TelegramWelcome";
+import { AutoLocate } from "@/components/site/AutoLocate";
+import { canLocateVisitor } from "@/lib/site-locate";
 
 export const dynamic = "force-dynamic";
 
 const navLink = "rounded-full px-3.5 py-1.5 text-[15px] font-bold text-forest/80 transition-colors hover:bg-sand hover:text-forest";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [{ locations, current }, table, brand, cats, booking, mixSizes, deals] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories(), bookingConfig(), getMixSizes(), Promise.all([prisma.promotion.count({ where: { isActive: true, onSite: true } }), prisma.happyHour.count({ where: { isActive: true } })]).then(([a, b]) => a + b > 0)]);
+  const [{ locations, current, chosen }, table, brand, cats, booking, mixSizes, deals] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories(), bookingConfig(), getMixSizes(), Promise.all([prisma.promotion.count({ where: { isActive: true, onSite: true } }), prisma.happyHour.count({ where: { isActive: true } })]).then(([a, b]) => a + b > 0)]);
   return (
     <div className="site flex min-h-screen flex-col">
       <TelegramApp />
@@ -40,7 +42,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             <Link href="/orders" className={navLink}>Мои заказы</Link>
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
-            <LocationSelect locations={locations.map((l) => ({ id: l.id, name: l.name }))} current={current?.id ?? null} />
+            <LocationSelect locations={locations.map((l) => ({ id: l.id, name: l.name }))} current={current?.id ?? null} locatable={!table && canLocateVisitor(locations)} />
             <CartButton />
           </div>
         </div>
@@ -53,6 +55,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <Link href="/orders" className={`${navLink} whitespace-nowrap`}>Мои заказы</Link>
         </nav>
       </header>
+      {!table && <AutoLocate enabled={!chosen && canLocateVisitor(locations)} />}
       {table && (
         <div className="border-b border-forest/10 bg-sand">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-sm">
