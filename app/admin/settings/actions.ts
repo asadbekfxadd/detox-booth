@@ -23,7 +23,7 @@ export async function saveLocationsAction(_p: OpState, fd: FormData): Promise<Op
   try {
     const u = await requireUser("settings.edit");
     const ids = fd.getAll("id").map(String);
-    n = await saveLocationContacts(ids.map((id) => ({ id, address: String(fd.get(`address:${id}`) ?? ""), phone: String(fd.get(`phone:${id}`) ?? ""), coords: String(fd.get(`coords:${id}`) ?? "") })), u);
+    n = await saveLocationContacts(ids.map((id) => ({ id, address: String(fd.get(`address:${id}`) ?? ""), phone: String(fd.get(`phone:${id}`) ?? ""), coords: String(fd.get(`coords:${id}`) ?? ""), trackStock: fd.get(`untracked:${id}`) !== "on" })), u);
   } catch (e) { return { error: toMessage(e) }; }
   revalidatePath("/admin/settings"); revalidatePath("/", "layout");
   redirect(`/admin/settings?loc=${n}`);
@@ -46,7 +46,7 @@ export async function createLocationAction(_p: OpState, fd: FormData): Promise<O
   try {
     const u = await requireUser("settings.edit");
     const g = (k: string) => String(fd.get(k) ?? "");
-    r = await createLocation({ name: g("name"), address: g("address"), phone: g("phone"), coords: g("coords"), managerName: g("managerName"), managerEmail: g("managerEmail"), managerPassword: g("managerPassword") }, u);
+    r = await createLocation({ name: g("name"), address: g("address"), phone: g("phone"), coords: g("coords"), trackStock: fd.get("untracked") !== "on", managerName: g("managerName"), managerEmail: g("managerEmail"), managerPassword: g("managerPassword") }, u);
   } catch (e) { return { error: toMessage(e) }; }
   revalidatePath("/admin/settings"); revalidatePath("/admin/employees"); revalidatePath("/", "layout");
   redirect(`/admin/settings?added=${encodeURIComponent(r.name)}${r.manager ? "&mgr=1" : ""}#locations`);

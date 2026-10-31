@@ -48,6 +48,14 @@ export async function deductInventoryTx(tx: Tx, orderId: string, userId?: string
   // в рецепте нетто, со склада уходит брутто (с учётом потерь при обработке)
   const need = await applyYield(tx, netNeed);
   let cogs = D(0);
+
+  // точка без учёта склада: остатки и партии не трогаем, себестоимость считаем по средней цене закупки
+  const loc = await tx.location.findUnique({ where: { id: order.locationId }, select: { trackStock: true } });
+  if (loc && !loc.trackStock) {
+    const ings = await tx.ingredient.findMany({ where: { id: { in: [...need.keys()] } }, select: { id: true, avgCost: true } });
+    for (const i of ings) cogs = cogs.plus((need.get(i.id) ?? D(0)).times(i.avgCost));
+    return tx.order.update({ where: { id: order.id }, data: { inventoryDeducted: true, cogs } });
+  }
   for (const [ingredientId, qty] of need) {
     let left = qty;
     const batches = await tx.batch.findMany({

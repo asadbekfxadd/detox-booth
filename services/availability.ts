@@ -12,7 +12,14 @@ const D = (n: Prisma.Decimal.Value) => new Prisma.Decimal(n);
 export type CartItem = { productId: string; quantity: number; optionIds: string[]; mix?: MixInput; mixNeeds?: { ingredientId: string; qty: number }[] };
 
 /** Остаток, который реально можно продать: только непросроченные партии точки. */
+export const UNTRACKED_QTY = 1_000_000_000;
+
+/** Точка без учёта склада: каждого ингредиента «сколько угодно», проверки наличия проходят. */
+export const untrackedStock = (ids: string[]) => new Map(ids.map((id) => [id, D(UNTRACKED_QTY)]));
+
 export async function usableStock(db: Db, locationId: string) {
+  const loc = await db.location.findUnique({ where: { id: locationId }, select: { trackStock: true } });
+  if (loc && !loc.trackStock) return untrackedStock((await db.ingredient.findMany({ select: { id: true } })).map((i) => i.id));
   const rows = await db.batch.groupBy({
     by: ["ingredientId"],
     where: { locationId, quantity: { gt: 0 }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },

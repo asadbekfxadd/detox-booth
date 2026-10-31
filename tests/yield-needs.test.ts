@@ -26,3 +26,18 @@ describe("applyYield: нетто → брутто для списания", () =
     expect(out.size).toBe(0);
   });
 });
+
+describe("точка без учёта склада", () => {
+  it("usableStock: каждого ингредиента «сколько угодно»", async () => {
+    const { usableStock, UNTRACKED_QTY } = await import("@/services/availability");
+    const db = { location: { findUnique: async () => ({ trackStock: false }) }, ingredient: { findMany: async () => [{ id: "a" }, { id: "b" }] } } as never;
+    const m = await usableStock(db, "loc");
+    expect([...m.keys()].sort()).toEqual(["a", "b"]);
+    expect(m.get("a")?.toNumber()).toBe(UNTRACKED_QTY);
+  });
+  it("usableStock: с учётом склада читает партии", async () => {
+    const { usableStock } = await import("@/services/availability");
+    const db = { location: { findUnique: async () => ({ trackStock: true }) }, batch: { groupBy: async () => [{ ingredientId: "a", _sum: { quantity: D(5) } }] } } as never;
+    expect((await usableStock(db, "loc")).get("a")?.toNumber()).toBe(5);
+  });
+});

@@ -155,6 +155,8 @@ model Location {
   lat Float?
   lng Float?
   isActive Boolean @default(true)
+  /// false: склад точки не ведётся, всё считается в наличии (заказать можно без прихода)
+  trackStock Boolean @default(true)
   createdAt DateTime @default(now())
   users User[]
   orders Order[]
