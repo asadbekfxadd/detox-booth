@@ -166,6 +166,7 @@ model Location {
   writeOffs WriteOff[]
   expenses Expense[]
   notifications Notification[]
+  dailySales DailySales[]
 }
 
 model User {
@@ -821,6 +822,22 @@ model Expense {
   note String?
   date DateTime @default(now())
   @@index([date])
+}
+
+/// Выручка за день, внесённая вручную (календарь выручки). В отчёты «Продажи» и «Финансы» не входит.
+model DailySales {
+  id String @id @default(cuid())
+  locationId String
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  /// День по Ташкенту, YYYY-MM-DD
+  day String
+  amount Decimal @db.Decimal(14,2)
+  method PaymentMethod?
+  ordersCount Int?
+  note String?
+  userId String?
+  createdAt DateTime @default(now())
+  @@index([day, locationId])
 }
 
 model Notification {

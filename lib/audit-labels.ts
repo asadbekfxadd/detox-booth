@@ -25,6 +25,7 @@ export const ACTION_LABEL: Record<string, string> = {
   STATION_CREATED: "Станция кухни добавлена", STATION_UPDATED: "Станция кухни изменена", STATION_DELETED: "Станция кухни удалена", STATION_READY: "Станция отметила заказ готовым",
   WAITER_ORDER_CREATED: "Заказ официанта", WAITER_ORDER_FIRED: "Заказ отправлен на кухню", WAITER_HELD_CANCELLED: "Отмена отложенного заказа", TABLE_MOVED: "Перенос/объединение столов",
   TABLE_ORDER_CREATED: "Заказ гостя за столом", TABLE_BILL_CLOSED: "Закрыт счёт стола", TABLE_CREATED: "Стол добавлен", TABLE_UPDATED: "Стол включён или выключен", TABLE_TOKEN_RESET: "Перевыпущен QR стола",
+  DAILY_SALES_ADDED: "Внесены продажи за день", DAILY_SALES_DELETED: "Удалена запись продаж за день",
   EXPENSE_CREATED: "Расход добавлен", EXPENSE_DELETED: "Расход удалён",
   EMPLOYEE_CREATED: "Сотрудник добавлен", EMPLOYEE_UPDATED: "Сотрудник изменён", EMPLOYEE_ACTIVATED: "Сотрудник включён",
   EMPLOYEE_DEACTIVATED: "Сотрудник отключён", EMPLOYEE_PASSWORD_RESET: "Смена пароля сотрудника", EMPLOYEE_SALARY_CHANGED: "Изменён оклад сотрудника",

@@ -23,6 +23,7 @@ export const NAV: NavItem[] = [
   { group: "Клиенты", label: "Акции", href: "/admin/promotions", perm: "settings.edit" },
   { group: "Бизнес", label: "Сотрудники", href: "/admin/employees", perm: "employees.manage" },
   { group: "Бизнес", label: "Финансы", href: "/admin/finance", perm: "finance.view" },
+  { group: "Бизнес", label: "Календарь выручки", href: "/admin/calendar", perm: "finance.view" },
   { group: "Бизнес", label: "Аналитика", href: "/admin/analytics", perm: "dashboard.view" },
   { group: "Бизнес", label: "Журнал действий", href: "/admin/audit", perm: "audit.view" },
   { group: "Бизнес", label: "Столы и QR", href: "/admin/tables", perm: "settings.edit" },
