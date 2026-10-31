@@ -1,6 +1,6 @@
 /** ТВ-меню: какие позиции показывать и как разбить на страницы. Чистая логика без базы. */
 export type TvItem = {
-  id: string; name: string; description: string | null; image: string | null; categorySlug: string;
+  id: string; name: string; description: string | null; image: string | null; categorySlug: string; categoryName: string;
   price: number; oldPrice: number | null; happyPct: number;
   volumeMl: number | null; calories: number | null; isVegan: boolean; isHighProtein: boolean; isSugarFree: boolean;
 };
@@ -21,22 +21,27 @@ export function clampSec(v: unknown): number {
   return Number.isFinite(n) && n >= 3 ? Math.min(30, Math.round(n)) : TV_DEFAULT_SEC;
 }
 
+/** Делит список на страницы не больше perPage, поровну: 7 → 4 и 3, а не 6 и 1. */
+export function splitEven<T>(list: T[], perPage: number): T[][] {
+  if (list.length === 0) return [];
+  const pageCount = Math.ceil(list.length / perPage);
+  const base = Math.floor(list.length / pageCount), extra = list.length % pageCount;
+  const out: T[][] = [];
+  let at = 0;
+  for (let i = 0; i < pageCount; i++) { const size = base + (i < extra ? 1 : 0); out.push(list.slice(at, at + size)); at += size; }
+  return out;
+}
+
 /** Страницы по категориям. Показываем только то, что можно заказать сейчас; категории в порядке меню; длинную категорию делим поровну (7 → 4+3, а не 6+1). */
 export function buildTvPages(items: Src[], cats: { id: string; name: string; slug: string }[], perPage = TV_PER_PAGE): TvPage[] {
   const pages: TvPage[] = [];
   for (const c of cats) {
     const list: TvItem[] = items
       .filter((p) => p.category.id === c.id && p.available && !p.comingSoon)
-      .map((p) => ({ id: p.id, name: p.name, description: p.description, image: p.image, categorySlug: p.category.slug, price: p.defaultPrice, oldPrice: p.oldDefaultPrice, happyPct: p.happyPct, volumeMl: p.volumeMl, calories: p.calories, isVegan: p.isVegan, isHighProtein: p.isHighProtein, isSugarFree: p.isSugarFree }));
+      .map((p) => ({ id: p.id, name: p.name, description: p.description, image: p.image, categorySlug: p.category.slug, categoryName: c.name, price: p.defaultPrice, oldPrice: p.oldDefaultPrice, happyPct: p.happyPct, volumeMl: p.volumeMl, calories: p.calories, isVegan: p.isVegan, isHighProtein: p.isHighProtein, isSugarFree: p.isSugarFree }));
     if (list.length === 0) continue;
-    const pageCount = Math.ceil(list.length / perPage);
-    const base = Math.floor(list.length / pageCount), extra = list.length % pageCount;
-    let at = 0;
-    for (let i = 0; i < pageCount; i++) {
-      const size = base + (i < extra ? 1 : 0);
-      pages.push({ key: `${c.id}:${i}`, category: c, pageNo: i + 1, pageCount, items: list.slice(at, at + size) });
-      at += size;
-    }
+    const chunks = splitEven(list, perPage);
+    chunks.forEach((items, i) => pages.push({ key: `${c.id}:${i}`, category: c, pageNo: i + 1, pageCount: chunks.length, items }));
   }
   return pages;
 }
@@ -80,4 +85,29 @@ export function categoryWindow<T>(all: T[], current: number, max = 6): { items: 
   if (all.length <= max) return { items: all, start: 0 };
   const start = Math.max(0, Math.min(all.length - max, current - Math.floor(max / 2)));
   return { items: all.slice(start, start + max), start };
+}
+
+// ───────────── Фото-меню: все позиции на одном экране ─────────────
+
+export const TV_GRID_PER_PAGE = 9;
+export const TV_GRID_DEFAULT_SEC = 15;
+export type TvGridPage = { key: string; pageNo: number; pageCount: number; items: TvItem[] };
+
+/** Секунд на страницу фото-меню: от 6 до 60, по умолчанию 15. */
+export function clampGridSec(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 6 ? Math.min(60, Math.round(n)) : TV_GRID_DEFAULT_SEC;
+}
+
+/** Все доступные позиции подряд (категории в порядке меню), по 9 на экран, страницы поровну. */
+export function buildTvGrid(items: Src[], cats: { id: string; name: string; slug: string }[], perPage = TV_GRID_PER_PAGE): TvGridPage[] {
+  const all = buildTvPages(items, cats, Number.MAX_SAFE_INTEGER).flatMap((p) => p.items);
+  const chunks = splitEven(all, perPage);
+  return chunks.map((list, i) => ({ key: `g${i}`, pageNo: i + 1, pageCount: chunks.length, items: list }));
+}
+
+/** Сетка карточек: колонок 1–3, строк по числу карточек. */
+export function gridShape(n: number): { cols: number; rows: number } {
+  const cols = n <= 2 ? Math.max(1, n) : n <= 4 ? 2 : 3;
+  return { cols, rows: Math.max(1, Math.ceil(n / cols)) };
 }
