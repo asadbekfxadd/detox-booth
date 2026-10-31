@@ -18,13 +18,22 @@ const clean = (v: string | undefined, max: number, label: string) => {
   return s === "" ? null : s;
 };
 
-/** Адрес, телефон и координаты точек: показываются на сайте и на карте. Пустое значение очищает поле. */
-export async function saveLocationContacts(input: { id: string; address?: string; phone?: string; coords?: string; trackStock?: boolean }[], user: Actor) {
+const locationNameSchema = z.string().trim().min(2, "Название точки: минимум 2 символа").max(60, "Название точки: не длиннее 60 символов");
+
+/** Название точки, адрес, телефон и координаты: показываются на сайте и на карте. Пустое значение (кроме названия) очищает поле. */
+export async function saveLocationContacts(input: { id: string; name?: string; address?: string; phone?: string; coords?: string; trackStock?: boolean }[], user: Actor) {
   const current = new Map((await listLocationContacts()).map((l) => [l.id, l]));
   let changed = 0;
   for (const row of input) {
     const old = current.get(row.id);
     if (!old) throw new ApiError(404, "Точка не найдена");
+    const name = row.name === undefined ? old.name : locationNameSchema.safeParse(row.name);
+    if (typeof name !== "string" && !name.success) throw new ApiError(400, name.error.issues[0]?.message ?? "Название точки указано неверно");
+    const newName = typeof name === "string" ? name : name.data;
+    if (newName.toLowerCase() !== old.name.toLowerCase()) {
+      const dup = await prisma.location.findFirst({ where: { id: { not: old.id }, name: { equals: newName, mode: "insensitive" } }, select: { id: true } });
+      if (dup) throw new ApiError(400, `Точка «${newName}» уже есть: придумайте другое название`);
+    }
     const address = clean(row.address, 200, "Адрес");
     const phone = clean(row.phone, 40, "Телефон");
     if (phone && !/^[+\d][\d\s()\-]{5,}$/.test(phone)) throw new ApiError(400, `«${old.name}»: телефон указан неверно, например +998 90 123 45 67`);
@@ -33,10 +42,10 @@ export async function saveLocationContacts(input: { id: string; address?: string
     const lat = c?.lat ?? null;
     const lng = c?.lng ?? null;
     const trackStock = row.trackStock ?? old.trackStock;
-    if (address === old.address && phone === old.phone && lat === old.lat && lng === old.lng && trackStock === old.trackStock) continue;
-    await prisma.location.update({ where: { id: old.id }, data: { address, phone, lat, lng, trackStock } });
+    if (newName === old.name && address === old.address && phone === old.phone && lat === old.lat && lng === old.lng && trackStock === old.trackStock) continue;
+    await prisma.location.update({ where: { id: old.id }, data: { name: newName, address, phone, lat, lng, trackStock } });
     changed++;
-    await audit({ userId: user.id, action: "LOCATION_UPDATED", entity: "Location", entityId: old.id, oldValue: { address: old.address, phone: old.phone, lat: old.lat, lng: old.lng, trackStock: old.trackStock }, newValue: { address, phone, lat, lng, trackStock } });
+    await audit({ userId: user.id, action: "LOCATION_UPDATED", entity: "Location", entityId: old.id, oldValue: { name: old.name, address: old.address, phone: old.phone, lat: old.lat, lng: old.lng, trackStock: old.trackStock }, newValue: { name: newName, address, phone, lat, lng, trackStock } });
   }
   return changed;
 }

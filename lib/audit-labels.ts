@@ -16,7 +16,7 @@ export const ACTION_LABEL: Record<string, string> = {
   PROMO_CREATED: "Промокод создан", PROMO_TOGGLED: "Промокод вкл/выкл", PROMO_DELETED: "Промокод удалён",
   RECIPE_CHANGED: "Рецепт изменён", PREP_SAVED: "Заготовка сохранена", PREP_DELETED: "Рецепт заготовки удалён", PRODUCTION_DONE: "Акт приготовления",
   INGREDIENT_CREATED: "Ингредиент добавлен", INGREDIENT_UPDATED: "Ингредиент изменён", INGREDIENT_UNIT_CHANGED: "Единица ингредиента изменена", INGREDIENT_DELETED: "Ингредиент удалён",
-  SETTINGS_CHANGED: "Изменены настройки", BRAND_CHANGED: "Изменён бренд и оформление сайта", LOCATION_UPDATED: "Изменены адрес или телефон точки", LOCATION_CREATED: "Добавлена точка",
+  SETTINGS_CHANGED: "Изменены настройки", BRAND_CHANGED: "Изменён бренд и оформление сайта", LOCATION_UPDATED: "Изменены данные точки (название, адрес, телефон)", LOCATION_CREATED: "Добавлена точка",
   PROMOTION_CREATED: "Акция создана", PROMOTION_TOGGLED: "Акция вкл/выкл", PROMOTION_DELETED: "Акция удалена",
   HAPPY_CREATED: "Счастливые часы: правило добавлено", HAPPY_TOGGLED: "Счастливые часы: правило вкл/выкл", HAPPY_DELETED: "Счастливые часы: правило удалено",
   RESERVATION_CREATED: "Бронь стола создана", RESERVATION_STATUS: "Статус брони", RESERVATION_TABLE: "Бронь: смена стола", RESERVATION_DEPOSIT: "Бронь: депозит", RESERVATION_CANCELLED_BY_GUEST: "Бронь отменена гостем",
