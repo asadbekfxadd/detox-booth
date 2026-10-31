@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
 import { saveSettings, SETTING_FIELDS } from "@/services/settings";
-import { saveLocationContacts } from "@/services/locations";
+import { saveLocationContacts, createLocation } from "@/services/locations";
 import { resetStock } from "@/services/inventory";
 import type { OpState } from "@/components/admin/ops";
 
@@ -39,4 +39,15 @@ export async function resetStockAction(_p: OpState, fd: FormData): Promise<OpSta
   } catch (e) { return { error: toMessage(e) }; }
   revalidatePath("/admin", "layout");
   redirect(`/admin/settings?reset=${done.stocks}`);
+}
+
+export async function createLocationAction(_p: OpState, fd: FormData): Promise<OpState> {
+  let r: { name: string; manager: boolean };
+  try {
+    const u = await requireUser("settings.edit");
+    const g = (k: string) => String(fd.get(k) ?? "");
+    r = await createLocation({ name: g("name"), address: g("address"), phone: g("phone"), coords: g("coords"), managerName: g("managerName"), managerEmail: g("managerEmail"), managerPassword: g("managerPassword") }, u);
+  } catch (e) { return { error: toMessage(e) }; }
+  revalidatePath("/admin/settings"); revalidatePath("/admin/employees"); revalidatePath("/", "layout");
+  redirect(`/admin/settings?added=${encodeURIComponent(r.name)}${r.manager ? "&mgr=1" : ""}#locations`);
 }
