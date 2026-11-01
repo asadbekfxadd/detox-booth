@@ -19,7 +19,7 @@
     "appId": "uz.vitaminb.desktop",
     "productName": "Vitamin B",
     "directories": { "output": "dist" },
-    "files": ["main.cjs", "offline.html", "icon.png", "package.json"],
+    "files": ["main.cjs", "preload.cjs", "offline.html", "icon.png", "package.json"],
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "icon.png",

@@ -1,6 +1,6 @@
 // Vitamin B для Windows: окно с вашим сайтом (админка, касса). Сам сайт обновляется на сервере,
 // поэтому приложение переустанавливать после обновлений не нужно.
-const { app, BrowserWindow, Menu, shell, dialog } = require("electron");
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -32,12 +32,49 @@ if (!app.requestSingleInstanceLock()) { app.quit(); }
 let win = null;
 app.on("second-instance", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
+// Тихая печать чека: прячем отдельное окно с чеком, печатаем на принтер по умолчанию (или на «printer» из config.json) и закрываем.
+// Разрешены только адреса чеков своего сайта: /print/order/<id> и /print/bill/<id>.
+const PRINT_PATH = /^\/print\/(order|bill)\/[A-Za-z0-9%_-]+$/;
+let printing = Promise.resolve();
+function printReceipt(pathname) {
+  return new Promise((resolve) => {
+    if (!PRINT_PATH.test(pathname)) return resolve({ ok: false, error: "Недопустимый адрес чека" });
+    const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+    let done = false;
+    const finish = (r) => { if (done) return; done = true; clearTimeout(timer); if (!w.isDestroyed()) w.close(); resolve(r); };
+    const timer = setTimeout(() => finish({ ok: false, error: "Чек не успел напечататься, проверьте принтер" }), 30000);
+    w.webContents.on("did-fail-load", () => finish({ ok: false, error: "Нет связи с сервером" }));
+    w.webContents.on("did-finish-load", () => {
+      // даём странице дорисоваться (шрифты, штрихкод), потом печатаем
+      setTimeout(() => {
+        const deviceName = readConfig().printer || undefined;
+        w.webContents.print({ silent: true, printBackground: false, deviceName, margins: { marginType: "none" } }, (success, reason) => {
+          finish(success ? { ok: true } : { ok: false, error: reason === "cancelled" ? "Печать отменена" : "Принтер не ответил" });
+        });
+      }, 700);
+    });
+    void w.loadURL(BASE + pathname);
+  });
+}
+ipcMain.handle("print-url", (e, p) => {
+  // только из нашего окна с нашего сайта
+  try { if (new URL(e.senderFrame.url).origin !== BASE) return { ok: false, error: "Запрещено" }; } catch { return { ok: false, error: "Запрещено" }; }
+  // принимаем только путь своего сайта вида /print/order/<id>; ссылки на другие сайты не пускаем
+  if (typeof p !== "string" || !p.startsWith("/") || p.startsWith("//")) return { ok: false, error: "Недопустимый адрес чека" };
+  let pathname = "";
+  try { pathname = new URL(p, BASE).pathname; } catch { return { ok: false, error: "Недопустимый адрес чека" }; }
+  // чеки печатаем по очереди, чтобы они не перемешались
+  const job = printing.then(() => printReceipt(pathname));
+  printing = job.then(() => undefined, () => undefined);
+  return job;
+});
+
 function createWindow() {
   const st = loadState();
   win = new BrowserWindow({
     width: st.width || 1366, height: st.height || 820, x: st.x, y: st.y, minWidth: 900, minHeight: 600,
     title: "Vitamin B", icon: path.join(__dirname, "icon.png"), backgroundColor: "#17110d", autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, "preload.cjs"), spellcheck: false },
   });
   if (st.max) win.maximize();
   if (st.full) win.setFullScreen(true);
