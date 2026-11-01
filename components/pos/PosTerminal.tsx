@@ -9,6 +9,8 @@ import {
 import type { PosCatalog, CatalogProduct, CustomerLite, RecentOrder, OrderResult } from "@/services/pos";
 import { MixBuilder, type MixPick } from "@/components/mix/MixBuilder";
 import { mixKey } from "@/lib/mix";
+import { printReceipt } from "@/components/pos/receipt-print";
+import { useAutoPrint } from "@/components/pos/useAutoPrint";
 
 /** mix — «Свой микс»: выбор гостя и цена для показа (при оплате сервер пересчитает сам) */
 type Line = { key: string; product: CatalogProduct; quantity: number; optionIds: string[]; mix?: MixPick };
@@ -68,6 +70,8 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
   const payLock = useRef(false); // защита от двойного клика до перерисовки
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [autoPrint, setAutoPrint] = useAutoPrint();
+  const [printNote, setPrintNote] = useState("");
 
   // заказы смены
   const [ordersOpen, setOrdersOpen] = useState(false);
@@ -175,6 +179,12 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
     } catch { setCustErr(GENERIC_ERROR); }
   }
 
+  async function printNow(orderId: string) {
+    setPrintNote("Печатаем чек…");
+    const r = await printReceipt(orderId);
+    setPrintNote(r.ok ? "Чек отправлен на печать" : `Чек не напечатался: ${r.error}`);
+  }
+
   async function pay() {
     if (payLock.current || paying || cart.length === 0) return;
     payLock.current = true;
@@ -188,6 +198,8 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
       });
       if (!r.ok) { setError(r.error); router.refresh(); return; }
       setReceipt(r); resetOrder(); router.refresh();
+      setPrintNote("");
+      if (autoPrint) void printNow(r.orderId);
       if (ordersOpen) loadOrders();
     } catch { setError(GENERIC_ERROR); }
     finally { payLock.current = false; setPaying(false); }
@@ -382,6 +394,10 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
               </div>
             )}
             {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+            <label className="flex min-h-9 cursor-pointer items-center gap-2 text-sm text-neutral-700">
+              <input type="checkbox" checked={autoPrint} onChange={(e) => setAutoPrint(e.target.checked)} className="h-4 w-4" />
+              Печатать чек сразу после оплаты
+            </label>
             <div className="flex gap-2">
               <button onClick={resetOrder} disabled={cart.length === 0 || paying} className="rounded-xl border border-neutral-200 px-4 py-3 text-sm hover:bg-neutral-50 disabled:opacity-50">Отменить заказ</button>
               <button onClick={pay} disabled={cart.length === 0 || paying || tooLittle} className="flex-1 rounded-xl bg-green-700 py-3 text-lg font-semibold text-white hover:bg-green-800 disabled:opacity-50">{paying ? "Проводим…" : `Оплатить ${money(total)}`}</button>
@@ -418,7 +434,8 @@ export function PosTerminal({ catalog, brandName, locationName, cashier, canRefu
             {receipt.method === "CASH" && receipt.change > 0 && <p className="rounded-xl bg-amber-100 py-2 text-xl font-bold text-amber-900">Сдача: {money(receipt.change)}</p>}
             {receipt.pointsSpent > 0 && <p className="text-sm text-neutral-600">Списано баллов: {receipt.pointsSpent}</p>}
             {receipt.pointsEarned > 0 && <p className="text-sm text-green-800">Клиенту начислено баллов: {receipt.pointsEarned}</p>}
-            <a href={`/print/order/${receipt.orderId}`} target="_blank" rel="noreferrer" className="block w-full rounded-xl border border-neutral-300 py-3 text-lg font-semibold hover:bg-neutral-50">Печать чека</a>
+            {printNote && <p role="status" className={`rounded-xl py-2 text-sm font-semibold ${printNote.startsWith("Чек не") ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-700"}`}>{printNote}</p>}
+            <button onClick={() => void printNow(receipt.orderId)} className="block w-full rounded-xl border border-neutral-300 py-3 text-lg font-semibold hover:bg-neutral-50">{printNote ? "Напечатать ещё раз" : "Печать чека"}</button>
             <button onClick={() => setReceipt(null)} className="w-full rounded-xl bg-green-700 py-3 text-lg font-semibold text-white hover:bg-green-800">Новый заказ</button>
           </div>
         </Overlay>
