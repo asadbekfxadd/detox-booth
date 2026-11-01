@@ -1,0 +1,39 @@
+{
+  "name": "vitamin-b-desktop",
+  "productName": "Vitamin B",
+  "version": "1.0.0",
+  "description": "Vitamin B: админка и касса в отдельном окне на Windows",
+  "main": "main.cjs",
+  "author": "Vitamin B",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --x64",
+    "dist:dir": "electron-builder --win dir --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "uz.vitaminb.desktop",
+    "productName": "Vitamin B",
+    "directories": { "output": "dist" },
+    "files": ["main.cjs", "offline.html", "icon.png", "package.json"],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "icon.png",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Vitamin B",
+      "artifactName": "Vitamin-B-Setup-${version}.${ext}",
+      "language": "1049"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+name: Desktop (Windows)
+
+# Собирает установщик Vitamin B для Windows. Запуск вручную: Actions → Desktop (Windows) → Run workflow.
+# Готовый Vitamin-B-Setup-<версия>.exe лежит в Artifacts этого запуска.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+    branches: [main]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx electron-builder --win nsis --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vitamin-B-Setup
+          path: desktop/dist/Vitamin-B-Setup-*.exe
+          if-no-files-found: error
