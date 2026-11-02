@@ -23,6 +23,8 @@ export type Brand = {
   ticker: string[];
   /** vitaminb — витрина с фото и подборками Vitamin B; classic — универсальная главная для любого заведения */
   homeStyle: "vitaminb" | "classic";
+  /** тёмная «неоновая» тема сайта: стеклянные карточки, свечение, сетка на фоне */
+  neon: boolean;
   /** показывать ли Мандаринку-помощницу */
   assistant: boolean;
   heroTitle: string;
@@ -47,6 +49,7 @@ export const DEFAULT_BRAND: Brand = {
   accent: "#ff8a00",
   ticker: ["Good juice, good mood", "Натуральные фрукты", "Настоящий вкус", "Без консервантов", "Свежие соки и смузи", "Для взрослых и детей", "Готовим сразу после заказа"],
   homeStyle: "vitaminb",
+  neon: false,
   assistant: true,
   heroTitle: "",
   heroText: "",
@@ -57,7 +60,7 @@ export const DEFAULT_BRAND: Brand = {
 /** Нейтральный бренд для нового заведения: без Vitamin B, с универсальной главной и выключенной мандаринкой. */
 export const BLANK_BRAND: Brand = {
   name: "Моё заведение", descriptor: "", tagline: "", seoTitle: "", description: "Закажите онлайн и заберите готовым.", footerText: "",
-  logoUrl: "", instagram: "", primary: "#1f3b4d", accent: "#e8a33d", ticker: [], homeStyle: "classic", assistant: false,
+  logoUrl: "", instagram: "", primary: "#1f3b4d", accent: "#e8a33d", ticker: [], homeStyle: "classic", neon: false, assistant: false,
   heroTitle: "", heroText: "", heroImage: "", heroVideos: [],
 };
 
@@ -133,6 +136,7 @@ export function parseBrand(raw: Record<string, unknown>): Brand {
     logoUrl: safeImageUrl(String(raw.logoUrl ?? "")),
     instagram: parseInstagram(String(raw.instagram ?? "")),
     primary, accent, ticker, homeStyle,
+    neon: raw.neon === true || raw.neon === "on" || raw.neon === "true",
     assistant: raw.assistant === true || raw.assistant === "on" || raw.assistant === "true",
     heroTitle: clean(raw.heroTitle, 80),
     heroText: clean(raw.heroText, 220),

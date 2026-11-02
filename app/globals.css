@@ -207,3 +207,58 @@ a.pop:hover, label.pop:hover { border-color: color-mix(in srgb, var(--color-fore
   .hs-slide, .hs-slide img { transition: none !important; }
   .hs-slide[data-on="true"] img { transform: none; }
 }
+
+/* ───────────── Неоновая тема сайта (включается в «Бренд и сайт»): тёмный фон, сетка, стеклянные карточки, свечение ───────────── */
+html:has(.site-neon), body:has(.site-neon) { background: #04150d; }
+.site-neon {
+  --color-cream: #04150d;
+  --color-forest: #e4f6ea;
+  --color-sand: rgb(255 255 255 / 0.08);
+  --color-leaf-soft: rgb(120 230 140 / 0.14);
+  --color-muted: #9db8a8;
+  --glass: linear-gradient(180deg, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0.035));
+  --glass-line: rgb(190 255 210 / 0.16);
+  isolation: isolate; background: var(--color-cream); color: var(--color-forest);
+}
+.site-neon::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(55% 45% at 88% -8%, rgb(255 138 0 / 0.20), transparent 70%),
+    radial-gradient(45% 40% at -4% 24%, rgb(60 210 100 / 0.16), transparent 70%),
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 56px 56px,
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 56px 56px;
+}
+.site-neon header.sticky { background: rgb(4 21 13 / 0.72); backdrop-filter: blur(16px) saturate(1.4); border-bottom-color: rgb(255 255 255 / 0.08); }
+.site-neon .bg-white:not(.btn), .site-neon .pop-card, .site-neon .pop:not(.btn) {
+  background: var(--glass); border-color: var(--glass-line);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 18px 40px -22px rgb(0 0 0 / 0.7);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+@media (hover: hover) {
+  .site-neon .pop-card:hover, .site-neon a.pop:not(.btn):hover { border-color: color-mix(in srgb, var(--tone, var(--color-orange)) 80%, transparent); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 0 26px -6px var(--tone, var(--color-orange)); }
+}
+.site-neon .btn-primary { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 10px 34px -8px rgb(255 138 0 / 0.6); }
+.site-neon .btn-primary:hover:not(:disabled) { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 12px 44px -6px rgb(255 160 30 / 0.8); }
+.site-neon .btn-forest, .site-neon .bg-forest { background: #14803f; color: #fff; }
+.site-neon .btn-forest { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 10px 30px -10px rgb(70 220 120 / 0.55); }
+.site-neon .btn-ghost { color: var(--color-forest); border-color: rgb(255 255 255 / 0.28); }
+.site-neon .btn-ghost:hover:not(:disabled) { background: rgb(255 255 255 / 0.12); color: #fff; border-color: rgb(255 255 255 / 0.5); }
+.site-neon input:not([type=checkbox]):not([type=radio]):not([type=range]), .site-neon select, .site-neon textarea { background-color: rgb(255 255 255 / 0.06); color: var(--color-forest); }
+.site-neon select option { background: #0b2418; color: #e4f6ea; }
+.site-neon h1 .text-orange-deep { color: #ffa11f; text-shadow: 0 0 30px rgb(255 138 0 / 0.55); }
+.site-neon .hero-sun { box-shadow: 0 0 120px 6px rgb(255 138 0 / 0.38); }
+.site-neon footer { border-top: 1px solid rgb(255 255 255 / 0.08); }
+/* Одно появление при загрузке: текст первого экрана поднимается по очереди */
+@keyframes neon-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.site-neon .hero-copy > * { animation: neon-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.site-neon .hero-copy > :nth-child(2) { animation-delay: 0.08s; }
+.site-neon .hero-copy > :nth-child(3) { animation-delay: 0.16s; }
+.site-neon .hero-copy > :nth-child(4) { animation-delay: 0.24s; }
+.site-neon .hero-copy > :nth-child(5) { animation-delay: 0.32s; }
+@media (prefers-reduced-motion: reduce) { .site-neon .hero-copy > * { animation: none; } }
+/* Тёмный текст «forest-deep» остаётся только на оранжевых и цветных плашках, везде ещё он светлый */
+.site-neon .text-forest-deep:not([class*="bg-orange"]):not([class*="bg-sun"]):not([class*="from-sun"]):not([class*="bg-(--tone)"]):not(.btn) { color: var(--color-forest); }
+.site-neon [class*="bg-[radial-gradient"] .text-forest-deep { color: var(--color-forest-deep); }
+.site-neon .btn-accent { background: rgb(255 255 255 / 0.06); color: var(--color-orange); border-color: rgb(255 138 0 / 0.55); box-shadow: 0 0 22px -8px rgb(255 138 0 / 0.6); }
+.site-neon .btn-accent:hover:not(:disabled) { background: var(--color-orange); color: var(--color-forest-deep); }
+.site-neon button:disabled, .site-neon .btn:disabled, .site-neon .text-forest-deep:disabled, .site-neon [class*="bg-[radial-gradient"] .text-forest-deep:disabled { color: rgb(228 246 234 / 0.55); background-color: rgb(255 255 255 / 0.08); }
