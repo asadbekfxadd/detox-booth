@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { gridShape, onTone, tvTone, type TvGridPage } from "@/lib/tv";
+import { gridShape, gridZoom, onTone, tvTone, type TvGridPage } from "@/lib/tv";
 import { categoryEmoji } from "@/lib/emoji";
 import { num, TvBubbles, TvFooter, TvHeader, useTvLifecycle, type BrandInfo } from "./parts";
 
@@ -57,7 +57,7 @@ export function TvGrid({ pages, sec, qr, locationName, brand }: { pages: TvGridP
       </TvHeader>
 
       <main className="tvg">
-        <ul className="tvg-grid" key={page.key} style={{ "--cols": cols, "--rows": rows } as React.CSSProperties}>
+        <ul className="tvg-grid" key={page.key} style={{ "--cols": cols, "--rows": rows, "--z": gridZoom(page.items.length) } as React.CSSProperties}>
           {page.items.map((it, i) => {
             const t = tvTone(it.name);
             const sale = it.oldPrice && it.oldPrice > it.price;
