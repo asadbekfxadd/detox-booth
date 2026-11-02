@@ -6,15 +6,26 @@ import { can } from "@/lib/rbac";
 import { money, pct } from "@/lib/format";
 import { listProducts } from "@/services/products";
 import { RowAction } from "@/components/admin/RowAction";
-import { archiveAction, restoreAction, availabilityAction, deleteAction } from "./actions";
+import { archiveAction, restoreAction, availabilityAction, deleteAction, addCoffeeMenuAction } from "./actions";
 
-type SP = { q?: string; category?: string; status?: string };
+type SP = { q?: string; category?: string; status?: string; coffee?: string };
 const btn = "rounded-lg border border-neutral-200 px-3 py-1 text-xs hover:bg-neutral-50";
+
+function coffeeNote(v?: string): { ok: boolean; text: string } | null {
+  if (!v) return null;
+  if (v.startsWith("err:")) return { ok: false, text: v.slice(4) };
+  const m = /^ok:(\d+):(\d+)$/.exec(v);
+  if (!m) return null;
+  const [created, skipped] = [Number(m[1]), Number(m[2])];
+  return { ok: true, text: created ? `Кофейное меню добавлено: ${created} поз.${skipped ? `, ещё ${skipped} уже были` : ""}. Проверьте цены и задайте цену кофе в зёрнах на складе, чтобы считалась себестоимость.` : "Все кофейные позиции уже есть, ничего не добавлено." };
+}
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const user = (await currentSession())!.user;
   const showCost = can(user.role, "products.cost");
+  const canCoffee = can(user.role, "products.edit") && can(user.role, "recipes.edit") && can(user.role, "inventory.edit");
+  const coffee = coffeeNote(sp.coffee);
   const [products, categories] = await Promise.all([
     listProducts({ q: sp.q, categoryId: sp.category, status: sp.status }, showCost),
     prisma.category.findMany({ orderBy: { sort: "asc" } }),
@@ -30,6 +41,13 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           <Link href="/admin/products/new" className="rounded-xl border border-neutral-200 bg-white px-5 py-2 text-sm font-semibold hover:bg-neutral-50">+ Вручную</Link>
         </div>
       </div>
+      {coffee && <div className={`rounded-xl px-4 py-3 text-sm ${coffee.ok ? "bg-lime-50 text-green-900" : "bg-red-50 text-red-800"}`}>{coffee.text}</div>}
+      {canCoffee && (
+        <form action={addCoffeeMenuAction} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="max-w-2xl text-sm text-neutral-600"><b>Кофейное меню.</b> Одной кнопкой добавит категорию «Кофе» и 10 позиций со средними ценами: эспрессо, американо, капучино, латте, флэт уайт, раф, мокко, какао, айс-латте, колд брю. Размеры, выбор молока и рецепты уже внутри. Цены и граммы потом правятся в карточке. Повторное нажатие ничего не дублирует.</p>
+          <button className="rounded-xl bg-green-700 px-5 py-2 text-sm font-semibold text-white hover:bg-green-800">Добавить кофейное меню</button>
+        </form>
+      )}
       <FilterForm key={JSON.stringify(sp)} className="flex flex-wrap gap-2">
         <input name="q" defaultValue={sp.q} placeholder="Поиск по названию" className={input} />
         <select name="category" defaultValue={sp.category ?? ""} className={input}>
