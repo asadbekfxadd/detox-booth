@@ -261,3 +261,4 @@ html:has(.site-neon), body:has(.site-neon) { background: #04150d; }
 .site-neon [class*="bg-[radial-gradient"] .text-forest-deep { color: var(--color-forest-deep); }
 .site-neon .btn-accent { background: rgb(255 255 255 / 0.06); color: var(--color-orange); border-color: rgb(255 138 0 / 0.55); box-shadow: 0 0 22px -8px rgb(255 138 0 / 0.6); }
 .site-neon .btn-accent:hover:not(:disabled) { background: var(--color-orange); color: var(--color-forest-deep); }
+.site-neon button:disabled, .site-neon .btn:disabled, .site-neon .text-forest-deep:disabled, .site-neon [class*="bg-[radial-gradient"] .text-forest-deep:disabled { color: rgb(228 246 234 / 0.55); background-color: rgb(255 255 255 / 0.08); }
