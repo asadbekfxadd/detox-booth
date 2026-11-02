@@ -48,7 +48,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
           <div className="space-y-6">
             <div>
-              <p className="font-extrabold uppercase tracking-wider text-orange-deep">{p.category.name}</p>
+              <p className="font-extrabold text-orange-deep">{p.category.name}</p>
               <h1 className="mt-2 text-4xl font-black leading-[1.02] sm:text-5xl">{p.name}</h1>
               {p.description && <p className="mt-4 max-w-xl text-lg leading-relaxed text-forest/70">{p.description}</p>}
             </div>

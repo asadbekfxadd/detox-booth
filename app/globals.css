@@ -52,21 +52,19 @@ html.tg .site { padding-bottom: env(safe-area-inset-bottom); }
   .site ::placeholder { color: color-mix(in srgb, var(--color-forest) 45%, transparent); }
 }
 
-/* Карточка: белая, с цветным свечением категории сверху. */
+/* Карточка: белая, тонкая рамка. Цвет категории только на рамке при наведении. */
 .pop { border: 1px solid color-mix(in srgb, var(--color-forest) 14%, transparent); transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; }
 a.pop:hover, label.pop:hover { border-color: color-mix(in srgb, var(--color-forest) 40%, transparent); }
 .pop-card {
   border: 1px solid color-mix(in srgb, var(--color-forest) 10%, transparent);
-  background:
-    radial-gradient(120% 50% at 50% 0%, color-mix(in srgb, var(--tone) 30%, transparent), transparent 75%),
-    #fff;
+  background: #fff;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--color-forest) 5%, transparent);
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
-@media (hover: hover) { .pop-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--tone) 70%, transparent); box-shadow: 0 20px 40px -22px var(--tone); } }
+@media (hover: hover) { .pop-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--tone) 70%, transparent); box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--color-forest) 28%, transparent); } }
 
 .press { transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.15s ease; }
-@media (hover: hover) { .press:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 24px -10px var(--color-orange); } }
+@media (hover: hover) { .press:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px -10px color-mix(in srgb, var(--color-forest) 40%, transparent); } }
 .press:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 
 /* Лучи за заголовком баннера: белый конус поверх цвета. */
@@ -82,7 +80,7 @@ a.pop:hover, label.pop:hover { border-color: color-mix(in srgb, var(--color-fore
 .btn:disabled { cursor: not-allowed; background: color-mix(in srgb, var(--color-forest) 8%, transparent); color: color-mix(in srgb, var(--color-forest) 40%, transparent); box-shadow: none; border-color: transparent; }
 /* Главная кнопка: апельсиновый градиент, тёмно-зелёный текст (контраст выше 7:1). */
 .btn-primary { background: linear-gradient(135deg, var(--color-sun), var(--color-orange)); color: var(--color-forest-deep); }
-.btn-primary:hover:not(:disabled) { box-shadow: 0 12px 28px -10px var(--color-orange); }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--color-forest) 45%, transparent); }
 .btn-forest { background: var(--color-forest); color: #fff; }
 .btn-forest:hover:not(:disabled) { background: var(--color-forest-deep); box-shadow: 0 12px 28px -12px var(--color-forest); }
 .btn-ghost { background: transparent; color: var(--color-forest); border-color: color-mix(in srgb, var(--color-forest) 35%, transparent); }
@@ -205,16 +203,7 @@ a.pop:hover, label.pop:hover { border-color: color-mix(in srgb, var(--color-fore
 .hs-slide img { transform: scale(1); transition: transform 0s linear 0.9s; }
 .hs-slide[data-on="true"] img { transform: scale(1.07); transition: transform 7s ease-out; }
 
-@keyframes hf-breathe { 50% { scale: 1.035; } }
-.hf-sun { animation: hf-breathe 7s ease-in-out infinite; }
-
-/* Блик пробегает по главной кнопке раз в несколько секунд: взгляд цепляется за действие. */
-.hero-cta { position: relative; overflow: hidden; isolation: isolate; }
-.hero-cta::after { content: ""; position: absolute; inset: -20% auto -20% -60%; width: 40%; background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.55), transparent); transform: skewX(-18deg); pointer-events: none; animation: hf-shine 5.5s ease-in-out 2.4s infinite; }
-@keyframes hf-shine { 0%, 60% { translate: 0 0; } 100% { translate: 420% 0; } }
-
 @media (prefers-reduced-motion: reduce) {
-  .hf-sun, .hero-cta::after { animation: none !important; }
   .hs-slide, .hs-slide img { transition: none !important; }
   .hs-slide[data-on="true"] img { transform: none; }
 }
