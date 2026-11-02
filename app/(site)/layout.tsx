@@ -26,7 +26,7 @@ const navLink = "rounded-full px-3.5 py-1.5 text-[15px] font-bold text-forest/80
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const [{ locations, current, chosen }, table, brand, cats, booking, mixSizes, deals] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories(), bookingConfig(), getMixSizes(), Promise.all([prisma.promotion.count({ where: { isActive: true, onSite: true } }), prisma.happyHour.count({ where: { isActive: true } })]).then(([a, b]) => a + b > 0)]);
   return (
-    <div className="site flex min-h-screen flex-col">
+    <div className={`site flex min-h-screen flex-col${brand.neon ? " site-neon" : ""}`}>
       <TelegramApp />
       <TelegramWelcome currentId={current?.id ?? null} />
       <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream">

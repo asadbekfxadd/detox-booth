@@ -77,6 +77,21 @@ describe("brand config", () => {
   });
 });
 
+describe("неоновая тема", () => {
+  it("по умолчанию выключена, включается галочкой и сохраняется", () => {
+    expect(DEFAULT_BRAND.neon).toBe(false);
+    expect(BLANK_BRAND.neon).toBe(false);
+    expect(parseBrand({ ...DEFAULT_BRAND }).neon).toBe(false);
+    expect(parseBrand({ ...DEFAULT_BRAND, neon: "on" }).neon).toBe(true);
+    expect(parseBrand({ ...DEFAULT_BRAND, neon: true }).neon).toBe(true);
+    expect(parseBrand({ ...DEFAULT_BRAND, neon: "off" }).neon).toBe(false);
+  });
+  it("старый бренд из базы без поля neon остаётся светлым", () => {
+    expect(brandFromStored({ name: "Vitamin B" }).neon).toBe(false);
+    expect(brandFromStored({ neon: true }).neon).toBe(true);
+  });
+});
+
 describe("видео в первом экране", () => {
   const base = { name: "Тест", primary: "#0d4a27", accent: "#ff8a00" };
   it("по умолчанию видео нет", () => expect(parseBrand(base).heroVideos).toEqual([]));

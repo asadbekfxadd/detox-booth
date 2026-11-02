@@ -57,7 +57,7 @@ export default async function HomePage() {
       {/* Главный экран: солнечный круг, фото напитков, значки преимуществ */}
       <section className="relative isolate overflow-hidden bg-cream">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-14 pt-10 sm:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-6 lg:pb-20">
-          <div className="relative">
+          <div className="hero-copy relative">
             <p className="script text-3xl text-orange-deep sm:text-4xl">Вместе вкуснее</p>
             <h1 className="mt-2 text-[clamp(2.3rem,5.6vw,4.6rem)] font-black text-forest">Натуральные фрукты. <span className="text-orange-deep">Настоящий вкус.</span></h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-forest/75">Свежие соки, фруктовые миксы и смузи — для взрослых и детей. Готовим сразу после заказа.</p>
@@ -76,7 +76,7 @@ export default async function HomePage() {
           </div>
 
           <div className={`relative ${brand.heroVideos.length > 0 ? "order-first lg:order-none" : ""}`}>
-            <div aria-hidden className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)]" />
+            <div aria-hidden className="hero-sun absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)]" />
             <SpinBadge className="absolute -top-4 right-0 z-10 h-28 w-28 rounded-full bg-forest text-white shadow-xl sm:-top-8 sm:h-36 sm:w-36 lg:-right-2" />
             {brand.heroVideos.length > 0 ? (
               <div className={`grid gap-3 pt-8 sm:gap-4 ${heroSlots.slice(1).some((l) => l.length > 0) ? "grid-cols-[1.15fr_1fr]" : "mx-auto max-w-xs grid-cols-1 lg:max-w-sm"}`}>

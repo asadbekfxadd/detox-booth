@@ -69,6 +69,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
           <Field label="Бегущая строка вверху сайта (по одной фразе в строке)">
             <textarea name="ticker" rows={5} defaultValue={b.ticker.join("\n")} className={fieldClass} />
           </Field>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="neon" defaultChecked={b.neon} className="mt-1" /><span>Тёмная неоновая тема сайта<span className="block text-xs text-neutral-500">Тёмный фон с сеткой, стеклянные карточки и свечение кнопок. Цвета берутся из основного и акцентного. Админка и касса не меняются. Снимите галочку, чтобы вернуть светлый вид.</span></span></label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="assistant" defaultChecked={b.assistant} /> Показывать помощницу-мандаринку на сайте</label>
         </fieldset>
       </FormShell>
