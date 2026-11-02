@@ -7,7 +7,7 @@ import { QuickAdd } from "./QuickAdd";
 
 const tag = "rounded-full bg-forest/8 px-2.5 py-0.5 text-[11px] font-bold text-forest";
 
-/** Карточка позиции: белая карточка со свечением цвета категории, фото, метки и цена с быстрым добавлением. */
+/** Карточка позиции: белая карточка с тонкой рамкой, фото, метки и цена с быстрым добавлением. */
 export function ProductCard({ p, priority = false }: { p: PublicProduct; priority?: boolean }) {
   const customizable = p.modifiers.length > 0;
   return (

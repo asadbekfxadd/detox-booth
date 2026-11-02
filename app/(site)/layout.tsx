@@ -77,7 +77,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             {brand.footerText && <p className="mt-2 max-w-xs text-sm text-white/70">{brand.footerText}</p>}
           </div>
           <div className="text-sm">
-            <p className="mb-3 font-extrabold uppercase tracking-wider text-orange">Меню</p>
+            <p className="mb-3 font-extrabold text-orange">Меню</p>
             <ul className="space-y-1.5 text-white/75">
               <li><Link href="/menu" className="hover:text-white">Всё меню</Link></li>
               {cats.slice(0, 5).map((c) => <li key={c.id}><Link href={`/menu?category=${c.slug}`} className="hover:text-white">{c.name}</Link></li>)}
@@ -85,14 +85,14 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             </ul>
           </div>
           <div className="text-sm">
-            <p className="mb-3 font-extrabold uppercase tracking-wider text-orange">Точки</p>
+            <p className="mb-3 font-extrabold text-orange">Точки</p>
             <ul className="space-y-1.5 text-white/75">
               {locations.length === 0 && <li>Скоро откроемся</li>}
               {locations.map((l) => <li key={l.id}>{l.name}{l.address ? `, ${l.address}` : ""}</li>)}
             </ul>
           </div>
         </div>
-        <p aria-hidden className="display select-none whitespace-nowrap bg-gradient-to-b from-orange to-orange/0 bg-clip-text text-center text-[clamp(2.4rem,15vw,13rem)] font-black leading-[0.85] text-transparent">{brand.name.toUpperCase()}</p>
+        <p aria-hidden className="display select-none whitespace-nowrap text-center text-[clamp(2.4rem,15vw,13rem)] font-black leading-[0.85] text-orange/15">{brand.name.toUpperCase()}</p>
         <div className="border-t border-white/10">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-white/60">
             <span>© {brand.name}{brand.descriptor ? `, ${brand.descriptor}` : ""}</span>

@@ -18,12 +18,12 @@ import { Icon, IconBadge, type IconName } from "@/components/site/Icon";
 export const dynamic = "force-dynamic";
 
 const MOODS = [
-  { t: "Бодрость с утра", d: "Смузи на фруктах", href: "/menu?category=smoothies", bg: "bg-sun text-forest-deep" },
-  { t: "После тренировки", d: "Много белка", href: "/menu?diet=protein", bg: "bg-forest text-white" },
-  { t: "Лёгкое и свежее", d: "Без сахара", href: "/menu?diet=sugarfree", bg: "bg-leaf-soft text-forest" },
-  { t: "Сытный обед", d: "Боулы и салаты", href: "/menu?category=bowls", bg: "bg-orange text-forest-deep" },
-  { t: "Только растения", d: "Веган-меню", href: "/menu?diet=vegan", bg: "bg-leaf text-white" },
-  { t: "Выгодно", d: "Сеты со скидкой", href: "/menu?category=sets", bg: "bg-sand text-forest" },
+  { t: "Бодрость с утра", d: "Смузи на фруктах", href: "/menu?category=smoothies", dot: "bg-sun" },
+  { t: "После тренировки", d: "Много белка", href: "/menu?diet=protein", dot: "bg-forest text-white" },
+  { t: "Лёгкое и свежее", d: "Без сахара", href: "/menu?diet=sugarfree", dot: "bg-leaf-soft" },
+  { t: "Сытный обед", d: "Боулы и салаты", href: "/menu?category=bowls", dot: "bg-orange" },
+  { t: "Только растения", d: "Веган-меню", href: "/menu?diet=vegan", dot: "bg-leaf text-white" },
+  { t: "Выгодно", d: "Сеты со скидкой", href: "/menu?category=sets", dot: "bg-sand" },
 ] as const;
 
 const STEPS = [
@@ -55,28 +55,28 @@ export default async function HomePage() {
   return (
     <div>
       {/* Главный экран: солнечный круг, фото напитков, значки преимуществ */}
-      <section className="relative isolate overflow-hidden bg-[radial-gradient(70%_80%_at_85%_30%,#ffe3a8_0%,#fff3d6_45%,var(--color-cream)_80%)]">
+      <section className="relative isolate overflow-hidden bg-cream">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-14 pt-10 sm:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-6 lg:pb-20">
           <div className="relative">
             <p className="script text-3xl text-orange-deep sm:text-4xl">Вместе вкуснее</p>
             <h1 className="mt-2 text-[clamp(2.3rem,5.6vw,4.6rem)] font-black text-forest">Натуральные фрукты. <span className="text-orange-deep">Настоящий вкус.</span></h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-forest/75">Свежие соки, фруктовые миксы и смузи — для взрослых и детей. Готовим сразу после заказа.</p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/menu" className="btn btn-primary hero-cta text-lg">Смотреть меню</Link>
+              <Link href="/menu" className="btn btn-primary text-lg">Смотреть меню</Link>
               {cats.some((c) => c.slug === "sets") && <Link href="/menu?category=sets" className="btn btn-ghost">Сеты со скидкой</Link>}
             </div>
             <ul className="mt-10 grid max-w-xl grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
               {PERKS.map(([ic, t]) => (
                 <li key={t} className="flex flex-col items-start gap-2 sm:items-center sm:text-center">
                   <IconBadge name={ic} className="border-forest/80 text-forest" />
-                  <span className="text-xs font-bold uppercase leading-tight tracking-wide text-forest/80">{t}</span>
+                  <span className="text-sm font-semibold leading-tight text-forest/80">{t}</span>
                 </li>
               ))}
             </ul>
           </div>
 
           <div className={`relative ${brand.heroVideos.length > 0 ? "order-first lg:order-none" : ""}`}>
-            <div aria-hidden className="hf-sun absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)] shadow-[0_40px_90px_-30px_#ff8a00]" />
+            <div aria-hidden className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_25%,#ffd25a,#ff9a1a_60%,#ff7a00)]" />
             <SpinBadge className="absolute -top-4 right-0 z-10 h-28 w-28 rounded-full bg-forest text-white shadow-xl sm:-top-8 sm:h-36 sm:w-36 lg:-right-2" />
             {brand.heroVideos.length > 0 ? (
               <div className={`grid gap-3 pt-8 sm:gap-4 ${heroSlots.slice(1).some((l) => l.length > 0) ? "grid-cols-[1.15fr_1fr]" : "mx-auto max-w-xs grid-cols-1 lg:max-w-sm"}`}>
@@ -106,9 +106,9 @@ export default async function HomePage() {
           <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             {MOODS.map((m) => (
               <li key={m.t}>
-                <Link href={m.href} className={`group flex h-full min-h-36 flex-col justify-between gap-6 rounded-[1.75rem] p-4 transition-transform duration-200 hover:-translate-y-1 sm:p-6 ${m.bg}`}>
-                  <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-current transition-transform group-hover:rotate-45"><Icon name="arrow" size={20} /></span>
-                  <span><span className="display block text-[17px] font-extrabold leading-tight sm:text-2xl">{m.t}</span><span className="mt-1 block text-sm font-semibold opacity-80">{m.d}</span></span>
+                <Link href={m.href} className="pop group flex h-full min-h-36 flex-col justify-between gap-6 rounded-[1.75rem] bg-white p-4 text-forest hover:-translate-y-0.5 sm:p-6">
+                  <span className={`grid h-10 w-10 place-items-center rounded-full text-forest-deep transition-transform group-hover:rotate-45 ${m.dot}`}><Icon name="arrow" size={20} /></span>
+                  <span><span className="display block text-[17px] font-extrabold leading-tight sm:text-2xl">{m.t}</span><span className="mt-1 block text-sm text-forest/70">{m.d}</span></span>
                 </Link>
               </li>
             ))}
@@ -164,7 +164,7 @@ export default async function HomePage() {
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-forest/75">Натуральные соки и фруктовые смузи, которые дети любят, а взрослые выбирают для себя. Свежие фрукты, ничего лишнего.</p>
             <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-4">
               {FAMILY.map(([ic, t]) => (
-                <li key={t} className="flex items-center gap-3"><IconBadge name={ic} className="border-orange text-orange-deep" /><span className="text-xs font-bold uppercase leading-tight tracking-wide">{t}</span></li>
+                <li key={t} className="flex items-center gap-3"><IconBadge name={ic} className="border-orange text-orange-deep" /><span className="text-sm font-semibold leading-tight">{t}</span></li>
               ))}
             </ul>
             <Link href="/menu?category=smoothies" className="btn btn-forest mt-8">Выбрать смузи</Link>
@@ -174,7 +174,6 @@ export default async function HomePage() {
 
       {/* Энергия на твои цели: тёмный «спортивный» блок */}
       <section aria-labelledby="energy" className="relative overflow-hidden bg-forest-deep text-white">
-        <div aria-hidden className="absolute -right-24 top-0 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(closest-side,rgb(255_138_0/0.32),transparent)]" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:py-24 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <p className="script text-3xl text-orange">Натуральные фрукты. Настоящий вкус.</p>
@@ -182,14 +181,14 @@ export default async function HomePage() {
             <p className="mt-5 max-w-md text-lg text-white/75">Твоё движение вперёд: белковые смузи и свежие соки до и после тренировки.</p>
             <ul className="mt-8 grid gap-5 sm:grid-cols-2">
               {ENERGY.map(([ic, t]) => (
-                <li key={t} className="flex items-center gap-4"><IconBadge name={ic} className="border-white/80 text-white" /><span className="text-xs font-bold uppercase leading-tight tracking-wide">{t}</span></li>
+                <li key={t} className="flex items-center gap-4"><IconBadge name={ic} className="border-white/80 text-white" /><span className="text-sm font-semibold leading-tight">{t}</span></li>
               ))}
             </ul>
             <Link href="/menu?diet=protein" className="btn btn-primary mt-10 text-lg">Меню с белком</Link>
           </div>
           <div className="relative mx-auto w-full max-w-sm">
             <Image src="/brand/gym.jpg" alt="Спортсмен с апельсиновым соком Vitamin B" width={295} height={330} sizes="384px" className="aspect-[4/4.4] w-full rounded-[2rem] object-cover shadow-[0_30px_80px_-30px_#ff8a00] ring-1 ring-white/20" />
-            <p className="display absolute -bottom-4 -left-3 rounded-full bg-orange px-4 py-2 text-xs font-extrabold uppercase tracking-wide text-forest-deep shadow-lg">Good juice, good mood</p>
+            <p className="display absolute -bottom-4 -left-3 rounded-full bg-orange px-4 py-2 text-sm font-extrabold text-forest-deep shadow-lg">Good juice, good mood</p>
           </div>
         </div>
       </section>
@@ -224,7 +223,7 @@ export default async function HomePage() {
         <ol className="mt-10 grid gap-8 sm:grid-cols-3">
           {STEPS.map(([t, d], i) => (
             <li key={t} className="flex gap-4">
-              <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-full bg-linear-to-br from-sun to-orange text-2xl font-black text-forest-deep">{i + 1}</span>
+              <span className="display grid h-14 w-14 shrink-0 place-items-center rounded-full bg-orange text-2xl font-black text-forest-deep">{i + 1}</span>
               <div><p className="text-lg font-extrabold">{t}</p><p className="mt-1 leading-relaxed text-forest/70">{d}</p></div>
             </li>
           ))}
