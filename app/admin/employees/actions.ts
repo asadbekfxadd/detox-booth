@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/api";
 import { toMessage } from "@/lib/errors";
 import { createEmployee, updateEmployee, setEmployeeActive, resetPassword, setSalary } from "@/services/employees";
+import { issueLink, unlinkStaff } from "@/services/bot-sales";
+import type { LinkState } from "@/components/admin/StaffTelegram";
 import type { OpState } from "@/components/admin/ops";
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? "");
@@ -42,4 +44,16 @@ export async function setSalaryAction(_p: OpState, fd: FormData): Promise<OpStat
   revalidatePath("/admin/employees");
   revalidatePath("/admin/costing");
   redirect("/admin/employees?ok=salary");
+}
+
+export async function issueTelegramLinkAction(_p: LinkState, fd: FormData): Promise<LinkState> {
+  try { const u = await requireUser("employees.manage"); return { link: await issueLink(u, s(fd, "id")) }; }
+  catch (e) { return { error: toMessage(e) }; }
+}
+
+export async function unlinkTelegramAction(_p: LinkState, fd: FormData): Promise<LinkState> {
+  try { const u = await requireUser("employees.manage"); await unlinkStaff(u, s(fd, "id")); }
+  catch (e) { return { error: toMessage(e) }; }
+  revalidatePath("/admin/employees");
+  return { unlinked: true };
 }

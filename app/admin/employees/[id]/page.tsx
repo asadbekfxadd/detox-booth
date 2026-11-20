@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { FormShell, Field, fieldClass } from "@/components/admin/ops";
 import { EmployeeFields } from "@/components/admin/EmployeeFields";
 import { assignableRoles, getEmployee, ROLE_LABEL } from "@/services/employees";
-import { updateEmployeeAction, resetPasswordAction, setSalaryAction } from "../actions";
+import { StaffTelegram } from "@/components/admin/StaffTelegram";
+import { can } from "@/lib/rbac";
+import { updateEmployeeAction, resetPasswordAction, setSalaryAction, issueTelegramLinkAction, unlinkTelegramAction } from "../actions";
 
 export default async function EditEmployeePage({ params }: { params: Promise<{ id: string }> }) {
   const me = await pageGuard("employees.manage");
@@ -30,6 +32,7 @@ export default async function EditEmployeePage({ params }: { params: Promise<{ i
           <span className="mt-1 block text-xs text-neutral-500">Входит в фонд оплаты труда и делится на число напитков в месяц. Пусто — сотрудник не учитывается в себестоимости (например, владелец).</span>
         </Field>
       </FormShell>
+      <StaffTelegram userId={u.id} linked={!!u.telegramId} canLink={u.isActive && can(u.role, "pos.use")} issueAction={issueTelegramLinkAction} unlinkAction={unlinkTelegramAction} />
       <FormShell action={resetPasswordAction} submitLabel="Сменить пароль" cancelHref="/admin/employees">
         <input type="hidden" name="id" value={u.id} />
         <h2 className="font-semibold">Новый пароль</h2>

@@ -17,7 +17,7 @@ type Actor = { id: string; role: Role };
 
 /** Кого может создавать/менять актёр: владелец — всех, администратор — всех, кроме владельца и администраторов. */
 export const assignableRoles = (actor: Role): Role[] => (actor === "OWNER" ? ROLES : ROLES.filter((r) => r !== "OWNER" && r !== "ADMIN"));
-const canManage = (actor: Role, target: Role) => actor === "OWNER" || (target !== "OWNER" && target !== "ADMIN");
+export const canManage = (actor: Role, target: Role) => actor === "OWNER" || (target !== "OWNER" && target !== "ADMIN");
 
 const password = z.string().min(8, "Пароль — минимум 8 символов").max(72, "Пароль слишком длинный");
 const base = z.object({
@@ -43,7 +43,7 @@ export async function listEmployees() {
     select: { id: true, name: true, email: true, role: true, isActive: true, location: { select: { name: true } } },
   });
 }
-export const getEmployee = (id: string) => prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, isActive: true, locationId: true, monthlySalary: true } });
+export const getEmployee = (id: string) => prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, isActive: true, locationId: true, monthlySalary: true, telegramId: true } });
 
 export async function createEmployee(actor: Actor, input: unknown) {
   const d = createSchema.parse(input);
