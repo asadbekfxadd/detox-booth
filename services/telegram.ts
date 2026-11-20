@@ -7,7 +7,7 @@ import { normalizePhone, type Actor } from "@/services/pos";
 import { botToken, telegramConfigured, tgCall, verifyInitData, webhookSecret, type TgUser } from "@/lib/telegram";
 import { linkPayload } from "@/lib/tg-link";
 import { staffHelp } from "@/lib/bot-sales-messages";
-import { handleStaffText, linkStaff, staffFor } from "@/services/bot-sales";
+import { handleStaffGroupText, handleStaffText, linkStaff, staffFor } from "@/services/bot-sales";
 import { nearestLocation, roundCoord, validCoord, kmLabel } from "@/lib/geo";
 import { greeting, helpText, nearText, thanksGeo, kindForStatus, locationsMessage, orderMessage, ordersMessage, thanksPhone, unknownText, type OrderKind } from "@/lib/telegram-messages";
 
@@ -89,7 +89,7 @@ const replyKeyboard = (hasPhone: boolean, hasGeo: boolean) => {
 const menuButton = { reply_markup: { inline_keyboard: [[openApp("/menu", "Открыть меню")]] } };
 
 type TgMessage = {
-  chat: { id: number; type: string }; from?: { id: number; is_bot?: boolean; first_name?: string; last_name?: string; username?: string; language_code?: string };
+  message_id?: number; chat: { id: number; type: string }; from?: { id: number; is_bot?: boolean; first_name?: string; last_name?: string; username?: string; language_code?: string };
   text?: string; contact?: { phone_number: string; user_id?: number }; location?: { latitude: number; longitude: number };
 };
 export type TgUpdate = { message?: TgMessage; my_chat_member?: { chat: { id: number; type: string }; new_chat_member?: { status?: string } } };
@@ -97,6 +97,17 @@ export type TgUpdate = { message?: TgMessage; my_chat_member?: { chat: { id: num
 async function ordersFor(telegramId: string) {
   const rows = await prisma.order.findMany({ where: { telegramId }, orderBy: { createdAt: "desc" }, take: 5, include: { items: { include: { product: { select: { name: true } } } } } });
   return rows;
+}
+
+/** Рабочая группа: отвечаем только на продажи привязанных сотрудников, чужих и обычные разговоры не трогаем (и не сохраняем участников группы) */
+async function handleGroup(m: TgMessage): Promise<void> {
+  const text = (m.text ?? "").trim();
+  if (!text || !m.from) return;
+  const staff = await staffFor(String(m.from.id));
+  if (!staff) return;
+  for (const reply of await handleStaffGroupText(staff, text.replace(/@\w+/g, " "))) {
+    await send(String(m.chat.id), reply, m.message_id ? { reply_parameters: { message_id: m.message_id, allow_sending_without_reply: true } } : {});
+  }
 }
 
 /** Один входящий апдейт от Telegram. Ошибки наружу не пробрасываем: вебхук всегда отвечает 200, иначе Telegram будет слать апдейт повторно. */
@@ -108,6 +119,7 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
     return;
   }
   const m = update.message;
+  if (m?.from && !m.from.is_bot && (m.chat.type === "group" || m.chat.type === "supergroup")) { await handleGroup(m); return; }
   if (!m?.from || m.from.is_bot || m.chat.type !== "private") return;
   const chatId = String(m.chat.id);
   const me = { id: String(m.from.id), firstName: m.from.first_name || "Гость", lastName: m.from.last_name, username: m.from.username, languageCode: m.from.language_code };
