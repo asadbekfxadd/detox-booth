@@ -5,6 +5,9 @@ import { siteUrl } from "@/lib/site-url";
 import { getBrand } from "@/services/brand";
 import { normalizePhone, type Actor } from "@/services/pos";
 import { botToken, telegramConfigured, tgCall, verifyInitData, webhookSecret, type TgUser } from "@/lib/telegram";
+import { linkPayload } from "@/lib/tg-link";
+import { staffHelp } from "@/lib/bot-sales-messages";
+import { handleStaffText, linkStaff, staffFor } from "@/services/bot-sales";
 import { nearestLocation, roundCoord, validCoord, kmLabel } from "@/lib/geo";
 import { greeting, helpText, nearText, thanksGeo, kindForStatus, locationsMessage, orderMessage, ordersMessage, thanksPhone, unknownText, type OrderKind } from "@/lib/telegram-messages";
 
@@ -131,6 +134,10 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
   const prof = await prisma.telegramUser.findUnique({ where: { id: me.id }, select: { phone: true, lat: true } });
   const hasPhone = !!prof?.phone, hasGeo = prof?.lat != null;
 
+  if (cmd === "start") {
+    const token = linkPayload(text.split(/\s+/)[1]);
+    if (token) { await send(chatId, await linkStaff(token, me.id)); return; }
+  }
   if (cmd === "start") { await send(chatId, greeting((await getBrand()).name, me.firstName), replyKeyboard(hasPhone, hasGeo)); await send(chatId, "Меню и заказ в один клик:", menuButton); return; }
   if (cmd === "menu") { await send(chatId, "Всё меню здесь:", menuButton); return; }
   if (cmd === "orders" || cmd === "мои заказы") {
@@ -144,7 +151,13 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
     await send(chatId, locationsMessage(list), menuButton);
     return;
   }
-  if (cmd === "help") { await send(chatId, helpText, replyKeyboard(hasPhone, hasGeo)); return; }
+  const staff = await staffFor(me.id);
+  if (cmd === "help") { await send(chatId, staff ? `${helpText}\n\n${staffHelp}` : helpText, replyKeyboard(hasPhone, hasGeo)); return; }
+  if (staff && text) {
+    // сотрудник с привязанным Telegram: всё остальное текстом считаем записью продажи или командой кассы
+    for (const reply of await handleStaffText(staff, text)) await send(chatId, reply);
+    return;
+  }
   await send(chatId, unknownText, menuButton);
 }
 

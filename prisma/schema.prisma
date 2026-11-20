@@ -182,6 +182,8 @@ model User {
   isActive Boolean @default(true)
   /// Оклад в месяц, UZS. Входит в фонд оплаты труда для калькуляции. Пусто — сотрудник не учитывается в себестоимости
   monthlySalary Decimal? @db.Decimal(14,2)
+  /// Telegram сотрудника: через бота он записывает продажи текстом («2 латте»). Привязка по одноразовой ссылке из админки
+  telegramId String? @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   shifts Shift[]

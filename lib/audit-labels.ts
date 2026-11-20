@@ -29,6 +29,7 @@ export const ACTION_LABEL: Record<string, string> = {
   EXPENSE_CREATED: "Расход добавлен", EXPENSE_DELETED: "Расход удалён",
   EMPLOYEE_CREATED: "Сотрудник добавлен", EMPLOYEE_UPDATED: "Сотрудник изменён", EMPLOYEE_ACTIVATED: "Сотрудник включён",
   EMPLOYEE_DEACTIVATED: "Сотрудник отключён", EMPLOYEE_PASSWORD_RESET: "Смена пароля сотрудника", EMPLOYEE_SALARY_CHANGED: "Изменён оклад сотрудника",
+  STAFF_TELEGRAM_LINKED: "Сотрудник привязал Telegram для продаж", STAFF_TELEGRAM_UNLINKED: "Telegram сотрудника отвязан",
   MIX_SETTINGS_CHANGED: "Настройки «Свой микс» изменены", EQUIPMENT_CREATED: "Оборудование добавлено", EQUIPMENT_UPDATED: "Оборудование изменено", EQUIPMENT_TOGGLED: "Оборудование вкл/выкл в калькуляции", EQUIPMENT_DELETED: "Оборудование удалено",
 };
 export const actionLabel = (a: string) => ACTION_LABEL[a] ?? a;
