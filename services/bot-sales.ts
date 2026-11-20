@@ -114,8 +114,10 @@ async function sellable(): Promise<MatchProduct[]> {
   }));
 }
 
-async function recordSale(user: StaffActor, text: string): Promise<string[]> {
+async function recordSale(user: StaffActor, text: string, quiet = false): Promise<string[]> {
   const parsed = parseSale(text, await sellable());
+  // в группе люди ещё и просто болтают: если ни одной позиции не нашлось и ничего похожего на напиток нет, молчим
+  if (quiet && !parsed.lines.length && parsed.errors.every((x) => x.reason === "unknown")) return [];
   if (!parsed.lines.length && !parsed.errors.length) return ["Не понял 🙂 Напишите, что продали, например: <code>яблочный сок</code> или <code>2 латте</code>.\n\n" + M.staffHelp];
   if (parsed.errors.length || !parsed.lines.length) return [M.saleFailed(parsed.errors, parsed.lines)];
 
@@ -187,6 +189,18 @@ export async function handleStaffText(user: StaffActor, raw: string): Promise<st
     if (spot) return await chooseLocationCmd(user, spot[1] ? Number(spot[1]) : null);
     if (/^(помощь|справка|как)$/.test(t)) return [M.staffHelp];
     return await recordSale(user, raw);
+  } catch (e) {
+    return [M.saleStopped(toMessage(e))];
+  }
+}
+
+/** Сообщение в рабочей группе: продажу пробиваем только от привязанного сотрудника и только по понятному тексту, остальное не трогаем */
+export async function handleStaffGroupText(user: StaffActor, raw: string): Promise<string[]> {
+  const t = raw.trim().toLowerCase().replace(/^[^\p{L}\d]+/u, "").replace(/\s+/g, " ");
+  try {
+    if (/^(отмена|отменить|undo)$/.test(t)) return await undoLast(user);
+    if (/^(итог|итоги)$/.test(t)) return await summary(user);
+    return await recordSale(user, raw, true);
   } catch (e) {
     return [M.saleStopped(toMessage(e))];
   }
