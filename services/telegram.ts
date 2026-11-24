@@ -9,6 +9,7 @@ import { linkPayload } from "@/lib/tg-link";
 import { staffHelp } from "@/lib/bot-sales-messages";
 import { handlePurchaseCallback, handlePurchaseMessage, type TgCallback } from "@/services/bot-purchase";
 import { handleStaffGroupText, handleStaffText, linkStaff, staffFor } from "@/services/bot-sales";
+import { handleReportMessage } from "@/services/daily-report";
 import { nearestLocation, roundCoord, validCoord, kmLabel } from "@/lib/geo";
 import { greeting, helpText, nearText, thanksGeo, kindForStatus, locationsMessage, orderMessage, ordersMessage, thanksPhone, unknownText, type OrderKind } from "@/lib/telegram-messages";
 
@@ -107,8 +108,14 @@ async function handleGroup(m: TgMessage): Promise<void> {
   if (!text || !m.from) return;
   const staff = await staffFor(String(m.from.id));
   if (!staff) return;
-  if (await handlePurchaseMessage(staff, { ...m, text: text.replace(/@\w+/g, " ").trim() })) return;
-  for (const reply of await handleStaffGroupText(staff, text.replace(/@\w+/g, " "))) {
+  const clean = text.replace(/@\w+/g, " ");
+  const rep = await handleReportMessage(staff, clean, String(m.chat.id), true, String(m.from.id));
+  if (rep) {
+    for (const reply of rep) await send(String(m.chat.id), reply, m.message_id ? { reply_parameters: { message_id: m.message_id, allow_sending_without_reply: true } } : {});
+    return;
+  }
+  if (await handlePurchaseMessage(staff, { ...m, text: clean.trim() })) return;
+  for (const reply of await handleStaffGroupText(staff, clean)) {
     await send(String(m.chat.id), reply, m.message_id ? { reply_parameters: { message_id: m.message_id, allow_sending_without_reply: true } } : {});
   }
 }
@@ -171,6 +178,8 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
   if (cmd === "help") { await send(chatId, staff ? `${helpText}\n\n${staffHelp}` : helpText, replyKeyboard(hasPhone, hasGeo)); return; }
   if (staff && text && (await handlePurchaseMessage(staff, m))) return;
   if (staff && text) {
+    const rep = await handleReportMessage(staff, text, chatId, false, me.id);
+    if (rep) { for (const reply of rep) await send(chatId, reply); return; }
     // сотрудник с привязанным Telegram: всё остальное текстом считаем записью продажи или командой кассы
     for (const reply of await handleStaffText(staff, text)) await send(chatId, reply);
     return;
