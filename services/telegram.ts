@@ -7,6 +7,7 @@ import { normalizePhone, type Actor } from "@/services/pos";
 import { botToken, telegramConfigured, tgCall, verifyInitData, webhookSecret, type TgUser } from "@/lib/telegram";
 import { linkPayload } from "@/lib/tg-link";
 import { staffHelp } from "@/lib/bot-sales-messages";
+import { handlePurchaseCallback, handlePurchaseMessage, type TgCallback } from "@/services/bot-purchase";
 import { handleStaffGroupText, handleStaffText, linkStaff, staffFor } from "@/services/bot-sales";
 import { nearestLocation, roundCoord, validCoord, kmLabel } from "@/lib/geo";
 import { greeting, helpText, nearText, thanksGeo, kindForStatus, locationsMessage, orderMessage, ordersMessage, thanksPhone, unknownText, type OrderKind } from "@/lib/telegram-messages";
@@ -90,9 +91,10 @@ const menuButton = { reply_markup: { inline_keyboard: [[openApp("/menu", "Отк
 
 type TgMessage = {
   message_id?: number; chat: { id: number; type: string }; from?: { id: number; is_bot?: boolean; first_name?: string; last_name?: string; username?: string; language_code?: string };
+  reply_to_message?: { message_id?: number };
   text?: string; contact?: { phone_number: string; user_id?: number }; location?: { latitude: number; longitude: number };
 };
-export type TgUpdate = { message?: TgMessage; my_chat_member?: { chat: { id: number; type: string }; new_chat_member?: { status?: string } } };
+export type TgUpdate = { message?: TgMessage; callback_query?: TgCallback; my_chat_member?: { chat: { id: number; type: string }; new_chat_member?: { status?: string } } };
 
 async function ordersFor(telegramId: string) {
   const rows = await prisma.order.findMany({ where: { telegramId }, orderBy: { createdAt: "desc" }, take: 5, include: { items: { include: { product: { select: { name: true } } } } } });
@@ -105,6 +107,7 @@ async function handleGroup(m: TgMessage): Promise<void> {
   if (!text || !m.from) return;
   const staff = await staffFor(String(m.from.id));
   if (!staff) return;
+  if (await handlePurchaseMessage(staff, { ...m, text: text.replace(/@\w+/g, " ").trim() })) return;
   for (const reply of await handleStaffGroupText(staff, text.replace(/@\w+/g, " "))) {
     await send(String(m.chat.id), reply, m.message_id ? { reply_parameters: { message_id: m.message_id, allow_sending_without_reply: true } } : {});
   }
@@ -112,6 +115,7 @@ async function handleGroup(m: TgMessage): Promise<void> {
 
 /** Один входящий апдейт от Telegram. Ошибки наружу не пробрасываем: вебхук всегда отвечает 200, иначе Telegram будет слать апдейт повторно. */
 export async function handleUpdate(update: TgUpdate): Promise<void> {
+  if (update.callback_query) { await handlePurchaseCallback(update.callback_query); return; }
   const my = update.my_chat_member;
   if (my && my.chat.type === "private") {
     const gone = my.new_chat_member?.status === "kicked";
@@ -165,6 +169,7 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
   }
   const staff = await staffFor(me.id);
   if (cmd === "help") { await send(chatId, staff ? `${helpText}\n\n${staffHelp}` : helpText, replyKeyboard(hasPhone, hasGeo)); return; }
+  if (staff && text && (await handlePurchaseMessage(staff, m))) return;
   if (staff && text) {
     // сотрудник с привязанным Telegram: всё остальное текстом считаем записью продажи или командой кассы
     for (const reply of await handleStaffText(staff, text)) await send(chatId, reply);
@@ -225,7 +230,7 @@ export async function connectBot(user: Actor) {
   if (!siteUrl().startsWith("https://")) throw new ApiError(400, "Telegram работает только с https-адресом. Задайте SITE_URL с https:// (на Railway это домен сервиса).");
   const brand = await getBrand();
   const steps: [string, Record<string, unknown>][] = [
-    ["setWebhook", { url: `${siteUrl()}/api/telegram/webhook`, secret_token: webhookSecret(), allowed_updates: ["message", "my_chat_member"], max_connections: 20 }],
+    ["setWebhook", { url: `${siteUrl()}/api/telegram/webhook`, secret_token: webhookSecret(), allowed_updates: ["message", "callback_query", "my_chat_member"], max_connections: 20 }],
     ["setMyCommands", { commands: COMMANDS }],
     ["setChatMenuButton", { menu_button: { type: "web_app", text: "Меню", web_app: { url: `${siteUrl()}/` } } }],
     ["setMyShortDescription", { short_description: `${brand.name}: меню и заказ в Telegram`.slice(0, 120) }],

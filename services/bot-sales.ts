@@ -6,7 +6,7 @@ import { canManage } from "@/services/employees";
 import { toMessage } from "@/lib/errors";
 import { MIX_PRODUCT_NAME } from "@/lib/mix";
 import { parseSale, type MatchProduct } from "@/lib/sale-parse";
-import { isArrivalText, parseArrival, type IngUnit } from "@/lib/arrival-parse";
+import { isArrivalText, parseArrival, type ArrivalLine, type IngUnit } from "@/lib/arrival-parse";
 import { createPurchase, receivePurchase, setPurchaseStatus } from "@/services/purchases";
 import { makeLinkToken, readLinkToken } from "@/lib/tg-link";
 import * as M from "@/lib/bot-sales-messages";
@@ -186,7 +186,7 @@ async function closeCmd(user: StaffActor, amount: string | undefined): Promise<s
 
 const NO_SUPPLIER = "Без поставщика";
 
-async function arrivalLocation(user: StaffActor, no: number | null): Promise<{ id: string; name: string } | { ask: string }> {
+export async function arrivalLocation(user: StaffActor, no: number | null): Promise<{ id: string; name: string } | { ask: string }> {
   const active = await prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } });
   if (!canSwitchLocation(user.role)) {
     const own = active.find((l) => l.id === user.locationId);
@@ -211,18 +211,22 @@ async function recordArrival(user: StaffActor, text: string): Promise<string[]> 
   if (p.mismatch && p.claimedTotal != null) return [M.arrivalMismatch(p.sum, p.claimedTotal, p.lines)];
   const loc = await arrivalLocation(user, p.locationNo);
   if ("ask" in loc) return [loc.ask];
+  return [await commitArrival(user, loc, p.lines)];
+}
 
+/** Принимает товар на склад: закупка «Без поставщика» → приёмка (остатки, партия, средняя цена, аудит). Возвращает текст ответа. */
+export async function commitArrival(user: StaffActor, loc: { id: string; name: string }, lines: ArrivalLine[]): Promise<string> {
   const supplier = (await prisma.supplier.findFirst({ where: { name: NO_SUPPLIER }, select: { id: true } })) ?? (await prisma.supplier.create({ data: { name: NO_SUPPLIER }, select: { id: true } }));
-  const id = await createPurchase({ locationId: loc.id, supplierId: supplier.id, intent: "ordered", items: p.lines.map((l) => ({ ingredientId: l.ingredientId, quantity: l.quantity, unitCost: l.unitCost })) }, user);
+  const id = await createPurchase({ locationId: loc.id, supplierId: supplier.id, intent: "ordered", items: lines.map((l) => ({ ingredientId: l.ingredientId, quantity: l.quantity, unitCost: l.unitCost })) }, user);
   try {
     const items = await prisma.purchaseItem.findMany({ where: { purchaseId: id }, select: { id: true, ingredientId: true } });
-    const byIng = new Map(p.lines.map((l) => [l.ingredientId, l]));
+    const byIng = new Map(lines.map((l) => [l.ingredientId, l]));
     await receivePurchase(id, { lines: items.map((i) => ({ itemId: i.id, quantity: byIng.get(i.ingredientId)!.quantity, unitCost: byIng.get(i.ingredientId)!.unitCost })) }, user);
   } catch (e) {
     await setPurchaseStatus(id, "CANCELLED", user).catch(() => undefined); // не оставляем висеть полузаписанный заказ
-    return [`❌ Не получилось записать приход: ${toMessage(e)}\nНичего не записано.`];
+    return `❌ Не получилось записать приход: ${toMessage(e)}\nНичего не записано.`;
   }
-  return [M.arrivalDone({ location: loc.name, lines: p.lines, total: p.lines.reduce((a, l) => a + l.total, 0) })];
+  return M.arrivalDone({ location: loc.name, lines, total: lines.reduce((a, l) => a + l.total, 0) });
 }
 
 /** Любое текстовое сообщение сотрудника: команда или запись продажи. Возвращает тексты ответов по порядку. */
