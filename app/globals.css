@@ -261,3 +261,86 @@ html:has(.site-neon), body:has(.site-neon) { background: #04150d; }
 .site-neon .btn-accent { background: rgb(255 255 255 / 0.06); color: var(--color-orange); border-color: rgb(255 138 0 / 0.55); box-shadow: 0 0 22px -8px rgb(255 138 0 / 0.6); }
 .site-neon .btn-accent:hover:not(:disabled) { background: var(--color-orange); color: var(--color-forest-deep); }
 .site-neon button:disabled, .site-neon .btn:disabled, .site-neon .text-forest-deep:disabled, .site-neon [class*="bg-[radial-gradient"] .text-forest-deep:disabled { color: rgb(228 246 234 / 0.55); background-color: rgb(255 255 255 / 0.08); }
+
+
+/* ───────────── Главная «Кино»: тёмная сцена с прокруткой (вид главной «Кино» в «Бренд и сайт») ───────────── */
+.site-cinema { --font-display: Prata, "Onest Variable", Georgia, serif; }
+.site-cinema h1, .site-cinema h2 { font-weight: 400; letter-spacing: -0.025em; line-height: 1.15; }
+html:has(.site-cinema) { scroll-behavior: smooth; }
+/* Текстовая кнопка: подчёркивание и стрелка по диагонали */
+.cta-line { display: inline-flex; align-items: center; gap: 1.5rem; min-height: 54px; padding: 0.9rem 0; border-bottom: 1px solid currentColor; font-size: 14px; white-space: nowrap; transition: gap 0.3s ease; }
+.cta-arrow { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; transform: rotate(-45deg); transition: transform 0.3s ease; }
+@media (hover: hover) { .cta-line:hover .cta-arrow { transform: rotate(-45deg) translate(3px, 0); } }
+.cta-line:focus-visible { outline: 2px solid currentColor; outline-offset: 5px; }
+
+.cinema-hero { --S: 100vh; position: relative; background: #04150d; color: #fff; }
+@supports (height: 100svh) { .cinema-hero { --S: 100svh; } }
+.cinema-stage { position: sticky; top: 0; z-index: 2; height: var(--S); min-height: 480px; overflow: hidden; perspective: 1600px; isolation: isolate; }
+.cinema-scene { position: absolute; inset: 0; overflow: hidden; background: #04150d; transform-origin: 50% 75%; --f: 0; transform: translate3d(0, calc(var(--f) * -112%), 0) rotateX(calc(var(--f) * 9deg)) scale(calc(1 - var(--f) * 0.18)); will-change: transform; backface-visibility: hidden; }
+.cinema-photos { position: absolute; inset: 0; transform: scale(1.04); will-change: transform; }
+.cinema-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: opacity; }
+.cinema-fallback { position: absolute; inset: 0; background: radial-gradient(circle at 70% 40%, #ff9a1a 0%, #b45a00 18%, transparent 46%), radial-gradient(60% 50% at 20% 80%, #14803f, transparent 70%), #072d17; }
+.cinema-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(2 12 7 / 0.55) 0%, rgb(2 12 7 / 0.38) 26%, rgb(2 12 7 / 0.55) 57%, rgb(2 12 7 / 0.82) 100%); }
+
+.cinema-footer { position: absolute; z-index: 3; bottom: 32px; left: clamp(24px, 4.8vw, 88px); right: clamp(24px, 4.8vw, 88px); display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; font-size: 12px; line-height: 1.4; }
+.cinema-place { opacity: 0.86; }
+.cinema-cue { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 14px; white-space: nowrap; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; }
+.cinema-stem { height: 28px; width: 1px; background: rgb(255 255 255 / 0.55); }
+.cinema-chapters { display: flex; align-items: center; gap: 12px; margin-left: auto; font-variant-numeric: tabular-nums; }
+.cinema-total { opacity: 0.6; }
+.cinema-rule { width: 48px; height: 1px; background: rgb(255 255 255 / 0.24); }
+.cinema-rule > span { display: block; height: 1px; width: 0; background: #fff; }
+
+.cinema-story { position: relative; z-index: 3; margin-top: calc(var(--S) * -1); pointer-events: none; }
+.cinema-step { position: relative; height: calc(var(--S) * 1.1); }
+.cinema-step--last { height: var(--S); }
+.cinema-tail { height: calc(var(--S) * 0.8); }
+.cinema-box { position: relative; height: var(--S); min-height: 480px; padding: 0 24px; text-align: center; will-change: opacity, filter; }
+.cinema-box h1, .cinema-box h2 { position: absolute; top: 35%; left: 50%; transform: translateX(-50%); margin: 0; font-family: var(--font-display); font-size: clamp(1.6rem, 7.6vw, 3.5rem); text-transform: uppercase; white-space: nowrap; color: #fff; text-shadow: 0 2px 30px rgb(0 0 0 / 0.25); }
+.cinema-box p { position: absolute; top: 47%; left: 50%; transform: translateX(-50%); margin: 0; width: calc(100% - 52px); max-width: 460px; font-size: 16px; line-height: 1.65; text-wrap: pretty; color: rgb(255 255 255 / 0.92); }
+.cinema-box .cta-line { position: absolute; top: 71%; left: 50%; transform: translateX(-50%); pointer-events: auto; color: #fff; }
+.cinema-step[inert] .cta-line { pointer-events: none; }
+.cinema-next { position: relative; z-index: 1; }
+
+@media (min-width: 761px) {
+  .cinema-box h1, .cinema-box h2 { top: 31%; font-size: clamp(2.7rem, 7.25vw, 6rem); }
+  .cinema-box p { top: 51%; font-size: clamp(16px, 1.4vw, 19px); width: min(520px, calc(100% - 48px)); max-width: none; }
+  .cinema-box .cta-line { top: 72%; }
+}
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  /* Дорожка 5,6 экрана: фото листаются 3,6, финал 1 */
+  .cinema-step { height: calc(var(--S) * 1.25); }
+  .cinema-step--last { height: var(--S); }
+  .cinema-tail { height: calc(var(--S) * 2.1); }
+  .cinema-next { margin-top: calc(var(--S) * -1); }
+}
+@media (max-width: 760px) {
+  .cinema-place { display: none; }
+  .cinema-cue { left: 0; transform: none; align-items: flex-start; font-size: 9px; gap: 11px; letter-spacing: 0.14em; }
+  .cinema-stem { height: 23px; }
+  .cinema-footer { bottom: 26px; }
+}
+@media (max-width: 760px) and (max-height: 680px) {
+  .cinema-box h1, .cinema-box h2 { top: 28%; }
+  .cinema-box p { top: 42%; line-height: 1.45; }
+  .cinema-box .cta-line { top: 76%; min-height: 47px; }
+  .cinema-stem { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.site-cinema) { scroll-behavior: auto; }
+  .cinema-stage { position: relative; height: 70vh; height: 70svh; min-height: 420px; perspective: none; }
+  .cinema-scene { transform: none !important; will-change: auto; }
+  .cinema-photos { transform: none; will-change: auto; }
+  .cinema-footer, .cinema-tail { display: none; }
+  .cinema-story { margin-top: 0; }
+  .cinema-step, .cinema-step--last { height: auto; }
+  .cinema-box { height: auto; min-height: 0; padding: 4.5rem 24px 0; will-change: auto; }
+  .cinema-box h1, .cinema-box h2, .cinema-box p, .cinema-box .cta-line { position: static; transform: none; white-space: normal; }
+  .cinema-box h1, .cinema-box h2 { margin-bottom: 0.4em; }
+  .cinema-box p { margin: 0 auto 1.6rem; }
+  .cinema-box .cta-line { margin-bottom: 1rem; }
+  .cinema-step:first-child { margin-top: calc(70svh * -1); height: 70svh; min-height: 420px; padding-top: 0; }
+  .cinema-step:first-child .cinema-box { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 3rem; }
+  .cinema-step:not(:first-child) { padding-bottom: 3rem; }
+  .cinema-next { margin-top: 0 !important; }
+}

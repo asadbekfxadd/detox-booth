@@ -21,8 +21,8 @@ export type Brand = {
   /** акцентный цвет: кнопки и выделения */
   accent: string;
   ticker: string[];
-  /** vitaminb — витрина с фото и подборками Vitamin B; classic — универсальная главная для любого заведения */
-  homeStyle: "vitaminb" | "classic";
+  /** vitaminb — витрина с фото и подборками Vitamin B; cinema — та же витрина, но с тёмным первым экраном, который листается прокруткой; classic — универсальная главная для любого заведения */
+  homeStyle: "vitaminb" | "classic" | "cinema";
   /** тёмная «неоновая» тема сайта: стеклянные карточки, свечение, сетка на фоне */
   neon: boolean;
   /** показывать ли Мандаринку-помощницу */
@@ -63,6 +63,12 @@ export const BLANK_BRAND: Brand = {
   logoUrl: "", instagram: "", primary: "#1f3b4d", accent: "#e8a33d", ticker: [], homeStyle: "classic", neon: false, assistant: false,
   heroTitle: "", heroText: "", heroImage: "", heroVideos: [],
 };
+
+/** Витрина с фото и подборками (vitaminb и cinema) против универсальной главной. */
+export const isShowcase = (b: Pick<Brand, "homeStyle">): boolean => b.homeStyle !== "classic";
+
+/** Тёмная тема сайта: включена галочкой «неон» или видом главной «Кино» (он тёмный по замыслу). */
+export const isDarkSite = (b: Pick<Brand, "homeStyle" | "neon">): boolean => b.neon || b.homeStyle === "cinema";
 
 export class BrandError extends Error {}
 
@@ -125,7 +131,7 @@ export function parseBrand(raw: Record<string, unknown>): Brand {
   if (contrast(accent, deep) < 4.5) throw new BrandError("Акцентный цвет слишком тёмный: текст на кнопках не читается. Выберите светлее.");
   const tickerRaw = Array.isArray(raw.ticker) ? raw.ticker : String(raw.ticker ?? "").split("\n");
   const ticker = tickerRaw.map((t) => clean(t, 40)).filter(Boolean).slice(0, 10);
-  const homeStyle = raw.homeStyle === "classic" ? "classic" : "vitaminb";
+  const homeStyle = raw.homeStyle === "classic" ? "classic" : raw.homeStyle === "cinema" ? "cinema" : "vitaminb";
   return {
     name,
     descriptor: clean(raw.descriptor, 40),

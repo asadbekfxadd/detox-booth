@@ -13,6 +13,16 @@ export function imageSet(src: string): { src: string; srcSet?: string } {
   return { src: base.toString(), srcSet: WIDTHS.map(at).join(", ") };
 }
 
+/** Для фото на весь экран (главная «Кино»): те же Unsplash-ссылки, но размеры до 2000 px, иначе на широком экране картинка мылится. */
+export function wideImageSet(src: string): { src: string; srcSet?: string } {
+  let u: URL;
+  try { u = new URL(src); } catch { return { src }; }
+  if (u.hostname !== "images.unsplash.com") return { src };
+  const at = (w: number) => { const x = new URL(u); x.searchParams.set("w", String(w)); x.searchParams.set("q", "72"); return `${x.toString()} ${w}w`; };
+  const base = new URL(u); base.searchParams.set("w", "1200"); base.searchParams.set("q", "72");
+  return { src: base.toString(), srcSet: [720, 1200, 1600, 2000].map(at).join(", ") };
+}
+
 export const SIZES = {
   arch: "(min-width: 1024px) 280px, (min-width: 640px) 33vw, 50vw",
   wide: "(min-width: 768px) 600px, 100vw",

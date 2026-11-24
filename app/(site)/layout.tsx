@@ -8,6 +8,7 @@ import { Marquee } from "@/components/site/Marquee";
 import { ContactMap } from "@/components/site/ContactMap";
 import { Icon } from "@/components/site/Icon";
 import { getBrand } from "@/services/brand";
+import { isDarkSite } from "@/lib/brand-config";
 import { listCategories } from "@/services/catalog";
 import { bookingConfig } from "@/services/reservations";
 import { getMixSizes } from "@/services/mix";
@@ -26,7 +27,7 @@ const navLink = "rounded-full px-3.5 py-1.5 text-[15px] font-bold text-forest/80
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const [{ locations, current, chosen }, table, brand, cats, booking, mixSizes, deals] = await Promise.all([getSiteLocation(), getCurrentTable(), getBrand(), listCategories(), bookingConfig(), getMixSizes(), Promise.all([prisma.promotion.count({ where: { isActive: true, onSite: true } }), prisma.happyHour.count({ where: { isActive: true } })]).then(([a, b]) => a + b > 0)]);
   return (
-    <div className={`site flex min-h-screen flex-col${brand.neon ? " site-neon" : ""}`}>
+    <div className={`site flex min-h-screen flex-col${isDarkSite(brand) ? " site-neon" : ""}${brand.homeStyle === "cinema" ? " site-cinema" : ""}`}>
       <TelegramApp />
       <TelegramWelcome currentId={current?.id ?? null} />
       <header className="sticky top-0 z-30 border-b border-forest/10 bg-cream">

@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/caveat";
 import "@fontsource-variable/onest";
+import "@fontsource/prata/cyrillic-400.css";
+import "@fontsource/prata/latin-400.css";
 import "./globals.css";
 import { siteUrl } from "@/lib/site-url";
 import { getBrand } from "@/services/brand";
-import { brandPalette, paletteCss, pageTitle } from "@/lib/brand-config";
+import { brandPalette, paletteCss, pageTitle, isShowcase } from "@/lib/brand-config";
 
 // Название, цвета и тексты берутся из настроек, поэтому страницы строим на запросе.
 export const dynamic = "force-dynamic";
@@ -15,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(siteUrl()),
     applicationName: b.name,
-    openGraph: { type: "website", siteName: b.name, locale: "ru_RU", title, description: b.description, images: (b.heroImage || (b.homeStyle === "vitaminb" ? "/brand/family.jpg" : b.logoUrl)) ? [{ url: b.heroImage || (b.homeStyle === "vitaminb" ? "/brand/family.jpg" : b.logoUrl), alt: b.name }] : undefined },
+    openGraph: { type: "website", siteName: b.name, locale: "ru_RU", title, description: b.description, images: (b.heroImage || (isShowcase(b) ? "/brand/family.jpg" : b.logoUrl)) ? [{ url: b.heroImage || (isShowcase(b) ? "/brand/family.jpg" : b.logoUrl), alt: b.name }] : undefined },
     twitter: { card: "summary_large_image" },
     title: { default: title, template: `%s · ${b.name}` },
     description: b.description,
