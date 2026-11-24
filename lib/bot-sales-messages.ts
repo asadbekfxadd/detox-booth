@@ -1,5 +1,6 @@
 import { escapeHtml as e } from "@/lib/telegram";
 import type { LineError, Method, SaleLine } from "@/lib/sale-parse";
+import { UNIT_RU, type ArrivalError, type ArrivalLine } from "@/lib/arrival-parse";
 
 /** Тексты бота для сотрудника, который записывает продажи. HTML-разметка Telegram, всё из базы и от людей экранируем. */
 const sum = (n: number) => `${new Intl.NumberFormat("ru-RU").format(Math.round(n))} сум`;
@@ -79,5 +80,37 @@ export const staffHelp = [
   "",
   "Можно писать и в рабочую группу, где есть бот: ответит там же. Работают продажи, <code>отмена</code> и <code>итог</code>.",
   "",
+  "<b>Приход товара</b> (владелец, админ, менеджер, кладовщик):",
+  "<code>приход</code>",
+  "<code>морковь 50 кг 6000 сум</code>",
+  "<code>имбирь 30.000 сум кг</code> (без числа = 1 кг)",
+  "<code>общий: 360000</code> (по желанию: бот сверит сумму и не запишет, если не сходится)",
+  "Цена за 1 кг/шт. Если несколько точек, добавьте «точка 1».",
+  "",
   "Команды: <code>отмена</code> (последняя продажа), <code>итог</code> (смена), <code>закрыть 1250000</code> (закрыть смену, сумма в кассе), <code>точка 1</code> (выбрать точку).",
 ].join("\n");
+
+// ───────────── Приход ─────────────
+const num = (n: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 }).format(n);
+const arrLine = (l: ArrivalLine) => `${e(l.name)}: ${num(l.quantity)} ${UNIT_RU[l.unit]} × ${num(l.unitCost)} = ${num(l.total)}${l.guessedPrice ? " (цена не указана, взял среднюю)" : ""}`;
+
+export function arrivalDone(o: { location: string; lines: ArrivalLine[]; total: number }): string {
+  return [`📦 <b>Приход записан</b> на точку «${e(o.location)}»`, ...o.lines.map(arrLine), `Итого: <b>${sum(o.total)}</b>`, "Склад и средняя цена обновлены. Ошиблись? Исправить можно в админке через «Списания»."].join("\n");
+}
+
+export function arrivalFailed(errors: ArrivalError[]): string {
+  const why = (x: ArrivalError) =>
+    x.reason === "ambiguous" ? `уточните, это ${(x.candidates ?? []).map(e).join(" или ")}?`
+    : x.reason === "unit" ? `эта позиция считается в «${(x.candidates ?? []).map(e).join("")}», единица не подходит`
+    : x.reason === "unclear" ? "не понял количество и цену. Пишите так: «морковь 50 кг 6000 сум»"
+    : "нет такого ингредиента на складе";
+  return ["❌ Приход не записан.", ...errors.map((x) => `• «${e(x.raw)}»: ${why(x)}`), "", "Поправьте и отправьте сообщение целиком ещё раз."].join("\n");
+}
+
+export const arrivalMismatch = (calc: number, claimed: number, lines: ArrivalLine[]) =>
+  ["❌ Приход не записан: сумма не сходится.", ...lines.map(arrLine), `По строкам вышло ${sum(calc)}, а вы написали ${sum(claimed)}.`, "Проверьте количество и цены и отправьте ещё раз."].join("\n");
+
+export const arrivalEmpty = "Не вижу товаров в приходе. Пишите так:\n<code>приход\nморковь 50 кг 6000 сум\nимбирь 2 кг 30000 сум\nобщий: 360000</code>\nЦена за 1 кг (или за штуку); строка «общий» нужна для сверки.";
+export const arrivalDenied = "Приход записывают владелец, администратор, менеджер и кладовщик. У вашей роли такого права нет.";
+export const arrivalAskLocation = (list: { name: string }[]) => ["На какую точку пришёл товар? Добавьте в сообщение «точка» и номер, например «точка 1»:", ...list.map((l, i) => `${i + 1}. ${e(l.name)}`)].join("\n");
+export const noPos = "У вас нет доступа к кассе, продажи через бота записывать нельзя. Приход можно: напишите «приход» и товары.";
