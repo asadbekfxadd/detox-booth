@@ -950,3 +950,24 @@ model MediaFile {
   userId String?
   createdAt DateTime @default(now())
 }
+
+/// Корзина закупа, которую сотрудник собирает кнопками в Telegram (в личке или в рабочей группе) и записывает приходом одной кнопкой
+model BotDraft {
+  id String @id @default(cuid())
+  chatId String
+  /// сообщение со списком ингредиентов: по нему находим корзину при нажатии кнопки
+  messageId Int
+  userId String
+  locationId String
+  /// [{ingredientId, quantity, unitCost}] в единице склада
+  items Json @default("[]")
+  /// ингредиент, на который нажали и от которого ждём «сколько и по чём» ответом
+  pendingIngredientId String?
+  promptMessageId Int?
+  page Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([chatId, messageId])
+  @@index([createdAt])
+}
