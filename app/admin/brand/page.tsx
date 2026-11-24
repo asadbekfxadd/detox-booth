@@ -57,6 +57,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
             <select name="homeStyle" defaultValue={b.homeStyle} className={fieldClass}>
               <option value="classic">Универсальная (для любого заведения)</option>
               <option value="vitaminb">Витрина Vitamin B (фото, подборки по настроению)</option>
+              <option value="cinema">Кино: тёмная витрина, первый экран листается прокруткой (включает тёмную тему)</option>
             </select>
           </Field>
           <Field label="Заголовок (универсальная главная)"><input name="heroTitle" maxLength={80} defaultValue={b.heroTitle} placeholder="Если пусто, возьмём название" className={fieldClass} /></Field>

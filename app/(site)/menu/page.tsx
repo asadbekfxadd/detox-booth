@@ -4,6 +4,7 @@ import { listMenu, listCategories } from "@/services/catalog";
 import { ProductCard } from "@/components/site/ProductCard";
 import { FilterForm } from "@/components/admin/FilterForm";
 import { getBrand } from "@/services/brand";
+import { isShowcase } from "@/lib/brand-config";
 import { PromoBanners } from "@/components/site/PromoBanners";
 import { Icon } from "@/components/site/Icon";
 import { Page } from "@/components/site/Page";
@@ -37,7 +38,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const filtered = !!(sp.q || sp.category || sp.diet);
   const activeCat = cats.find((c) => c.slug === sp.category);
 
-  const showBanners = brand.homeStyle === "vitaminb" && !filtered && cats.some((c) => c.slug === "sets");
+  const showBanners = isShowcase(brand) && !filtered && cats.some((c) => c.slug === "sets");
 
   return (
     <Page className="space-y-6">

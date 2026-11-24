@@ -12,6 +12,8 @@ import { ProductImage } from "@/components/site/ProductImage";
 import { SpinBadge } from "@/components/site/SpinBadge";
 import { HeroCard, type HeroSlide } from "@/components/site/HeroCard";
 import { HeroVideo } from "@/components/site/HeroVideo";
+import { CinemaScene } from "@/components/site/CinemaScene";
+import { wideImageSet } from "@/lib/image-src";
 import { Lucky } from "@/components/site/Lucky";
 import { Icon, IconBadge, type IconName } from "@/components/site/Icon";
 
@@ -52,10 +54,15 @@ export default async function HomePage() {
   const cover = (catId: string) => sellable.find((p) => p.category.id === catId && p.image) ?? null;
   const setItems = sellable.filter((p) => p.category.slug === "sets").slice(0, 3);
 
+  const cinema = brand.homeStyle === "cinema";
+  // Фото для сцены «Кино»: те же позиции, что листает первый экран витрины, по порядку категорий
+  const cinemaPhotos = heroPool.slice(0, 6).map((p) => ({ ...wideImageSet(p.image!), alt: p.name }));
+
   return (
     <div>
+      {cinema && <CinemaScene name={brand.name} text={brand.heroText} photos={cinemaPhotos} place={current?.name ?? null} />}
       {/* Главный экран: солнечный круг, фото напитков, значки преимуществ */}
-      <section className="relative isolate overflow-hidden bg-cream">
+      {!cinema && <section className="relative isolate overflow-hidden bg-cream">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-14 pt-10 sm:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-6 lg:pb-20">
           <div className="hero-copy relative">
             <p className="script text-3xl text-orange-deep sm:text-4xl">Вместе вкуснее</p>
@@ -94,9 +101,9 @@ export default async function HomePage() {
             )}
           </div>
         </div>
-      </section>
+      </section>}
 
-      <div className="mx-auto max-w-6xl space-y-20 px-4 py-16 sm:space-y-28 sm:py-24">
+      <div id="cinema-next" className={`${cinema ? "cinema-next " : ""}mx-auto max-w-6xl space-y-20 px-4 py-16 sm:space-y-28 sm:py-24`}>
         {/* Выбор по настроению */}
         <section aria-labelledby="mood">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">

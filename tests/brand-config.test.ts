@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BLANK_BRAND, DEFAULT_BRAND, withNameChange, pageTitle, parseBrand, brandFromStored, brandPalette, paletteCss, parseInstagram, safeImageUrl, splitName, BrandError } from "@/lib/brand-config";
+import { BLANK_BRAND, DEFAULT_BRAND, withNameChange, pageTitle, parseBrand, brandFromStored, brandPalette, paletteCss, parseInstagram, safeImageUrl, isShowcase, isDarkSite, splitName, BrandError } from "@/lib/brand-config";
 import { contrast } from "@/lib/color";
 
 const ok = { ...DEFAULT_BRAND, ticker: DEFAULT_BRAND.ticker.join("\n"), assistant: "on" };
@@ -74,6 +74,23 @@ describe("brand config", () => {
     expect(brandPalette(b)).not.toBeNull();
     expect(brandFromStored(null, BLANK_BRAND)).toEqual(BLANK_BRAND);
     expect(brandFromStored({ name: "Cafe Nur" }, BLANK_BRAND).homeStyle).toBe("classic");
+  });
+});
+
+describe("главная «Кино»", () => {
+  const base = parseBrand({ ...BLANK_BRAND, ticker: "" });
+  it("принимает homeStyle cinema, неизвестное значение сводит к витрине", () => {
+    expect(parseBrand({ ...base, homeStyle: "cinema" }).homeStyle).toBe("cinema");
+    expect(parseBrand({ ...base, homeStyle: "zzz" }).homeStyle).toBe("vitaminb");
+  });
+  it("кино — витринный и всегда тёмный вид; классика — нет", () => {
+    const cinema = parseBrand({ ...base, homeStyle: "cinema", neon: false });
+    expect(isShowcase(cinema)).toBe(true);
+    expect(isDarkSite(cinema)).toBe(true);
+    const classic = parseBrand({ ...base, homeStyle: "classic", neon: false });
+    expect(isShowcase(classic)).toBe(false);
+    expect(isDarkSite(classic)).toBe(false);
+    expect(isDarkSite(parseBrand({ ...base, homeStyle: "vitaminb", neon: true }))).toBe(true);
   });
 });
 
