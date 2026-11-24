@@ -6,6 +6,8 @@ import { canManage } from "@/services/employees";
 import { toMessage } from "@/lib/errors";
 import { MIX_PRODUCT_NAME } from "@/lib/mix";
 import { parseSale, type MatchProduct } from "@/lib/sale-parse";
+import { isArrivalText, parseArrival, type IngUnit } from "@/lib/arrival-parse";
+import { createPurchase, receivePurchase, setPurchaseStatus } from "@/services/purchases";
 import { makeLinkToken, readLinkToken } from "@/lib/tg-link";
 import * as M from "@/lib/bot-sales-messages";
 import { closeShift, createPosOrder, getOpenShift, openShift, refundOrder, shiftSummary, type Actor } from "@/services/pos";
@@ -23,8 +25,11 @@ const UNDO_WINDOW_MS = 24 * 3600 * 1000;
 /** Сотрудник по Telegram: активный и с доступом к кассе, иначе null (обычный покупатель) */
 export async function staffFor(telegramId: string): Promise<StaffActor | null> {
   const u = await prisma.user.findFirst({ where: { telegramId, isActive: true }, select: { id: true, name: true, role: true, locationId: true } });
-  return u && can(u.role, "pos.use") ? u : null;
+  return u && botRole(u.role) ? u : null;
 }
+
+/** Кому вообще можно привязать бота: тем, кто работает с кассой (продажи) или закупками (приход) */
+export const botRole = (role: StaffActor["role"]) => can(role, "pos.use") || can(role, "purchases.manage");
 
 // ───────────── Привязка ─────────────
 
@@ -34,7 +39,7 @@ export async function issueLink(actor: Actor, userId: string): Promise<string> {
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, isActive: true, telegramId: true } });
   if (!u || !u.isActive) throw new ApiError(404, "Сотрудник не найден");
   if (!canManage(actor.role, u.role)) throw new ApiError(403, "Недостаточно прав для изменения этого сотрудника");
-  if (!can(u.role, "pos.use")) throw new ApiError(400, "У этой роли нет доступа к кассе: записывать продажи ей нельзя.");
+  if (!botRole(u.role)) throw new ApiError(400, "У этой роли нет доступа ни к кассе, ни к закупкам: записывать через бота ей нечего.");
   if (u.telegramId) throw new ApiError(400, "Telegram уже привязан. Сначала отвяжите его.");
   const me = await tgCall<{ username?: string }>("getMe");
   if (!me.ok || !me.result.username) throw new ApiError(502, "Telegram не ответил: не удалось узнать имя бота. Проверьте токен на странице «Telegram-бот».");
@@ -54,7 +59,7 @@ export async function linkStaff(token: string, telegramId: string): Promise<stri
   const userId = readLinkToken(token);
   if (!userId) return M.linkBad;
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true, isActive: true, telegramId: true } });
-  if (!u || !u.isActive || !can(u.role, "pos.use")) return M.linkBad;
+  if (!u || !u.isActive || !botRole(u.role)) return M.linkBad;
   if (u.telegramId) return M.linkTaken;
   try {
     const r = await prisma.user.updateMany({ where: { id: u.id, telegramId: null }, data: { telegramId } });
@@ -177,10 +182,55 @@ async function closeCmd(user: StaffActor, amount: string | undefined): Promise<s
   return [M.closed(s.expectedCash, counted)];
 }
 
+// ───────────── Приход ─────────────
+
+const NO_SUPPLIER = "Без поставщика";
+
+async function arrivalLocation(user: StaffActor, no: number | null): Promise<{ id: string; name: string } | { ask: string }> {
+  const active = await prisma.location.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } });
+  if (!canSwitchLocation(user.role)) {
+    const own = active.find((l) => l.id === user.locationId);
+    if (!own) throw new ApiError(403, "За вами не закреплена точка. Попросите владельца назначить её в админке.");
+    return own;
+  }
+  if (no != null) return active[no - 1] ?? { ask: M.arrivalAskLocation(active) };
+  const open = await getOpenShift(user.id);
+  const last = open?.locationId ?? (await prisma.shift.findFirst({ where: { userId: user.id }, orderBy: { openedAt: "desc" }, select: { locationId: true } }))?.locationId;
+  const pick = active.find((l) => l.id === last) ?? (active.length === 1 ? active[0] : null);
+  return pick ?? { ask: M.arrivalAskLocation(active) };
+}
+
+/** Приход текстом: всё или ничего, цена за единицу, строка «общий» сверяется с суммой по строкам */
+async function recordArrival(user: StaffActor, text: string): Promise<string[]> {
+  if (!can(user.role, "purchases.manage")) return [M.arrivalDenied];
+  const ings = (await prisma.ingredient.findMany({ select: { id: true, name: true, unit: true, avgCost: true } }))
+    .map((i) => ({ id: i.id, name: i.name, unit: i.unit as IngUnit, avgCost: Number(i.avgCost) }));
+  const p = parseArrival(text, ings);
+  if (!p.lines.length && !p.errors.length) return [M.arrivalEmpty];
+  if (p.errors.length) return [M.arrivalFailed(p.errors)];
+  if (p.mismatch && p.claimedTotal != null) return [M.arrivalMismatch(p.sum, p.claimedTotal, p.lines)];
+  const loc = await arrivalLocation(user, p.locationNo);
+  if ("ask" in loc) return [loc.ask];
+
+  const supplier = (await prisma.supplier.findFirst({ where: { name: NO_SUPPLIER }, select: { id: true } })) ?? (await prisma.supplier.create({ data: { name: NO_SUPPLIER }, select: { id: true } }));
+  const id = await createPurchase({ locationId: loc.id, supplierId: supplier.id, intent: "ordered", items: p.lines.map((l) => ({ ingredientId: l.ingredientId, quantity: l.quantity, unitCost: l.unitCost })) }, user);
+  try {
+    const items = await prisma.purchaseItem.findMany({ where: { purchaseId: id }, select: { id: true, ingredientId: true } });
+    const byIng = new Map(p.lines.map((l) => [l.ingredientId, l]));
+    await receivePurchase(id, { lines: items.map((i) => ({ itemId: i.id, quantity: byIng.get(i.ingredientId)!.quantity, unitCost: byIng.get(i.ingredientId)!.unitCost })) }, user);
+  } catch (e) {
+    await setPurchaseStatus(id, "CANCELLED", user).catch(() => undefined); // не оставляем висеть полузаписанный заказ
+    return [`❌ Не получилось записать приход: ${toMessage(e)}\nНичего не записано.`];
+  }
+  return [M.arrivalDone({ location: loc.name, lines: p.lines, total: p.lines.reduce((a, l) => a + l.total, 0) })];
+}
+
 /** Любое текстовое сообщение сотрудника: команда или запись продажи. Возвращает тексты ответов по порядку. */
 export async function handleStaffText(user: StaffActor, raw: string): Promise<string[]> {
   const t = raw.trim().toLowerCase().replace(/^[^\p{L}\d]+/u, "").replace(/\s+/g, " ");
   try {
+    if (isArrivalText(raw)) return await recordArrival(user, raw);
+    if (!can(user.role, "pos.use")) return [M.noPos];
     if (/^(отмена|отменить|undo)$/.test(t)) return await undoLast(user);
     if (/^(итог|итоги|смена|касса)( дня| смены)?$/.test(t)) return await summary(user);
     const close = /^закрыть( смену)?(?: ([\d\s.,]+))?$/.exec(t);
@@ -198,6 +248,8 @@ export async function handleStaffText(user: StaffActor, raw: string): Promise<st
 export async function handleStaffGroupText(user: StaffActor, raw: string): Promise<string[]> {
   const t = raw.trim().toLowerCase().replace(/^[^\p{L}\d]+/u, "").replace(/\s+/g, " ");
   try {
+    if (isArrivalText(raw)) return await recordArrival(user, raw);
+    if (!can(user.role, "pos.use")) return [];
     if (/^(отмена|отменить|undo)$/.test(t)) return await undoLast(user);
     if (/^(итог|итоги)$/.test(t)) return await summary(user);
     return await recordSale(user, raw, true);

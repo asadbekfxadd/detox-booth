@@ -37,10 +37,10 @@ export function stem(w: string): string {
   return w;
 }
 
-const words = (s: string) => normalize(s).split(/[^a-zа-я0-9.]+/).map((w) => w.replace(/^\.+|\.+$/g, "")).filter(Boolean);
+export const words = (s: string) => normalize(s).split(/[^a-zа-я0-9.]+/).map((w) => w.replace(/^\.+|\.+$/g, "")).filter(Boolean);
 
 /** Совпадение слова запроса со словом названия: 1 — основа та же, 0.85 — одно начинается с другого (сокращение «капуч»), иначе 0 */
-function sim(q: string, p: string): number {
+export function sim(q: string, p: string): number {
   if (q === p) return 1;
   const a = stem(q), b = stem(p);
   if (a === b) return 1;

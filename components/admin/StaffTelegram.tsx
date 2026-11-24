@@ -14,12 +14,12 @@ export function StaffTelegram({ userId, linked, canLink, issueAction, unlinkActi
   const isLinked = linked && !unl?.unlinked;
   return (
     <div className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
-      <h2 className="font-semibold">Продажи через Telegram-бота</h2>
+      <h2 className="font-semibold">Продажи и приход через Telegram-бота</h2>
       {!canLink ? (
-        <p className="text-sm text-neutral-500">У этой роли нет доступа к кассе, поэтому записывать продажи в боте она не может.</p>
+        <p className="text-sm text-neutral-500">У этой роли нет доступа ни к кассе, ни к закупкам, поэтому записывать что-либо через бота она не может.</p>
       ) : isLinked ? (
         <>
-          <p className="text-sm text-green-700">Telegram привязан. Сотрудник пишет боту, что продал («2 латте»), и продажа попадает в кассу.</p>
+          <p className="text-sm text-green-700">Telegram привязан. Сотрудник пишет боту, что продал («2 латте»), и продажа попадает в кассу. Те, у кого есть право закупок, так же записывают приход товара.</p>
           <form action={unlink}>
             <input type="hidden" name="id" value={userId} />
             <button disabled={unlinking} className="rounded-xl border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-60">{unlinking ? "Отвязываем…" : "Отвязать Telegram"}</button>
