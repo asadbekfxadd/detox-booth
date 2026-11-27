@@ -21,7 +21,7 @@ export function saleDone(o: { number: number; total: number; method: Method; lin
 export function saleFailed(errors: LineError[], understood: SaleLine[]): string {
   const why = (x: LineError) =>
     x.reason === "ambiguous" ? `уточните, это ${(x.candidates ?? []).map(e).join(" или ")}?`
-    : x.reason === "size" ? `нет такого объёма, есть: ${(x.candidates ?? []).map(e).join(", ")}`
+    : x.reason === "size" ? `${x.ml != null && x.ml < 500 ? "меньше 0.5 л не продаём" : "нет такого объёма"}, есть: ${(x.candidates ?? []).map(e).join(", ")}`
     : "не нашёл такой напиток";
   return [
     "❌ Ничего не записал.",
@@ -73,10 +73,11 @@ export const staffHelp = [
   "Просто пишите, что продали:",
   "• <code>яблочный сок</code>",
   "• <code>2 латте</code> или <code>латте 2</code>",
-  "• <code>апельсиновый фреш 0.5</code> (объём)",
+  "• <code>яблоко морковь х2</code> (х2, 2 или 2 шт — количество)",
+  "• <code>апельсиновый фреш 1 л</code> (объём, если нужен не 0.5 л)",
   "• <code>капучино, 3 американо карта</code> (несколько позиций, оплата)",
   "Без слов про оплату пишу наличными; «карта», «онлайн», «click», «payme» меняют способ.",
-  "Без объёма беру самый маленький.",
+  "Напитки продаём от 0.5 л: без объёма беру 0.5 л, меньше не бывает.",
   "",
   "Можно писать и в рабочую группу, где есть бот: ответит там же. Работают продажи, <code>отмена</code> и <code>итог</code>.",
   "",

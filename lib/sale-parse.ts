@@ -10,7 +10,7 @@ export type MatchModifier = { id: string; name: string; multiple: boolean; requi
 export type MatchProduct = { id: string; name: string; price: number; modifiers: MatchModifier[] };
 
 export type SaleLine = { productId: string; name: string; quantity: number; optionIds: string[]; optionNames: string[]; unit: number };
-export type LineError = { raw: string; reason: "unknown" | "ambiguous" | "size"; candidates?: string[] };
+export type LineError = { raw: string; reason: "unknown" | "ambiguous" | "size"; candidates?: string[]; ml?: number };
 export type ParsedSale = { method: Method; lines: SaleLine[]; errors: LineError[] };
 
 const GENERIC = new Set(["сок", "фреш", "смузи", "напиток", "кофе", "коктейль", "свежий", "свежевыжатый", "натуральный"]);
@@ -24,6 +24,12 @@ const PAY_WORDS: [Method, RegExp][] = [
   ["ONLINE", /^(онлайн|online|click|клик|payme|пейме|пэйме|перевод|переводом)$/],
   ["CASH", /^(наличными|наличка|наличные|нал|кэш|кеш|cash)$/],
 ];
+/** Напитки продаются от 0.5 л: меньший размер бот не выбирает ни по умолчанию, ни по просьбе. Если у позиции нет ни одного размера от 0.5 л (кофе 250/350, смузи 450), берём её собственные. */
+export const MIN_SALE_ML = 500;
+function sellableSizes(options: MatchOption[]): MatchOption[] {
+  const big = options.filter((o) => (mlOf(o.name) ?? Infinity) >= MIN_SALE_ML);
+  return big.length ? big : options;
+}
 const NOISE = new Set(["шт", "штуки", "штука", "штук", "порция", "порции", "порций", "по", "и"]);
 
 export const normalize = (s: string) =>
@@ -66,7 +72,9 @@ type Cooked = { name: string[]; quantity: number; ml: number | null; bad: string
 function cook(entry: string): Cooked {
   const n = normalize(entry)
     .replace(/(\d)\s*[xх×*](?![a-zа-я])/g, "$1 ")
-    .replace(/(^|[^a-zа-я])[xх×*]\s*(\d)/g, "$1$2");
+    .replace(/(^|[^a-zа-я])[xх×*]\s*(\d)/g, "$1$2")
+    // «2шт», «х2шт», «3порции» — единица приклеена к числу
+    .replace(/(\d)\s*(?:шт|штук|штуки|штука|порции|порция|порций)(?![a-zа-я])/g, "$1 ");
   const toks = n.split(/[^a-zа-я0-9.]+/).map((w) => w.replace(/^\.+|\.+$/g, "")).filter(Boolean);
   const out: string[] = [];
   let ml: number | null = null;
@@ -120,9 +128,12 @@ function evaluate(product: MatchProduct, c: Cooked): Cand | { sizeFail: string[]
   for (const m of product.modifiers) {
     if (!m.required || m.multiple || chosen.some((o) => m.options.some((x) => x.id === o.id))) continue;
     let pick: MatchOption | undefined;
-    if (c.ml != null && SIZE_MODIFIER_NAME.test(m.name)) {
-      pick = m.options.find((o) => mlOf(o.name) === c.ml);
-      if (!pick) return { sizeFail: m.options.map((o) => o.name) };
+    if (SIZE_MODIFIER_NAME.test(m.name)) {
+      const sizes = sellableSizes(m.options);
+      if (c.ml != null) {
+        pick = sizes.find((o) => mlOf(o.name) === c.ml);
+        if (!pick) return { sizeFail: sizes.map((o) => o.name) };
+      } else pick = sizes[0];
     } else pick = m.options[0];
     if (pick) { optionIds.push(pick.id); optionNames.push(pick.name); unit += pick.priceDelta; }
   }
@@ -145,7 +156,7 @@ export function matchEntry(entry: string, products: MatchProduct[]): { ok: true;
     if ("sizeFail" in r) { sizeFail ??= r.sizeFail; continue; }
     if (r.score >= MIN_SCORE) cands.push(r);
   }
-  if (!cands.length) return { ok: false, error: sizeFail ? { raw, reason: "size", candidates: sizeFail } : { raw, reason: "unknown" } };
+  if (!cands.length) return { ok: false, error: sizeFail ? { raw, reason: "size", candidates: sizeFail, ...(c.ml != null ? { ml: c.ml } : {}) } : { raw, reason: "unknown" } };
   cands.sort((a, b) => b.score - a.score);
   const top = cands[0];
   const near = cands.filter((x) => top.score - x.score < MARGIN);

@@ -21,12 +21,12 @@ describe("stem", () => {
 });
 
 describe("parseSale: одна позиция", () => {
-  it("«яблочный сок» — один, самый маленький объём, наличные", () => {
+  it("«яблочный сок» — один, 0.5 л по умолчанию (меньше не продаём), наличные", () => {
     const r = parseSale("яблочный сок", P);
     expect(r.errors).toEqual([]);
     expect(r.method).toBe("CASH");
     expect(r.lines).toHaveLength(1);
-    expect(r.lines[0]).toMatchObject({ productId: "apple", quantity: 1, optionIds: ["apple-s0"], unit: 25000 });
+    expect(r.lines[0]).toMatchObject({ productId: "apple", quantity: 1, optionIds: ["apple-s1"], unit: 35000 });
   });
   it("регистр, склонение, ё и знаки не мешают", () => {
     expect(parseSale("  Яблочного СОКА!  ", P).lines[0].productId).toBe("apple");
@@ -49,8 +49,18 @@ describe("parseSale: одна позиция", () => {
 });
 
 describe("parseSale: количество", () => {
-  it.each([["2 латте"], ["латте 2"], ["два латте"], ["латте x2"], ["2х латте"], ["латте 2 шт"]])("%s → 2", (t) => {
+  it.each([["2 латте"], ["латте 2"], ["два латте"], ["латте x2"], ["латте х2"], ["латте ×2"], ["латте *2"], ["х2 латте"], ["латте х 2"], ["2х латте"], ["латте 2 шт"], ["латте 2шт"], ["латте х2шт"]])("%s → 2", (t) => {
     expect(parseSale(t, P).lines[0]).toMatchObject({ productId: "latte", quantity: 2 });
+  });
+  it("«яблоко морковь х2» — две штуки одного сока, 0.5 л", () => {
+    const r = parseSale("яблоко морковь х2", P);
+    expect(r.errors).toEqual([]);
+    expect(r.lines).toHaveLength(1);
+    expect(r.lines[0]).toMatchObject({ productId: "cac", quantity: 2, optionNames: ["500 мл"] });
+  });
+  it("«яблоко морковь х2 карта» и «яблоко морковь 2шт 0.5»", () => {
+    expect(parseSale("яблоко морковь х2 карта", P)).toMatchObject({ method: "CARD", lines: [{ productId: "cac", quantity: 2 }] });
+    expect(parseSale("яблоко морковь 2шт 0.5", P).lines[0]).toMatchObject({ productId: "cac", quantity: 2 });
   });
   it("два числа в одной позиции — ошибка", () => {
     expect(parseSale("2 3 латте", P).errors).toHaveLength(1);
@@ -79,6 +89,26 @@ describe("parseSale: объём", () => {
   });
   it("350 мл для латте", () => {
     expect(parseSale("латте 350", P).lines[0].optionIds).toContain("latte-s1");
+  });
+  it("кофе без размеров от 0.5 л берёт свой самый маленький", () => {
+    expect(parseSale("латте", P).lines[0].optionIds).toContain("latte-s0");
+  });
+});
+
+describe("parseSale: напитки от 0.5 л", () => {
+  it("без объёма — 500 мл, с доплатой", () => {
+    const l = parseSale("яблочный сок", P).lines[0];
+    expect(l.optionNames).toEqual(["500 мл"]); expect(l.unit).toBe(35000);
+  });
+  it.each([["яблочный сок 0.3"], ["яблочный сок 300"], ["яблочный сок 300 мл"]])("%s — меньше 0.5 л не продаём", (t) => {
+    const r = parseSale(t, P);
+    expect(r.lines).toEqual([]);
+    expect(r.errors[0]).toMatchObject({ reason: "size", candidates: ["500 мл"], ml: 300 });
+  });
+  it("1 литр, если такой размер есть", () => {
+    const big: MatchProduct[] = [{ id: "j", name: "Яблочный фреш", price: 30000, modifiers: [size("j", [["500 мл", 0], ["1 л", 20000]])] }];
+    expect(parseSale("яблочный фреш 1 л", big).lines[0]).toMatchObject({ optionIds: ["j-s1"], unit: 50000 });
+    expect(parseSale("яблочный фреш", big).lines[0]).toMatchObject({ optionIds: ["j-s0"], unit: 30000 });
   });
 });
 
